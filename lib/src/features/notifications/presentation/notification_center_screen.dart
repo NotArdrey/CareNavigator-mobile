@@ -1,5 +1,6 @@
 import 'package:care_navigator_ph/src/providers/app_providers.dart';
 import 'package:care_navigator_ph/src/theme/app_theme.dart';
+import 'package:care_navigator_ph/src/widgets/app_page_header.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -161,45 +162,26 @@ class _NotificationCenterScreenState
           final unread = items.where((item) => item['is_read'] != true).length;
           return Column(
             children: [
-              Material(
-                color: Colors.white,
-                child: Padding(
-                  padding: const EdgeInsets.all(18),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        tooltip: 'Back to my care',
-                        onPressed: () => context.go('/dashboard'),
-                        icon: const Icon(Icons.arrow_back_rounded),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Notifications',
-                              style: Theme.of(context).textTheme.headlineSmall,
-                            ),
-                            Text('$unread unread'),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: 'Preferences',
-                        onPressed: _updating ? null : _preferences,
-                        icon: const Icon(Icons.tune_rounded),
-                      ),
-                      TextButton.icon(
-                        onPressed: unread == 0 || _updating
-                            ? null
-                            : () => _markAllRead(items),
-                        icon: const Icon(Icons.done_all_rounded),
-                        label: const Text('Mark all read'),
-                      ),
-                    ],
+              AppPageHeader(
+                title: 'Notifications',
+                subtitle: '$unread unread',
+                icon: Icons.notifications_rounded,
+                onBack: () => context.go('/dashboard'),
+                backTooltip: 'Back to my care',
+                actions: [
+                  IconButton(
+                    tooltip: 'Preferences',
+                    onPressed: _updating ? null : _preferences,
+                    icon: const Icon(Icons.tune_rounded),
                   ),
-                ),
+                  TextButton.icon(
+                    onPressed: unread == 0 || _updating
+                        ? null
+                        : () => _markAllRead(items),
+                    icon: const Icon(Icons.done_all_rounded),
+                    label: const Text('Mark all read'),
+                  ),
+                ],
               ),
               Expanded(
                 child: snapshot.hasError

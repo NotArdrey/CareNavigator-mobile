@@ -32,13 +32,15 @@ $demoIds = @(
   '10000000-0000-4000-8000-000000000002',
   '10000000-0000-4000-8000-000000000003',
   '10000000-0000-4000-8000-000000000004',
-  '10000000-0000-4000-8000-000000000005'
+  '10000000-0000-4000-8000-000000000005',
+  '10000000-0000-4000-8000-000000000006'
 )
 $quotedIds = ($demoIds | ForEach-Object { "'$_'" }) -join ','
 $deleteSql = @"
-delete from public.consultations where id = '60000000-0000-4000-8000-000000000001';
+delete from public.medical_records where id in ('70000000-0000-4000-8000-000000000001','70000000-0000-4000-8000-000000000002');
+delete from public.consultations where id in ('60000000-0000-4000-8000-000000000001','60000000-0000-4000-8000-000000000002','60000000-0000-4000-8000-000000000003');
 delete from public.doctor_patient_assignments where id = '50000000-0000-4000-8000-000000000001';
-delete from public.doctors where id = '30000000-0000-4000-8000-000000000001';
+delete from public.doctors where id in ('30000000-0000-4000-8000-000000000001','30000000-0000-4000-8000-000000000002');
 delete from public.patients where id = '40000000-0000-4000-8000-000000000001';
 delete from auth.users where id in ($quotedIds);
 "@
@@ -65,6 +67,7 @@ $accounts = @(
   @{ id=$demoIds[2]; email='doctor@demo.test'; first_name='Maria'; last_name='Santos' },
   @{ id=$demoIds[3]; email='patient@demo.test'; first_name='Juan'; last_name='Dela Cruz' },
   @{ id=$demoIds[4]; email='guest@demo.test'; first_name='Guest'; last_name='User' }
+  @{ id=$demoIds[5]; email='history.doctor@demo.test'; first_name='Elena'; last_name='Reyes' }
 )
 foreach ($account in $accounts) {
   $accountBody = @{

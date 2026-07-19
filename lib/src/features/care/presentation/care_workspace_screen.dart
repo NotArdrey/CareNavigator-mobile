@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:care_navigator_ph/src/models/user_profile.dart';
 import 'package:care_navigator_ph/src/providers/app_providers.dart';
 import 'package:care_navigator_ph/src/theme/app_theme.dart';
+import 'package:care_navigator_ph/src/widgets/app_page_header.dart';
 import 'package:care_navigator_ph/src/widgets/async_value_panel.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -206,54 +207,27 @@ class _WorkspaceBodyState extends ConsumerState<_WorkspaceBody> {
               color: Colors.white,
               child: Column(
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(18, 13, 18, 4),
-                    child: Row(
-                      children: [
-                        IconButton(
-                          tooltip: 'Back to dashboard',
-                          onPressed: () => context.go('/dashboard'),
-                          icon: const Icon(Icons.arrow_back_rounded),
-                        ),
-                        const SizedBox(width: 7),
-                        CircleAvatar(
-                          backgroundColor: const Color(0xFFE8F1FD),
-                          foregroundColor: AppColors.blue,
-                          child: Icon(
-                            _isDoctor
-                                ? Icons.medical_services_rounded
-                                : _isHospitalAdmin
-                                ? Icons.local_hospital_rounded
-                                : Icons.health_and_safety_rounded,
-                          ),
-                        ),
-                        const SizedBox(width: 11),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'My care workspace',
-                                style: Theme.of(context).textTheme.titleLarge,
-                              ),
-                              Text(
-                                '${widget.profile.displayName} · ${widget.profile.roleLabel}',
-                              ),
-                            ],
-                          ),
-                        ),
-                        IconButton(
-                          tooltip: 'Notifications',
-                          onPressed: () => context.go('/notifications'),
-                          icon: const Icon(Icons.notifications_outlined),
-                        ),
-                        IconButton(
-                          tooltip: 'Refresh',
-                          onPressed: _busy ? null : _load,
-                          icon: const Icon(Icons.refresh_rounded),
-                        ),
-                      ],
-                    ),
+                  AppPageHeader(
+                    title: 'My care workspace',
+                    subtitle:
+                        '${widget.profile.displayName} · ${widget.profile.roleLabel}',
+                    icon: _isDoctor
+                        ? Icons.medical_services_rounded
+                        : _isHospitalAdmin
+                        ? Icons.local_hospital_rounded
+                        : Icons.health_and_safety_rounded,
+                    actions: [
+                      IconButton(
+                        tooltip: 'Notifications',
+                        onPressed: () => context.go('/notifications'),
+                        icon: const Icon(Icons.notifications_outlined),
+                      ),
+                      IconButton(
+                        tooltip: 'Refresh',
+                        onPressed: _busy ? null : _load,
+                        icon: const Icon(Icons.refresh_rounded),
+                      ),
+                    ],
                   ),
                   TabBar(
                     isScrollable: true,
@@ -305,6 +279,7 @@ class _WorkspaceBodyState extends ConsumerState<_WorkspaceBody> {
           const Tab(icon: Icon(Icons.groups_outlined), text: 'Patients'),
           _PatientsPanel(
             items: _patients,
+            historyItems: _records,
             busy: _busy,
             onCreatePatient: _createDirectPatientAccount,
             onRecord: (patient) => _saveRecord(selectedPatient: patient),
@@ -1358,6 +1333,7 @@ class _PatientsPanel extends StatelessWidget {
   const _PatientsPanel({
     required this.items,
     required this.busy,
+    this.historyItems = const [],
     this.onCreatePatient,
     this.onRecord,
     this.onResult,
@@ -1369,6 +1345,7 @@ class _PatientsPanel extends StatelessWidget {
     this.onConsultationAttachment,
   });
   final List<JsonMap> items;
+  final List<JsonMap> historyItems;
   final bool busy;
   final VoidCallback? onCreatePatient;
   final ValueChanged<JsonMap>? onRecord;
@@ -1425,6 +1402,15 @@ class _PatientsPanel extends StatelessWidget {
                         _listText(item['existing_conditions']),
                       ),
                       _Detail('Allergies', _listText(item['allergies'])),
+                      _PatientCareHistory(
+                        items: historyItems
+                            .where(
+                              (record) =>
+                                  record['patient_id']?.toString() ==
+                                  item['id']?.toString(),
+                            )
+                            .toList(growable: false),
+                      ),
                       if (onRecord != null ||
                           onResult != null ||
                           onPrescription != null ||
@@ -1511,6 +1497,110 @@ class _PatientsPanel extends StatelessWidget {
           ),
     ],
   );
+}
+
+class _PatientCareHistory extends StatelessWidget {
+  const _PatientCareHistory({required this.items});
+
+  final List<JsonMap> items;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    margin: const EdgeInsets.only(top: 8),
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: const Color(0xFFF5F8FC),
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: const Color(0xFFDCE5EF)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Row(
+          children: [
+            Icon(Icons.history_rounded, size: 20, color: AppColors.blue),
+            SizedBox(width: 8),
+            Text(
+              'Care history across hospitals',
+              style: TextStyle(
+                color: AppColors.ink,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 5),
+        Text(
+          items.isEmpty
+              ? 'No doctor-confirmed history has been shared yet.'
+              : 'Doctor-confirmed records shared with the assigned care team.',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        if (items.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          for (var index = 0; index < items.length; index++) ...[
+            if (index > 0) const Divider(height: 18),
+            _PatientHistoryEntry(item: items[index]),
+          ],
+        ],
+      ],
+    ),
+  );
+}
+
+class _PatientHistoryEntry extends StatelessWidget {
+  const _PatientHistoryEntry({required this.item});
+
+  final JsonMap item;
+
+  @override
+  Widget build(BuildContext context) {
+    final hospital = _relation(item['hospitals'], 'hospital_name');
+    final doctor = _relation(item['doctors'], 'display_name');
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(top: 2),
+          child: Icon(Icons.local_hospital_outlined, size: 18),
+        ),
+        const SizedBox(width: 9),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                item['title']?.toString() ?? 'Medical record',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              Text(
+                [
+                  _recordDate(item['record_date']),
+                  if (hospital.isNotEmpty) hospital,
+                ].join(' · '),
+              ),
+              if (doctor.isNotEmpty)
+                Text(
+                  'Attending physician: $doctor',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              if ((item['confirmed_diagnosis']?.toString() ?? '').isNotEmpty)
+                Text(
+                  'Diagnosis: ${item['confirmed_diagnosis']}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              if ((item['treatment_plan']?.toString() ?? '').isNotEmpty)
+                Text(
+                  'Plan: ${item['treatment_plan']}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _ResultsPanel extends StatelessWidget {
@@ -4521,6 +4611,11 @@ String _dateTime(dynamic value) {
   return date == null
       ? 'Not scheduled'
       : DateFormat.yMMMd().add_jm().format(date.toLocal());
+}
+
+String _recordDate(dynamic value) {
+  final date = DateTime.tryParse(value?.toString() ?? '');
+  return date == null ? 'Date unavailable' : DateFormat.yMMMd().format(date);
 }
 
 String _dateOnlyLabel(DateTime? value) =>

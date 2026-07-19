@@ -33,11 +33,15 @@ void main() {
         RoleDestination.dashboard,
         RoleDestination.admin,
         RoleDestination.operations,
-        RoleDestination.notifications,
+        RoleDestination.profile,
       ]);
       expect(
         navigation.map((item) => item.destination),
         isNot(contains(RoleDestination.care)),
+      );
+      expect(
+        navigation.map((item) => item.destination),
+        isNot(contains(RoleDestination.notifications)),
       );
     });
 
@@ -50,6 +54,7 @@ void main() {
           RoleDestination.admin,
           RoleDestination.operations,
           RoleDestination.care,
+          RoleDestination.profile,
         ]),
       );
       expect(
@@ -64,15 +69,34 @@ void main() {
         containsAll([
           RoleDestination.dashboard,
           RoleDestination.care,
-          RoleDestination.notifications,
+          RoleDestination.profile,
         ]),
+      );
+      expect(
+        navigationForRole('doctor').map((item) => item.destination),
+        isNot(contains(RoleDestination.notifications)),
+      );
+      expect(
+        navigationForRole('doctor').map((item) => item.destination),
+        isNot(contains(RoleDestination.hospitals)),
       );
     });
 
     test('gives patients personal care navigation', () {
       expect(
         navigationForRole('patient').map((item) => item.label),
-        containsAll(['Home', 'My care', 'Records', 'Alerts']),
+        containsAll(['Home', 'My care', 'Records', 'Profile']),
+      );
+      expect(
+        navigationForRole('patient').map((item) => item.destination),
+        isNot(contains(RoleDestination.notifications)),
+      );
+    });
+
+    test('gives signed-in guests a profile for account actions', () {
+      expect(
+        navigationForRole('guest').map((item) => item.destination),
+        contains(RoleDestination.profile),
       );
     });
   });
@@ -116,6 +140,14 @@ void main() {
           isFalse,
         );
       }
+    });
+
+    test('preserves an administrator session during compact web resizing', () {
+      expect(shouldSignOutBlockedAdministrator(isWeb: true), isFalse);
+    });
+
+    test('ends a blocked administrator session in native mobile apps', () {
+      expect(shouldSignOutBlockedAdministrator(isWeb: false), isTrue);
     });
   });
 }

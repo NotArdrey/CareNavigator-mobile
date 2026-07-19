@@ -32,17 +32,7 @@ class HomeScreen extends ConsumerWidget {
                       children: [
                         const BrandMark(),
                         const Spacer(),
-                        if (isSignedIn) ...[
-                          IconButton(
-                            tooltip: 'Sign out',
-                            onPressed: () async {
-                              final router = GoRouter.of(context);
-                              await ref.read(authRepositoryProvider).signOut();
-                              router.go('/login');
-                            },
-                            icon: const Icon(Icons.logout_rounded),
-                          ),
-                        ] else ...[
+                        if (!isSignedIn) ...[
                           TextButton(
                             onPressed: () => context.go('/login'),
                             child: const Text('Sign in'),

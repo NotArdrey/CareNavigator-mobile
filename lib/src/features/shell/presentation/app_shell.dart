@@ -60,7 +60,11 @@ class AppShell extends ConsumerWidget {
           isWeb: kIsWeb,
           logicalWidth: constraints.maxWidth,
         )) {
-          return const Scaffold(body: AdminDesktopOnlyScreen(signOut: true));
+          return Scaffold(
+            body: AdminDesktopOnlyScreen(
+              signOut: shouldSignOutBlockedAdministrator(isWeb: kIsWeb),
+            ),
+          );
         }
         final adminRouteUnavailable =
             location.startsWith('/admin') &&
@@ -327,6 +331,8 @@ IconData _iconFor(
         : Icons.admin_panel_settings_outlined,
   RoleDestination.operations =>
     selected ? Icons.settings_rounded : Icons.settings_outlined,
+  RoleDestination.profile =>
+    selected ? Icons.account_circle_rounded : Icons.account_circle_outlined,
   RoleDestination.notifications =>
     selected ? Icons.notifications_rounded : Icons.notifications_outlined,
 };

@@ -5,6 +5,7 @@ import 'package:care_navigator_ph/src/providers/app_providers.dart';
 import 'package:care_navigator_ph/src/routing/role_routes.dart';
 import 'package:care_navigator_ph/src/theme/app_theme.dart';
 import 'package:care_navigator_ph/src/widgets/admin_desktop_only_screen.dart';
+import 'package:care_navigator_ph/src/widgets/app_page_header.dart';
 import 'package:care_navigator_ph/src/widgets/async_value_panel.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -42,7 +43,9 @@ class AdminOperationsScreen extends ConsumerWidget {
           return const _AccessCard();
         }
         if (!desktopPortalAvailable) {
-          return const AdminDesktopOnlyScreen(signOut: true);
+          return AdminDesktopOnlyScreen(
+            signOut: shouldSignOutBlockedAdministrator(isWeb: kIsWeb),
+          );
         }
         return _OperationsBody(profile: profile);
       },
@@ -566,31 +569,27 @@ class _OperationsBodyState extends ConsumerState<_OperationsBody> {
               color: Colors.white,
               child: Column(
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 20, 6),
-                    child: Row(
-                      children: [
-                        IconButton(
-                          tooltip: 'Back to administration',
-                          onPressed: () => context.go('/admin'),
-                          icon: const Icon(Icons.arrow_back_rounded),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            _isSuper
-                                ? 'Platform operations'
-                                : 'Hospital reports & operations',
-                            style: Theme.of(context).textTheme.headlineSmall,
-                          ),
-                        ),
-                        IconButton(
-                          tooltip: 'Refresh',
-                          onPressed: _load,
-                          icon: const Icon(Icons.refresh_rounded),
-                        ),
-                      ],
-                    ),
+                  AppPageHeader(
+                    title: _isSuper
+                        ? 'Platform operations'
+                        : 'Hospital reports & operations',
+                    subtitle:
+                        '${widget.profile.displayName} · ${widget.profile.roleLabel}',
+                    icon: Icons.monitor_heart_rounded,
+                    onBack: () => context.go('/admin'),
+                    backTooltip: 'Back to administration',
+                    actions: [
+                      IconButton(
+                        tooltip: 'Notifications',
+                        onPressed: () => context.go('/notifications'),
+                        icon: const Icon(Icons.notifications_outlined),
+                      ),
+                      IconButton(
+                        tooltip: 'Refresh',
+                        onPressed: _load,
+                        icon: const Icon(Icons.refresh_rounded),
+                      ),
+                    ],
                   ),
                   TabBar(isScrollable: true, tabs: tabs),
                 ],

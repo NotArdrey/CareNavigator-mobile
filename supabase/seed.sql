@@ -36,6 +36,7 @@ update public.users set role_id=(select id from public.roles where role_name='ho
 update public.users set role_id=(select id from public.roles where role_name='doctor'), first_name='Maria', last_name='Santos', email='doctor@demo.test', account_status='active', hospital_id='20000000-0000-4000-8000-000000000001', mobile_number='09170000003' where auth_user_id='10000000-0000-4000-8000-000000000003';
 update public.users set role_id=(select id from public.roles where role_name='patient'), first_name='Juan', last_name='Dela Cruz', email='patient@demo.test', account_status='active', hospital_id='20000000-0000-4000-8000-000000000001', mobile_number='09170000004', birth_date='1994-06-15', sex='male', address='City of San Fernando, Pampanga' where auth_user_id='10000000-0000-4000-8000-000000000004';
 update public.users set role_id=(select id from public.roles where role_name='guest'), first_name='Guest', last_name='User', email='guest@demo.test', account_status='active', hospital_id=null where auth_user_id='10000000-0000-4000-8000-000000000005';
+update public.users set role_id=(select id from public.roles where role_name='doctor'), first_name='Elena', last_name='Reyes', email='history.doctor@demo.test', account_status='active', hospital_id='20000000-0000-4000-8000-000000000002', mobile_number='09170000006' where auth_user_id='10000000-0000-4000-8000-000000000006';
 
 -- Common departments and services. These are demo offerings, not assertions of
 -- current real-time service availability.
@@ -98,8 +99,10 @@ where hospital.id::text like '20000000-0000-4000-8000-%'
 on conflict (hospital_id, facility_type) do update set status=excluded.status, available_units=excluded.available_units, notes=excluded.notes, last_updated=now();
 
 insert into public.doctors (id, user_id, hospital_id, department_id, display_name, specialization, license_number, availability_status, consultation_fee, biography, created_by_admin)
-values ('30000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000003', '20000000-0000-4000-8000-000000000001', (select id from public.hospital_departments where hospital_id='20000000-0000-4000-8000-000000000001' and department_name='Internal Medicine'), 'Dr. Maria Santos', 'Internal Medicine', 'DEMO-PHYSICIAN-001', 'available', 500, 'Synthetic clinician profile for demonstrations only.', '10000000-0000-4000-8000-000000000002')
-on conflict (id) do update set department_id=excluded.department_id, availability_status=excluded.availability_status, consultation_fee=excluded.consultation_fee;
+values
+  ('30000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000003', '20000000-0000-4000-8000-000000000001', (select id from public.hospital_departments where hospital_id='20000000-0000-4000-8000-000000000001' and department_name='Internal Medicine'), 'Dr. Maria Santos', 'Internal Medicine', 'DEMO-PHYSICIAN-001', 'available', 500, 'Synthetic clinician profile for demonstrations only.', '10000000-0000-4000-8000-000000000002'),
+  ('30000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000006', '20000000-0000-4000-8000-000000000002', (select id from public.hospital_departments where hospital_id='20000000-0000-4000-8000-000000000002' and department_name='Internal Medicine'), 'Dr. Elena Reyes', 'Internal Medicine', 'DEMO-PHYSICIAN-002', 'available', 450, 'Synthetic clinician used for cross-hospital history demonstrations.', '10000000-0000-4000-8000-000000000002')
+on conflict (id) do update set department_id=excluded.department_id, availability_status=excluded.availability_status, consultation_fee=excluded.consultation_fee, biography=excluded.biography;
 
 insert into public.doctor_schedules (doctor_id, day_of_week, starts_at, ends_at, consultation_type, slot_minutes)
 select '30000000-0000-4000-8000-000000000001', day, '09:00', '16:00', kind, 30
@@ -115,7 +118,22 @@ values ('50000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-0000000
 on conflict (id) do update set ended_at=null, notes=excluded.notes;
 
 insert into public.consultations (id, patient_id, doctor_id, hospital_id, department_id, consultation_type, appointment_date, status, chief_complaint)
-values ('60000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000001', (select id from public.hospital_departments where hospital_id='20000000-0000-4000-8000-000000000001' and department_name='Internal Medicine'), 'face_to_face', date_trunc('day', now()) + interval '2 days 10 hours', 'scheduled', 'Demo follow-up for blood pressure monitoring')
-on conflict (id) do update set appointment_date=excluded.appointment_date, status='scheduled', chief_complaint=excluded.chief_complaint;
+values
+  ('60000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000001', (select id from public.hospital_departments where hospital_id='20000000-0000-4000-8000-000000000001' and department_name='Internal Medicine'), 'face_to_face', date_trunc('day', now()) + interval '2 days 10 hours', 'scheduled', 'Demo follow-up for blood pressure monitoring'),
+  ('60000000-0000-4000-8000-000000000002', '40000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000002', (select id from public.hospital_departments where hospital_id='20000000-0000-4000-8000-000000000002' and department_name='Internal Medicine'), 'face_to_face', date_trunc('day', now()) - interval '7 months' + interval '9 hours', 'completed', 'Persistent cough and wheezing'),
+  ('60000000-0000-4000-8000-000000000003', '40000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000002', (select id from public.hospital_departments where hospital_id='20000000-0000-4000-8000-000000000002' and department_name='Internal Medicine'), 'face_to_face', date_trunc('day', now()) - interval '14 months' + interval '14 hours', 'completed', 'Annual blood pressure assessment')
+on conflict (id) do update set appointment_date=excluded.appointment_date, status=excluded.status, chief_complaint=excluded.chief_complaint;
+
+insert into public.medical_records (
+  id, patient_id, doctor_id, hospital_id, consultation_id, record_type, title,
+  description, confirmed_diagnosis, treatment_plan, record_date, confirmed_by
+)
+values
+  ('70000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000002', '60000000-0000-4000-8000-000000000002', 'consultation_summary', 'Respiratory consultation', 'Cross-hospital record from a completed outpatient consultation.', 'Mild persistent asthma', 'Start controller inhaler and return for reassessment.', (current_date - interval '7 months')::date, '30000000-0000-4000-8000-000000000002'),
+  ('70000000-0000-4000-8000-000000000002', '40000000-0000-4000-8000-000000000001', '30000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000002', '60000000-0000-4000-8000-000000000003', 'consultation_summary', 'Hypertension follow-up', 'Previous-hospital record shared with the current care team.', 'Essential hypertension', 'Continue maintenance medicine, home BP log, and low-sodium diet.', (current_date - interval '14 months')::date, '30000000-0000-4000-8000-000000000002')
+on conflict (id) do update set
+  title=excluded.title, description=excluded.description,
+  confirmed_diagnosis=excluded.confirmed_diagnosis,
+  treatment_plan=excluded.treatment_plan, record_date=excluded.record_date;
 
 commit;

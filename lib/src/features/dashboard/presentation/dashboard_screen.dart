@@ -1,6 +1,7 @@
 import 'package:care_navigator_ph/src/models/user_profile.dart';
 import 'package:care_navigator_ph/src/providers/app_providers.dart';
 import 'package:care_navigator_ph/src/theme/app_theme.dart';
+import 'package:care_navigator_ph/src/widgets/app_page_header.dart';
 import 'package:care_navigator_ph/src/widgets/async_value_panel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -46,67 +47,37 @@ class _RoleDashboard extends ConsumerWidget {
 
     return CustomScrollView(
       slivers: [
-        SliverPadding(
-          padding: EdgeInsets.fromLTRB(horizontal, 28, horizontal, 18),
-          sliver: SliverToBoxAdapter(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CircleAvatar(
-                  radius: 27,
-                  backgroundColor: AppColors.mint,
-                  foregroundColor: AppColors.teal,
-                  child: Text(
-                    profile.displayName.characters.first.toUpperCase(),
-                    style: const TextStyle(
-                      fontSize: 21,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Hello, ${profile.displayName}',
-                        style: Theme.of(context).textTheme.headlineMedium,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${profile.roleLabel} • ${_pretty(profile.accountStatus)} account',
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'Notifications',
-                  onPressed: () => context.go('/notifications'),
-                  icon: const Icon(Icons.notifications_outlined),
-                ),
-                if (profile.role == 'patient')
-                  IconButton(
-                    tooltip: 'Edit profile',
-                    onPressed: () => _editPatientProfile(context, ref, profile),
-                    icon: const Icon(Icons.manage_accounts_outlined),
-                  ),
-                IconButton(
-                  tooltip: 'Sign out',
-                  onPressed: () async {
-                    final router = GoRouter.of(context);
-                    await ref.read(authRepositoryProvider).signOut();
-                    router.go('/login');
-                  },
-                  icon: const Icon(Icons.logout_rounded),
-                ),
-              ],
+        SliverToBoxAdapter(
+          child: AppPageHeader(
+            title: 'Hello, ${profile.displayName}',
+            subtitle:
+                '${profile.roleLabel} · ${_pretty(profile.accountStatus)} account',
+            leading: CircleAvatar(
+              backgroundColor: AppColors.mint,
+              foregroundColor: AppColors.teal,
+              child: Text(
+                profile.displayName.characters.first.toUpperCase(),
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
             ),
+            actions: [
+              IconButton(
+                tooltip: 'Notifications',
+                onPressed: () => context.go('/notifications'),
+                icon: const Icon(Icons.notifications_outlined),
+              ),
+              if (profile.role == 'patient')
+                IconButton(
+                  tooltip: 'Edit profile',
+                  onPressed: () => _editPatientProfile(context, ref, profile),
+                  icon: const Icon(Icons.manage_accounts_outlined),
+                ),
+            ],
           ),
         ),
         if (isAdministrator)
           SliverPadding(
-            padding: EdgeInsets.fromLTRB(horizontal, 0, horizontal, 18),
+            padding: EdgeInsets.fromLTRB(horizontal, 18, horizontal, 18),
             sliver: SliverToBoxAdapter(
               child: Align(
                 alignment: Alignment.centerLeft,
@@ -119,7 +90,12 @@ class _RoleDashboard extends ConsumerWidget {
             ),
           ),
         SliverPadding(
-          padding: EdgeInsets.fromLTRB(horizontal, 0, horizontal, 36),
+          padding: EdgeInsets.fromLTRB(
+            horizontal,
+            isAdministrator ? 0 : 18,
+            horizontal,
+            36,
+          ),
           sliver: SliverGrid.builder(
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: width >= 1180

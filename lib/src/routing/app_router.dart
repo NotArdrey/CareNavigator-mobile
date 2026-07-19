@@ -12,6 +12,7 @@ import 'package:care_navigator_ph/src/features/hospitals/presentation/hospital_d
 import 'package:care_navigator_ph/src/features/hospitals/presentation/hospital_list_screen.dart';
 import 'package:care_navigator_ph/src/features/hospitals/presentation/hospital_map_screen.dart';
 import 'package:care_navigator_ph/src/features/notifications/presentation/notification_center_screen.dart';
+import 'package:care_navigator_ph/src/features/profile/presentation/profile_screen.dart';
 import 'package:care_navigator_ph/src/features/shell/presentation/app_shell.dart';
 import 'package:care_navigator_ph/src/providers/app_providers.dart';
 import 'package:flutter/material.dart';
@@ -108,6 +109,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 ? '/login?redirect=${Uri.encodeComponent(state.uri.toString())}'
                 : null,
             builder: (context, state) => const CareWorkspaceScreen(),
+          ),
+          GoRoute(
+            path: '/profile',
+            redirect: (context, state) =>
+                ref.read(authRepositoryProvider).currentSession == null
+                ? '/login?redirect=${Uri.encodeComponent(state.uri.toString())}'
+                : null,
+            builder: (context, state) => const ProfileScreen(),
           ),
           GoRoute(
             path: '/messages/:conversationId',

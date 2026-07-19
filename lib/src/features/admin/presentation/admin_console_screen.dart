@@ -6,6 +6,7 @@ import 'package:care_navigator_ph/src/repositories/admin_repository.dart';
 import 'package:care_navigator_ph/src/routing/role_routes.dart';
 import 'package:care_navigator_ph/src/theme/app_theme.dart';
 import 'package:care_navigator_ph/src/widgets/admin_desktop_only_screen.dart';
+import 'package:care_navigator_ph/src/widgets/app_page_header.dart';
 import 'package:care_navigator_ph/src/widgets/async_value_panel.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -41,7 +42,9 @@ class AdminConsoleScreen extends ConsumerWidget {
           return const _AccessMessage(title: 'Administrator access required');
         }
         if (!desktopPortalAvailable) {
-          return const AdminDesktopOnlyScreen(signOut: true);
+          return AdminDesktopOnlyScreen(
+            signOut: shouldSignOutBlockedAdministrator(isWeb: kIsWeb),
+          );
         }
         final body = profile.role == 'super_admin'
             ? const _SuperAdminPanel()
@@ -66,43 +69,22 @@ class _AdminFrame extends StatelessWidget {
   Widget build(BuildContext context) => SafeArea(
     child: Column(
       children: [
-        Material(
-          color: Colors.white,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
-            child: Row(
-              children: [
-                IconButton(
-                  tooltip: 'Back to dashboard',
-                  onPressed: () => context.go('/dashboard'),
-                  icon: const Icon(Icons.arrow_back_rounded),
-                ),
-                const SizedBox(width: 8),
-                const Icon(
-                  Icons.admin_panel_settings_rounded,
-                  color: AppColors.blue,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Administration',
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      Text('${profile.displayName} · ${profile.roleLabel}'),
-                    ],
-                  ),
-                ),
-                OutlinedButton.icon(
-                  onPressed: () => context.go('/admin/operations'),
-                  icon: const Icon(Icons.monitor_heart_outlined),
-                  label: const Text('Reports & operations'),
-                ),
-              ],
+        AppPageHeader(
+          title: 'Administration',
+          subtitle: '${profile.displayName} · ${profile.roleLabel}',
+          icon: Icons.admin_panel_settings_rounded,
+          actions: [
+            IconButton(
+              tooltip: 'Notifications',
+              onPressed: () => context.go('/notifications'),
+              icon: const Icon(Icons.notifications_outlined),
             ),
-          ),
+            OutlinedButton.icon(
+              onPressed: () => context.go('/admin/operations'),
+              icon: const Icon(Icons.monitor_heart_outlined),
+              label: const Text('Reports & operations'),
+            ),
+          ],
         ),
         Expanded(child: child),
       ],
