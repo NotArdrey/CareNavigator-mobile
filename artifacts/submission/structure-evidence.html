@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CareNavigatorPH Project Structure</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; width: 1440px; height: 1000px; overflow: hidden;
+      color: #122b49; background: #f3f7fc;
+      font-family: "Segoe UI", Arial, sans-serif;
+    }
+    header {
+      padding: 34px 54px 25px; background: white;
+      border-bottom: 1px solid #d7e3f1;
+    }
+    h1 { margin: 0; font-size: 32px; letter-spacing: -.7px; }
+    header p { margin: 7px 0 0; color: #637893; font-size: 16px; }
+    main { display: grid; grid-template-columns: 1.2fr .8fr; gap: 24px; padding: 32px 54px; }
+    .panel {
+      background: white; border: 1px solid #d6e2ef;
+      border-radius: 18px; overflow: hidden;
+    }
+    .bar {
+      padding: 15px 21px; color: white; background: #173d69;
+      font-weight: 700; letter-spacing: .2px;
+    }
+    pre {
+      margin: 0; padding: 21px 28px 24px;
+      color: #d9e5f0; background: #101923;
+      font: 17px/1.37 Consolas, "Courier New", monospace;
+      white-space: pre-wrap;
+    }
+    .details { padding: 20px; }
+    .item {
+      display: grid; grid-template-columns: 46px 1fr; gap: 13px;
+      padding: 15px 13px; border-bottom: 1px solid #e3ebf4;
+    }
+    .item:last-child { border-bottom: 0; }
+    .icon {
+      width: 42px; height: 42px; border-radius: 12px;
+      display: grid; place-items: center; color: #1d67c9;
+      background: #eaf3ff; font-size: 20px; font-weight: 800;
+    }
+    h2 { margin: 1px 0 4px; font-size: 17px; }
+    p { margin: 0; color: #637893; font-size: 14px; line-height: 1.4; }
+    .footer {
+      margin-top: 20px; padding: 14px 17px; color: #087c72;
+      background: #e6f7f4; border-radius: 12px; font-weight: 650;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Flutter project folder structure</h1>
+    <p>Feature-first organization with shared models, repositories, routing, theme, widgets, assets, tests, and backend services.</p>
+  </header>
+  <main>
+    <section class="panel">
+      <div class="bar">E:\Codes\CareNavigatorPH</div>
+      <pre>CareNavigatorPH/
+├── android/                 Android platform project
+├── ios/                     iOS platform project
+├── assets/
+│   ├── config/
+│   └── images/hospitals/
+├── lib/
+│   ├── main.dart
+│   └── src/
+│       ├── app.dart
+│       ├── config/
+│       ├── features/
+│       │   ├── assessment/
+│       │   ├── auth/
+│       │   ├── care/
+│       │   ├── consultation/
+│       │   ├── home/
+│       │   ├── hospitals/
+│       │   ├── notifications/
+│       │   └── profile/
+│       ├── models/
+│       ├── providers/
+│       ├── repositories/
+│       ├── routing/
+│       ├── theme/
+│       └── widgets/
+├── supabase/
+│   ├── functions/
+│   ├── migrations/
+│   └── tests/
+├── test/
+├── web/
+├── pubspec.yaml
+└── README.md</pre>
+    </section>
+    <aside class="panel details">
+      <div class="item"><div class="icon">F</div><div><h2>Feature modules</h2><p>Each major workflow keeps its presentation code in a dedicated feature folder.</p></div></div>
+      <div class="item"><div class="icon">M</div><div><h2>Models</h2><p>Typed objects represent hospitals, assessments, users, and care data.</p></div></div>
+      <div class="item"><div class="icon">R</div><div><h2>Repositories & services</h2><p>Data access and Supabase operations are separated from the screens.</p></div></div>
+      <div class="item"><div class="icon">↗</div><div><h2>Routing</h2><p>GoRouter defines the connected public, patient, doctor, and admin screens.</p></div></div>
+      <div class="item"><div class="icon">W</div><div><h2>Reusable UI</h2><p>Shared widgets and the application theme maintain consistent presentation.</p></div></div>
+      <div class="footer">✓ The structure supports clean coding, reuse, testing, and continued semester development.</div>
+    </aside>
+  </main>
+</body>
+</html>

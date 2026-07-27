@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>CareNavigatorPH Development Progress Documentation</title>
+  <style>
+    @page { size: A4; margin: 12mm 13mm 13mm; }
+    * { box-sizing: border-box; }
+    html { background: #dfe7f1; }
+    body {
+      margin: 0 auto;
+      color: #122b49;
+      background: white;
+      font-family: Aptos, "Segoe UI", Arial, sans-serif;
+      font-size: 10.2pt;
+      line-height: 1.36;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .page {
+      min-height: 267mm;
+      position: relative;
+      page-break-after: always;
+      break-after: page;
+      overflow: hidden;
+    }
+    .page:last-child { page-break-after: auto; break-after: auto; }
+    .running {
+      display: flex;
+      justify-content: space-between;
+      padding-bottom: 7px;
+      margin-bottom: 17px;
+      color: #1d67c9;
+      border-bottom: 1px solid #d6e2ef;
+      font-size: 7.8pt;
+      font-weight: 750;
+      letter-spacing: .55px;
+      text-transform: uppercase;
+    }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { margin-bottom: 10px; font-size: 21pt; letter-spacing: -.5px; line-height: 1.12; }
+    h2 { margin: 13px 0 5px; color: #1d67c9; font-size: 13pt; }
+    h3 { margin: 10px 0 4px; font-size: 10.5pt; }
+    p { margin-bottom: 7px; }
+    ul { margin: 4px 0 8px; padding-left: 20px; }
+    li { margin: 0 0 4px; }
+    .eyebrow {
+      color: #008f83;
+      font-size: 9pt;
+      font-weight: 800;
+      letter-spacing: .75px;
+      text-transform: uppercase;
+    }
+    .muted { color: #5a6f89; }
+    .small { font-size: 8.5pt; }
+    .center { text-align: center; }
+    .hero {
+      margin-top: 14px;
+      padding: 23px 26px;
+      background: linear-gradient(135deg, #eaf3ff, #e6f7f4);
+      border: 1px solid #cfe0f2;
+      border-radius: 18px;
+      text-align: center;
+    }
+    .hero strong { display: block; margin-bottom: 9px; color: #1d67c9; font-size: 11pt; }
+    .sdg { margin-top: 13px; color: #008f83; font-weight: 800; }
+    .meta { width: 100%; margin-top: 21px; border-collapse: collapse; }
+    .meta th, .meta td { padding: 6px 8px; text-align: left; border-bottom: 1px solid #e1e9f2; }
+    .meta th { width: 25%; color: #5a6f89; font-size: 8.5pt; text-transform: uppercase; }
+    .snapshot { margin-top: 34px; }
+    .box {
+      padding: 12px 14px;
+      border: 1px solid #d6e2ef;
+      border-radius: 11px;
+      background: #f8fbff;
+    }
+    .bluebox { background: #eaf3ff; border-color: #cbdff6; }
+    .tealbox { background: #e6f7f4; border-color: #cceae5; }
+    .amberbox { background: #fff7e2; border-color: #f0dca8; }
+    .redbox { background: #ffefed; border-color: #f2c9c3; }
+    table.grid { width: 100%; border-collapse: collapse; margin: 7px 0 10px; }
+    .grid th, .grid td { padding: 8px 9px; border: 1px solid #d6e2ef; vertical-align: top; }
+    .grid th { color: white; background: #1d67c9; font-size: 8.4pt; text-align: left; }
+    .grid tr:nth-child(even) td { background: #f1f7ff; }
+    .feature td:first-child { width: 6%; color: #1d67c9; font-weight: 800; text-align: center; }
+    .feature td:nth-child(2) { width: 25%; font-weight: 700; }
+    .sdg-card {
+      display: grid; grid-template-columns: 85px 1fr;
+      margin-top: 10px; overflow: hidden; border-radius: 12px;
+    }
+    .sdg-number {
+      display: grid; place-items: center; color: white;
+      background: #1d67c9; font-size: 23pt; font-weight: 850; text-align: center;
+    }
+    .sdg-copy { padding: 12px 15px; background: #eaf3ff; }
+    .flow { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin: 9px 0 13px; }
+    .step { min-height: 125px; padding: 0 8px 9px; background: #eaf3ff; border-radius: 8px; font-size: 8.2pt; }
+    .step:nth-child(even) { background: #e6f7f4; }
+    .step b {
+      display: block; margin: 0 -8px 8px; padding: 7px 6px;
+      color: white; background: #1d67c9; border-radius: 8px 8px 0 0;
+      text-align: center; font-size: 8pt;
+    }
+    .image { display: block; max-width: 100%; max-height: 180mm; margin: 7px auto 9px; object-fit: contain; }
+    .image.wide { max-height: 158mm; }
+    .image.short { max-height: 105mm; }
+    .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; align-items: start; margin-top: 8px; }
+    figure { margin: 0; }
+    figure img { display: block; max-width: 100%; max-height: 151mm; margin: 0 auto; object-fit: contain; }
+    figcaption { min-height: 62px; padding: 9px 10px; background: #eaf3ff; border-radius: 0 0 9px 9px; font-size: 8.4pt; }
+    figure:nth-child(2) figcaption { background: #e6f7f4; }
+    .widepair figure img { max-height: 82mm; }
+    .route td:first-child { width: 17%; color: #1d67c9; font-weight: 750; }
+    .route td:nth-child(2) { width: 25%; font-weight: 650; }
+    .repo-link { margin: 8px 0 10px; text-align: center; font-size: 12pt; font-weight: 750; }
+    .repo-link a { color: #1d67c9; }
+    .reflection { padding: 17px 19px; background: #eaf3ff; border: 1px solid #cbdff6; border-radius: 12px; font-size: 11pt; }
+    .checklist { width: 100%; border-collapse: collapse; margin-top: 7px; }
+    .checklist td { padding: 7px 9px; border-bottom: 1px solid #dce6f0; }
+    .checklist td:first-child { width: 7%; color: #008f83; font-size: 12pt; font-weight: 850; text-align: center; }
+    .checklist td:nth-child(2) { width: 52%; }
+    .checklist td:last-child { color: #5a6f89; font-size: 8.8pt; }
+    .checklist tr:last-child { background: #fff7e2; }
+    .checklist tr:last-child td:first-child { color: #a66500; }
+    .footer-note {
+      position: absolute; left: 0; right: 0; bottom: 0;
+      padding-top: 7px; color: #71849a; border-top: 1px solid #d6e2ef;
+      font-size: 7.5pt; text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <section class="page">
+    <div class="running"><span>Advanced Mobile Programming</span><span>Development Progress Documentation</span></div>
+    <div class="eyebrow">Development progress · revised proposal</div>
+    <h1 style="font-size:34pt;margin:15px 0 2px;">CareNavigatorPH</h1>
+    <p style="color:#1d67c9;font-size:16pt;font-weight:750;">From health uncertainty to verified, clinician-reviewed care.</p>
+    <div class="hero">
+      <strong>REVISED APPLICATION CONCEPT</strong>
+      Patients can securely view their confirmed medical records. Doctors can upload or scan medical results, receive preliminary AI-assisted findings, review or correct them, and save confirmed information to the official patient record.
+      <div class="sdg">SDG 3 · Good Health and Well-Being</div>
+    </div>
+    <table class="meta">
+      <tr><th>Student</th><td>Neil Ardrey Laza</td></tr>
+      <tr><th>Course / Section</th><td>Advanced Mobile Programming / __________</td></tr>
+      <tr><th>Instructor</th><td>____________________________</td></tr>
+      <tr><th>Date</th><td>26 July 2026</td></tr>
+      <tr><th>Repository</th><td>github.com/NotArdrey/CareNavigatorPH</td></tr>
+    </table>
+    <div class="snapshot">
+      <div class="eyebrow">Submission contents</div>
+      <p style="font-size:11.5pt;">Revised proposal · SDG alignment · revised workflow/mockup · development environment · project structure · initial screens · working navigation · GitHub repository and commits · 100–150 word reflection</p>
+    </div>
+    <div class="footer-note">CareNavigatorPH · Neil Ardrey Laza</div>
+  </section>
+
+  <section class="page">
+    <div class="running"><span>CareNavigatorPH</span><span>1 · Revised Proposal</span></div>
+    <h1>1. Revised Project Proposal</h1>
+    <h2>Application concept</h2>
+    <p>CareNavigatorPH is a Flutter healthcare-navigation and care-record application designed for the Philippine setting. It helps users find verified hospitals, understand where to seek care, request consultations, and keep confirmed health information accessible. The revised concept expands the original proposal by connecting the patient and doctor workflows: a patient can view their own confirmed medical records, while an assigned doctor can upload or scan a medical result, review preliminary AI-assisted findings, and save clinically confirmed information.</p>
+    <h2>Problem being addressed</h2>
+    <p>Patients often receive medical documents from different facilities and may not have one secure place to review them. Doctors also spend time reading result files and transferring verified findings into patient records. Fragmented information can delay follow-up care, cause repeated tests, and make it harder for patients to understand their care history.</p>
+    <h2>Feedback incorporated from Week 1</h2>
+    <table class="grid">
+      <tr><th>Revision</th><th>How it changes the application</th></tr>
+      <tr><td><b>Patient record access</b></td><td>Patients can see their own doctor-confirmed diagnoses, medical records, results, treatment plans, and prescriptions through role-protected access.</td></tr>
+      <tr><td><b>Doctor result scanning</b></td><td>Doctors can upload a result image or document, run preliminary analysis, review possible findings, confirm or reject the output, and optionally save the confirmed finding to the patient record.</td></tr>
+    </table>
+    <h2>Objectives</h2>
+    <ul>
+      <li>Give patients secure and understandable access to their confirmed medical history.</li>
+      <li>Support doctors in reviewing uploaded medical results without removing professional judgment.</li>
+      <li>Connect assessment, hospital discovery, consultation, medical results, and records in one application.</li>
+      <li>Protect clinical information through role-based access, consent controls, and clinician confirmation.</li>
+    </ul>
+    <h2>Target users</h2>
+    <p>Primary users are Filipino patients, caregivers, and doctors. Secondary users include hospital administrators who manage hospital operations and platform administrators who maintain approved facilities and system settings without unrestricted access to clinical records.</p>
+    <div class="footer-note">Revised Project Proposal</div>
+  </section>
+
+  <section class="page">
+    <div class="running"><span>CareNavigatorPH</span><span>1 · Features and SDG</span></div>
+    <h1>Revised Features and SDG Alignment</h1>
+    <table class="grid feature">
+      <tr><th>#</th><th>Core feature</th><th>Description</th></tr>
+      <tr><td>01</td><td>Hospital navigation</td><td>Search verified hospitals by location, level, service, emergency availability, beds, and rooms.</td></tr>
+      <tr><td>02</td><td>Symptom guidance</td><td>Provide preliminary urgency and care-direction guidance with visible emergency warnings.</td></tr>
+      <tr><td>03</td><td>Consultation workflow</td><td>Request, schedule, and track professional consultations, messages, and follow-ups.</td></tr>
+      <tr><td>04</td><td>Patient medical records</td><td>Allow patients to review only their own authorized and doctor-confirmed clinical information.</td></tr>
+      <tr><td>05</td><td>Doctor result scanning</td><td>Upload an image or document, extract or analyze relevant information, then present preliminary possible findings.</td></tr>
+      <tr><td>06</td><td>Clinical confirmation</td><td>Require a licensed doctor to review, modify, confirm, or reject AI output before saving an official record.</td></tr>
+    </table>
+    <h2>Sustainable Development Goal</h2>
+    <div class="sdg-card">
+      <div class="sdg-number">SDG<br>3</div>
+      <div class="sdg-copy"><b>GOOD HEALTH AND WELL-BEING</b><br>The project supports Target 3.8 on access to quality essential healthcare services. It reduces barriers to finding suitable facilities, promotes timely professional care, and helps patients maintain access to confirmed health information.</div>
+    </div>
+    <h2>Scope, safety, and privacy boundaries</h2>
+    <ul>
+      <li>AI output is preliminary and may identify possible findings; it is not an independent diagnosis.</li>
+      <li>Only an assigned licensed doctor may confirm findings and save them as an official record.</li>
+      <li>Patients can view their own authorized records; administrative roles do not automatically receive clinical access.</li>
+      <li>Emergency warning signs direct users to call 911 or go to the nearest emergency room.</li>
+    </ul>
+    <h2>Revised success criteria</h2>
+    <p>A successful prototype lets a patient reach their confirmed records, lets a doctor upload and review a result, clearly distinguishes preliminary output from a diagnosis, and saves only doctor-confirmed information to the correct patient profile.</p>
+    <div class="footer-note">SDG 3 · Good Health and Well-Being</div>
+  </section>
+
+  <section class="page">
+    <div class="running"><span>CareNavigatorPH</span><span>2 · Revised Workflow</span></div>
+    <h1>2. Revised Workflow and Mockup Evidence</h1>
+    <h2>Doctor-to-patient record flow</h2>
+    <div class="flow">
+      <div class="step"><b>1 · UPLOAD</b>Doctor selects the patient and uploads a JPG, PNG, WebP, or reviewed-text result.</div>
+      <div class="step"><b>2 · ANALYZE</b>The application returns a preliminary summary and possible findings.</div>
+      <div class="step"><b>3 · REVIEW</b>The doctor compares the output with the original result and clinical context.</div>
+      <div class="step"><b>4 · SAVE</b>The doctor confirms or rejects the findings and may save an official record.</div>
+      <div class="step"><b>5 · VIEW</b>The patient securely views the confirmed result and record in My Care.</div>
+    </div>
+    <h2>Updated screen evidence</h2>
+    <div class="pair widepair">
+      <figure>
+        <img src="../browser/doctor-patients-history-details.png" alt="Doctor care workspace">
+        <figcaption><b>DOCTOR CARE WORKSPACE</b><br>Role-specific navigation includes Patients, Result review, Records, and Clinical. The patient panel displays doctor-confirmed care history across hospitals.</figcaption>
+      </figure>
+      <figure>
+        <img src="../browser/assessment-result-mobile-check.png" alt="Patient symptom navigator">
+        <figcaption><b>PATIENT-FACING GUIDANCE</b><br>The mobile interface uses plain language, emergency warnings, structured inputs, and persistent navigation to Home, Hospitals, Consult, and My Care.</figcaption>
+      </figure>
+    </div>
+    <h2>Revision rationale</h2>
+    <p>The revised flow improves continuity: information does not stop at a scan result. A doctor remains responsible for clinical interpretation, the confirmed result can become part of the official record, and the patient can later review that record. This supports transparency while limiting unsafe reliance on automated output.</p>
+    <div class="box tealbox small"><b>Mockup status:</b> the report uses implemented responsive screens as the updated mockup evidence. The clinical workspace visibly separates patients, result review, official records, and other doctor actions.</div>
+    <div class="footer-note">Revised doctor and patient workflow</div>
+  </section>
+
+  <section class="page">
+    <div class="running"><span>CareNavigatorPH</span><span>3 · Environment</span></div>
+    <h1>3. Development Environment</h1>
+    <img class="image wide" src="environment-evidence.png" alt="Flutter development environment evidence">
+    <div class="box bluebox"><b>Verification result.</b> Flutter 3.44.1, Dart 3.12.1, Java 21, Android SDK 36, and accepted Android licenses were detected. The repository includes Android and iOS platform projects. The application evidence used in this report comes from the running Flutter web build at desktop and mobile-responsive viewport sizes.</div>
+    <div class="box amberbox small" style="margin-top:9px;"><b>Important submission note:</b> no Android emulator or physical Android device was connected when this PDF was generated. If the instructor requires literal emulator/device proof, replace or supplement this page with a screenshot of the same app running on that device before uploading to Teams.</div>
+    <div class="footer-note">Flutter and Android toolchain verification</div>
+  </section>
+
+  <section class="page">
+    <div class="running"><span>CareNavigatorPH</span><span>4 · Structure</span></div>
+    <h1>4. Application Structure</h1>
+    <img class="image wide" src="structure-evidence.png" alt="Flutter project structure">
+    <h2>Clean-code evidence</h2>
+    <p>The codebase uses a feature-first structure for screens and separates shared concerns into models, providers, repositories, routing, theme, and widgets. Assets are declared in <code>pubspec.yaml</code>, while tests and Supabase backend resources remain outside the presentation layer.</p>
+    <div class="footer-note">Feature-first Flutter project organization</div>
+  </section>
+
+  <section class="page">
+    <div class="running"><span>CareNavigatorPH</span><span>5 · Initial UI</span></div>
+    <h1>5. Initial Screens and Basic User Interface</h1>
+    <div class="pair">
+      <figure>
+        <img src="../../mobile-login.png" alt="Mobile sign-in screen">
+        <figcaption><b>SCREEN 1 · SIGN IN</b><br>Secure access for patients and care providers, with clear actions and role-aware account guidance.</figcaption>
+      </figure>
+      <figure>
+        <img src="../browser/hospital-directory-mobile-check.png" alt="Mobile hospital directory">
+        <figcaption><b>SCREEN 2 · HOSPITAL DIRECTORY</b><br>Verified hospital cards, search, hospital-level filters, ER status, beds, rooms, and nearby directions.</figcaption>
+      </figure>
+    </div>
+    <h2>Interface implementation</h2>
+    <ul>
+      <li>Uses a consistent blue, teal, white, and light-gray healthcare palette.</li>
+      <li>Provides readable headings, clear labels, large touch targets, and visible status information.</li>
+      <li>Adapts between desktop side navigation and mobile bottom navigation.</li>
+      <li>Includes placeholder and empty states so screens remain understandable before records exist.</li>
+    </ul>
+    <div class="box tealbox small"><b>Running application proof:</b> these are rendered Flutter interfaces with responsive navigation and populated hospital data, not static wireframe drawings.</div>
+    <div class="footer-note">Initial responsive Flutter screens</div>
+  </section>
+
+  <section class="page">
+    <div class="running"><span>CareNavigatorPH</span><span>6 · Navigation</span></div>
+    <h1>6. Working Navigation Between Screens</h1>
+    <img class="image short" src="../browser/final_home.png" alt="CareNavigatorPH home screen and navigation">
+    <table class="grid route">
+      <tr><th>Route</th><th>Screen</th><th>Connected action</th></tr>
+      <tr><td>/login</td><td>Sign in</td><td>Authenticates and opens the correct role workspace.</td></tr>
+      <tr><td>/home</td><td>Home</td><td>Links to hospitals, consultation, assessment, and My Care.</td></tr>
+      <tr><td>/hospitals</td><td>Hospital directory</td><td>Opens hospital details, map, or consultation path.</td></tr>
+      <tr><td>/assessment</td><td>Symptom navigator</td><td>Submits symptoms and links results to matching hospitals.</td></tr>
+      <tr><td>/care</td><td>My Care workspace</td><td>Shows role-specific patient, doctor, results, and record tabs.</td></tr>
+    </table>
+    <h2>Implementation note</h2>
+    <p>Navigation is implemented with GoRouter. Public routes remain accessible for discovery, while protected routes redirect unauthenticated users to sign in. The shell changes its available navigation items according to the authenticated role and screen size.</p>
+    <div class="footer-note">GoRouter routes and responsive navigation shell</div>
+  </section>
+
+  <section class="page">
+    <div class="running"><span>CareNavigatorPH</span><span>7 · GitHub</span></div>
+    <h1>7. GitHub Repository and Initial Commits</h1>
+    <img class="image short" src="github-repository.png" alt="Public CareNavigatorPH GitHub repository">
+    <div class="repo-link"><a href="https://github.com/NotArdrey/CareNavigatorPH">https://github.com/NotArdrey/CareNavigatorPH</a></div>
+    <img class="image short" style="max-height:78mm;" src="github-commits.png" alt="CareNavigatorPH initial GitHub commits">
+    <h2>Repository status</h2>
+    <p>The repository is public and uses the <b>main</b> branch. The GitHub history shows two initial commits dated 19 July 2026, including the project code structure and the Week 1 activity-report work. The configured local origin matches the repository link above.</p>
+    <div class="footer-note">Public GitHub repository · main branch · initial commit history</div>
+  </section>
+
+  <section class="page">
+    <div class="running"><span>CareNavigatorPH</span><span>8 · Reflection</span></div>
+    <h1>8. Weekly Reflection</h1>
+    <div class="reflection">This week, I revised CareNavigatorPH by expanding the proposal to include patient access to confirmed medical records and a doctor workflow for scanning and reviewing medical results. I documented the Flutter environment, organized project structure, initial interfaces, role-based navigation, and GitHub history. The main challenge was connecting automated result analysis with medical safety and privacy. I resolved this by treating the generated output as preliminary possible findings, requiring a licensed doctor to verify or reject them before saving anything to the official patient record. I also used role-based access so patients see only their own authorized information. Another challenge was presenting a large application clearly in one document, so I grouped the evidence by requirement and added captions that explain what each screenshot proves. My next step is to capture final Android emulator evidence and continue testing the complete doctor-to-patient record flow.</div>
+    <p class="small muted" style="text-align:right;margin-top:5px;">Word count: 142 words</p>
+    <h2>Deliverables checklist</h2>
+    <table class="checklist">
+      <tr><td>✓</td><td>Revised project proposal</td><td>Complete</td></tr>
+      <tr><td>✓</td><td>Flutter project created and running</td><td>Web build evidenced</td></tr>
+      <tr><td>✓</td><td>Organized project structure</td><td>Complete</td></tr>
+      <tr><td>✓</td><td>Basic UI and initial screens</td><td>Complete</td></tr>
+      <tr><td>✓</td><td>Working navigation</td><td>Complete</td></tr>
+      <tr><td>✓</td><td>GitHub repository and initial commits</td><td>Complete</td></tr>
+      <tr><td>✓</td><td>PDF documentation and repository link</td><td>Complete</td></tr>
+      <tr><td>!</td><td>Android emulator or physical-device screenshot</td><td>Replace/supplement before submission if required</td></tr>
+    </table>
+    <h2>Final submission reminder</h2>
+    <div class="box amberbox">Before uploading to Microsoft Teams: fill in the section and instructor on the cover, confirm the required filename, and add an actual Android emulator or physical-device screenshot if your instructor requires it. All other requested documentation is included.</div>
+    <div class="footer-note">CareNavigatorPH · Submission checklist</div>
+  </section>
+</body>
+</html>
