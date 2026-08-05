@@ -5,6 +5,8 @@ import 'package:care_navigator_ph/src/models/hospital.dart';
 import 'package:care_navigator_ph/src/providers/app_providers.dart';
 import 'package:care_navigator_ph/src/repositories/consultation_repository.dart';
 import 'package:care_navigator_ph/src/theme/app_theme.dart';
+import 'package:care_navigator_ph/src/widgets/app_layout.dart';
+import 'package:care_navigator_ph/src/widgets/app_page_header.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -266,7 +268,7 @@ class _GuestConsultationScreenState
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         icon: const Icon(
-          Icons.emergency_rounded,
+          AppIcons.emergencyRounded,
           color: AppColors.danger,
           size: 44,
         ),
@@ -380,39 +382,66 @@ class _GuestConsultationScreenState
           ref.read(authRepositoryProvider).currentSession?.user.email ?? '';
     }
     final width = MediaQuery.sizeOf(context).width;
-    final horizontal = width < 600 ? 20.0 : 40.0;
+    final horizontal = AppPageBody.horizontalPadding(width);
 
     return SafeArea(
-      child: CustomScrollView(
-        slivers: [
-          SliverPadding(
-            padding: EdgeInsets.fromLTRB(horizontal, 26, horizontal, 14),
-            sliver: SliverToBoxAdapter(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'First-time online consultation',
-                    style: Theme.of(context).textTheme.headlineLarge,
-                  ),
-                  const SizedBox(height: 7),
-                  const Text(
-                    'Verify your email, tell us what you need, and receive a tracking reference.',
-                  ),
-                  const SizedBox(height: 18),
-                  const _MedicalSafetyNotice(),
-                ],
-              ),
-            ),
+      child: Column(
+        children: [
+          AppPageHeader(
+            eyebrow: 'Guided care request',
+            title: 'Request an online consultation',
+            subtitle:
+                'Verify identity, describe the concern, and choose a provider',
+            icon: AppIcons.videoCallRounded,
           ),
-          SliverPadding(
-            padding: EdgeInsets.fromLTRB(horizontal, 0, horizontal, 40),
-            sliver: SliverToBoxAdapter(
-              child: Align(
-                alignment: Alignment.topCenter,
+          Expanded(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(
+                horizontal,
+                AppSpacing.lg,
+                horizontal,
+                AppSpacing.xxxl,
+              ),
+              child: Center(
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 820),
-                  child: isVerified ? _requestForm() : _verificationCard(),
+                  constraints: const BoxConstraints(maxWidth: 1220),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final desktop = constraints.maxWidth >= 960;
+                      final form = isVerified
+                          ? _requestForm()
+                          : _verificationCard();
+                      if (!desktop) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const _ConsultationIntro(compact: true),
+                            const SizedBox(height: AppSpacing.md),
+                            const _MedicalSafetyNotice(),
+                            const SizedBox(height: AppSpacing.lg),
+                            form,
+                          ],
+                        );
+                      }
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(
+                            width: 330,
+                            child: Column(
+                              children: [
+                                _ConsultationIntro(),
+                                SizedBox(height: AppSpacing.md),
+                                _MedicalSafetyNotice(),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.xl),
+                          Expanded(child: form),
+                        ],
+                      );
+                    },
+                  ),
                 ),
               ),
             ),
@@ -423,86 +452,77 @@ class _GuestConsultationScreenState
   }
 
   Widget _verificationCard() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                const _StepNumber(number: 1),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Verify your email address',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 18),
-            TextField(
-              controller: _emailController,
-              enabled: !_otpSent && !_working,
-              keyboardType: TextInputType.emailAddress,
-              autofillHints: const [AutofillHints.email],
-              decoration: const InputDecoration(
-                labelText: 'Email address',
-                hintText: 'you@example.com',
-                prefixIcon: Icon(Icons.email_outlined),
-              ),
-            ),
-            if (_otpSent) ...[
-              const SizedBox(height: 14),
-              TextField(
-                controller: _otpController,
-                enabled: !_working,
-                keyboardType: TextInputType.number,
-                autofillHints: const [AutofillHints.oneTimeCode],
-                maxLength: 8,
-                decoration: const InputDecoration(
-                  labelText: '6–8 digit verification code',
-                  prefixIcon: Icon(Icons.password_rounded),
-                  counterText: '',
+    return AppCard(
+      tone: AppCardTone.mint,
+      borderRadius: AppRadius.extraLarge,
+      padding: const EdgeInsets.all(AppSpacing.xxl),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const _StepNumber(number: 1),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Begin with a verified email',
+                  style: Theme.of(context).textTheme.headlineSmall,
                 ),
               ),
             ],
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              onPressed: _working ? null : (_otpSent ? _verifyOtp : _sendOtp),
-              icon: _working
-                  ? const SizedBox(
-                      width: 19,
-                      height: 19,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : Icon(
-                      _otpSent ? Icons.verified_rounded : Icons.email_rounded,
-                    ),
-              label: Text(_otpSent ? 'Verify code' : 'Send verification code'),
+          ),
+          const SizedBox(height: 18),
+          TextField(
+            controller: _emailController,
+            enabled: !_otpSent && !_working,
+            keyboardType: TextInputType.emailAddress,
+            autofillHints: const [AutofillHints.email],
+            decoration: const InputDecoration(
+              labelText: 'Email address',
+              hintText: 'you@example.com',
+              prefixIcon: Icon(AppIcons.emailOutlined),
             ),
-            if (_otpSent)
-              TextButton(
-                onPressed: _working
-                    ? null
-                    : () => setState(() {
-                        _otpSent = false;
-                        _otpController.clear();
-                      }),
-                child: const Text('Use a different email'),
+          ),
+          if (_otpSent) ...[
+            const SizedBox(height: 14),
+            TextField(
+              controller: _otpController,
+              enabled: !_working,
+              keyboardType: TextInputType.number,
+              autofillHints: const [AutofillHints.oneTimeCode],
+              maxLength: 8,
+              decoration: const InputDecoration(
+                labelText: '6–8 digit verification code',
+                prefixIcon: Icon(AppIcons.passwordRounded),
+                counterText: '',
               ),
-            const SizedBox(height: 10),
-            const Text(
-              'The one-time code is sent to this email address.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: Color(0xFF6B7C91)),
             ),
           ],
-        ),
+          const SizedBox(height: 16),
+          AppButton(
+            label: _otpSent ? 'Verify and continue' : 'Send verification code',
+            icon: _otpSent ? AppIcons.verifiedRounded : AppIcons.emailRounded,
+            loading: _working,
+            expand: true,
+            onPressed: _working ? null : (_otpSent ? _verifyOtp : _sendOtp),
+          ),
+          if (_otpSent)
+            TextButton(
+              onPressed: _working
+                  ? null
+                  : () => setState(() {
+                      _otpSent = false;
+                      _otpController.clear();
+                    }),
+              child: const Text('Use a different email'),
+            ),
+          const SizedBox(height: 10),
+          const Text(
+            'The one-time code is sent to this email address.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12, color: Color(0xFF6B7C91)),
+          ),
+        ],
       ),
     );
   }
@@ -530,7 +550,7 @@ class _GuestConsultationScreenState
                         dimension: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Icon(Icons.my_location_rounded),
+                    : const Icon(AppIcons.myLocationRounded),
                 label: Text(
                   _position == null
                       ? 'Attach current location (recommended)'
@@ -545,7 +565,7 @@ class _GuestConsultationScreenState
                     child: InputDecorator(
                       decoration: const InputDecoration(
                         labelText: 'Birth date *',
-                        prefixIcon: Icon(Icons.cake_outlined),
+                        prefixIcon: Icon(AppIcons.cakeOutlined),
                       ),
                       child: Text(
                         _birthDate == null
@@ -727,7 +747,7 @@ class _GuestConsultationScreenState
                 child: InputDecorator(
                   decoration: const InputDecoration(
                     labelText: 'Preferred schedule (optional)',
-                    prefixIcon: Icon(Icons.event_outlined),
+                    prefixIcon: Icon(AppIcons.eventOutlined),
                   ),
                   child: Text(
                     _preferredSchedule == null
@@ -740,7 +760,7 @@ class _GuestConsultationScreenState
               ),
               OutlinedButton.icon(
                 onPressed: _working ? null : _pickIdentification,
-                icon: const Icon(Icons.upload_file_rounded),
+                icon: const Icon(AppIcons.uploadFileRounded),
                 label: Text(
                   _identification == null
                       ? 'Attach valid ID *'
@@ -764,13 +784,90 @@ class _GuestConsultationScreenState
                       color: Colors.white,
                     ),
                   )
-                : const Icon(Icons.send_rounded),
+                : const Icon(AppIcons.sendRounded),
             label: const Text('Submit consultation request'),
           ),
         ],
       ),
     );
   }
+}
+
+class _ConsultationIntro extends StatelessWidget {
+  const _ConsultationIntro({this.compact = false});
+
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) => AppCard(
+    tone: AppCardTone.dark,
+    borderRadius: AppRadius.extraLarge,
+    padding: EdgeInsets.all(compact ? AppSpacing.xl : AppSpacing.xxl),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const AppStatusBadge(
+          label: 'FIRST-TIME CARE',
+          color: Color(0xFF9DD8C8),
+          icon: AppIcons.videoCallOutlined,
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        Text(
+          'A guided request, reviewed by real care teams.',
+          style: Theme.of(
+            context,
+          ).textTheme.headlineMedium?.copyWith(color: Colors.white),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        const Text(
+          'This is not an instant emergency service. The selected hospital reviews your identity, concern, and preferred schedule.',
+          style: TextStyle(color: Color(0xFFC7D7D1), height: 1.5),
+        ),
+        const SizedBox(height: AppSpacing.xl),
+        const _ConsultStep(number: '01', label: 'Verify your email'),
+        const _ConsultStep(number: '02', label: 'Share personal details'),
+        const _ConsultStep(number: '03', label: 'Describe the concern'),
+        const _ConsultStep(number: '04', label: 'Choose care and schedule'),
+      ],
+    ),
+  );
+}
+
+class _ConsultStep extends StatelessWidget {
+  const _ConsultStep({required this.number, required this.label});
+
+  final String number;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: AppSpacing.md),
+    child: Row(
+      children: [
+        Container(
+          width: 34,
+          height: 34,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: AppColors.forest.withValues(alpha: .18),
+            borderRadius: BorderRadius.circular(AppRadius.small),
+          ),
+          child: Text(
+            number,
+            style: const TextStyle(
+              color: AppColors.sea,
+              fontWeight: FontWeight.w800,
+              fontSize: 11,
+            ),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Text(label, style: const TextStyle(color: Colors.white)),
+        ),
+      ],
+    ),
+  );
 }
 
 class _FormSection extends StatelessWidget {
@@ -785,10 +882,10 @@ class _FormSection extends StatelessWidget {
   final List<Widget> children;
 
   @override
-  Widget build(BuildContext context) => Card(
-    margin: const EdgeInsets.only(bottom: 16),
-    child: Padding(
-      padding: const EdgeInsets.all(24),
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: AppSpacing.md),
+    child: AppCard(
+      padding: const EdgeInsets.all(AppSpacing.xl),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -804,7 +901,7 @@ class _FormSection extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: AppSpacing.xl),
           for (var index = 0; index < children.length; index++) ...[
             children[index],
             if (index != children.length - 1) const SizedBox(height: 14),
@@ -852,7 +949,7 @@ class _StepNumber extends StatelessWidget {
   @override
   Widget build(BuildContext context) => CircleAvatar(
     radius: 17,
-    backgroundColor: AppColors.blue,
+    backgroundColor: AppColors.forest,
     foregroundColor: Colors.white,
     child: Text('$number', style: const TextStyle(fontWeight: FontWeight.w800)),
   );
@@ -862,29 +959,12 @@ class _MedicalSafetyNotice extends StatelessWidget {
   const _MedicalSafetyNotice();
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: const Color(0xFFFFF1F0),
-      border: Border.all(color: const Color(0xFFFFD0CC)),
-      borderRadius: BorderRadius.circular(16),
-    ),
-    child: const Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(Icons.emergency_rounded, color: AppColors.danger),
-        SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            'Do not wait for an online consultation for severe breathing difficulty, chest pain, stroke signs, heavy bleeding, seizures, or loss of consciousness. Call 911 or go to the nearest ER.',
-            style: TextStyle(
-              color: Color(0xFF7A211B),
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-      ],
-    ),
+  Widget build(BuildContext context) => const AppNotice(
+    title: 'Emergency guidance',
+    icon: AppIcons.emergencyRounded,
+    color: AppColors.danger,
+    message:
+        'Do not wait for an online consultation for severe breathing difficulty, chest pain, stroke signs, heavy bleeding, seizures, or loss of consciousness. Call 911 or go to the nearest ER.',
   );
 }
 
@@ -895,107 +975,122 @@ class _Success extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SafeArea(
-    child: Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 560),
-        child: Card(
-          margin: const EdgeInsets.all(24),
-          child: Padding(
-            padding: const EdgeInsets.all(30),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const CircleAvatar(
-                  radius: 34,
-                  backgroundColor: AppColors.mint,
-                  child: Icon(
-                    Icons.check_rounded,
-                    size: 38,
-                    color: AppColors.teal,
-                  ),
-                ),
-                const SizedBox(height: 18),
-                Text(
-                  'Request received',
-                  style: Theme.of(context).textTheme.headlineMedium,
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Keep this temporary reference number. A hospital or doctor can use it to review and track your request.',
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 18),
-                SelectableText(
-                  submission.referenceNumber,
-                  style: const TextStyle(
-                    fontSize: 21,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.blue,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                if (submission.assessment case final assessment?) ...[
-                  const SizedBox(height: 20),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: submission.isEmergency
-                          ? const Color(0xFFFFE8E6)
-                          : AppColors.mint,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
+    child: Column(
+      children: [
+        AppPageHeader(
+          title: 'Online consultation',
+          subtitle: 'Your request has been submitted',
+          icon: AppIcons.videoCallRounded,
+        ),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(AppSpacing.xl),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 560),
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(30),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          'Preliminary ${assessment['urgency_level'] ?? 'care'} guidance',
-                          style: TextStyle(
-                            color: submission.isEmergency
-                                ? AppColors.danger
-                                : AppColors.teal,
-                            fontWeight: FontWeight.w800,
+                        const CircleAvatar(
+                          radius: 34,
+                          backgroundColor: AppColors.mint,
+                          child: Icon(
+                            AppIcons.checkRounded,
+                            size: 38,
+                            color: AppColors.teal,
                           ),
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 18),
                         Text(
-                          assessment['recommended_action']?.toString() ??
-                              'Wait for review by the selected hospital.',
+                          'Request received',
+                          style: Theme.of(context).textTheme.headlineMedium,
                         ),
-                        if (assessment['recommended_department'] != null) ...[
-                          const SizedBox(height: 6),
-                          Text(
-                            'Suggested department: ${assessment['recommended_department']}',
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Keep this temporary reference number. A hospital or doctor can use it to review and track your request.',
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 18),
+                        SelectableText(
+                          submission.referenceNumber,
+                          style: const TextStyle(
+                            fontSize: 21,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.blue,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        if (submission.assessment case final assessment?) ...[
+                          const SizedBox(height: 20),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: submission.isEmergency
+                                  ? const Color(0xFFFFE8E6)
+                                  : AppColors.mint,
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Preliminary ${assessment['urgency_level'] ?? 'care'} guidance',
+                                  style: TextStyle(
+                                    color: submission.isEmergency
+                                        ? AppColors.danger
+                                        : AppColors.teal,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  assessment['recommended_action']
+                                          ?.toString() ??
+                                      'Wait for review by the selected hospital.',
+                                ),
+                                if (assessment['recommended_department'] !=
+                                    null) ...[
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'Suggested department: ${assessment['recommended_department']}',
+                                  ),
+                                ],
+                                const SizedBox(height: 8),
+                                Text(
+                                  assessment['disclaimer']?.toString() ??
+                                      'This preliminary guidance is not a diagnosis.',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              ],
+                            ),
                           ),
                         ],
-                        const SizedBox(height: 8),
-                        Text(
-                          assessment['disclaimer']?.toString() ??
-                              'This preliminary guidance is not a diagnosis.',
-                          style: const TextStyle(fontSize: 12),
+                        if (submission.assessmentWarning != null) ...[
+                          const SizedBox(height: 12),
+                          Text(
+                            submission.assessmentWarning!,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: Color(0xFF6B7C91)),
+                          ),
+                        ],
+                        const SizedBox(height: 22),
+                        FilledButton(
+                          onPressed: () => context.go('/dashboard'),
+                          child: const Text('Go to my care'),
                         ),
                       ],
                     ),
                   ),
-                ],
-                if (submission.assessmentWarning != null) ...[
-                  const SizedBox(height: 12),
-                  Text(
-                    submission.assessmentWarning!,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Color(0xFF6B7C91)),
-                  ),
-                ],
-                const SizedBox(height: 22),
-                FilledButton(
-                  onPressed: () => context.go('/dashboard'),
-                  child: const Text('Go to my care'),
                 ),
-              ],
+              ),
             ),
           ),
         ),
-      ),
+      ],
     ),
   );
 }

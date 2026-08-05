@@ -1,6 +1,7 @@
 import 'package:care_navigator_ph/src/providers/app_providers.dart';
 import 'package:care_navigator_ph/src/theme/app_theme.dart';
-import 'package:care_navigator_ph/src/widgets/brand_mark.dart';
+import 'package:care_navigator_ph/src/widgets/app_layout.dart';
+import 'package:care_navigator_ph/src/widgets/app_page_header.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -15,298 +16,370 @@ class HomeScreen extends ConsumerWidget {
         ref.read(supabaseClientProvider).auth.currentSession != null;
     final hospitals = ref.watch(hospitalsProvider(''));
     final width = MediaQuery.sizeOf(context).width;
-    final horizontal = width < 600 ? 20.0 : 40.0;
+    final compact = width < 760;
+    final hospitalCount = hospitals.maybeWhen(
+      data: (items) => items.length,
+      orElse: () => null,
+    );
 
     return CustomScrollView(
       slivers: [
         SliverToBoxAdapter(
           child: SafeArea(
             bottom: false,
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(horizontal, 20, horizontal, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (width < 920) ...[
-                    Row(
-                      children: [
-                        const BrandMark(),
-                        const Spacer(),
-                        if (!isSignedIn) ...[
-                          TextButton(
-                            onPressed: () => context.go('/login'),
-                            child: const Text('Sign in'),
-                          ),
-                          IconButton(
-                            tooltip: 'Register',
-                            onPressed: () => context.go('/register'),
-                            icon: const Icon(Icons.person_add_alt_1_rounded),
-                          ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 28),
-                  ],
-                  _HeroPanel(isCompact: width < 720),
-                  const SizedBox(height: 26),
-                  const _EmergencyBanner(),
-                  const SizedBox(height: 32),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'How can we help?',
-                          style: Theme.of(context).textTheme.headlineMedium,
-                        ),
-                      ),
-                      hospitals.when(
-                        data: (items) =>
-                            Text('${items.length} verified hospitals'),
-                        loading: () => const SizedBox.shrink(),
-                        error: (_, _) => const SizedBox.shrink(),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                ],
-              ),
-            ),
+            child: _PublicTopBar(isSignedIn: isSignedIn),
           ),
         ),
-        SliverPadding(
-          padding: EdgeInsets.fromLTRB(horizontal, 0, horizontal, 40),
-          sliver: SliverGrid(
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: width >= 1180
-                  ? 3
-                  : width >= 660
-                  ? 2
-                  : 1,
-              mainAxisExtent: 184,
-              mainAxisSpacing: 14,
-              crossAxisSpacing: 14,
+        SliverToBoxAdapter(
+          child: ResponsivePageContainer(
+            padding: EdgeInsets.fromLTRB(
+              ResponsivePageContainer.horizontalPadding(width),
+              compact ? AppSpacing.sm : AppSpacing.lg,
+              ResponsivePageContainer.horizontalPadding(width),
+              AppSpacing.massive,
             ),
-            delegate: SliverChildListDelegate.fixed([
-              _ActionCard(
-                icon: Icons.local_hospital_rounded,
-                color: AppColors.blue,
-                title: 'Find the right hospital',
-                description:
-                    'Compare services, specialists, ER status, beds, and rooms.',
-                label: 'Browse hospitals',
-                onTap: () => context.go('/hospitals'),
-              ),
-              _ActionCard(
-                icon: Icons.video_call_rounded,
-                color: AppColors.teal,
-                title: 'Consult a doctor',
-                description:
-                    'Verify your email and request a first-time online consultation.',
-                label: 'Start request',
-                onTap: () => context.go('/consult'),
-              ),
-              _ActionCard(
-                icon: Icons.auto_awesome_rounded,
-                color: const Color(0xFF6A4BBC),
-                title: 'Check your symptoms',
-                description:
-                    'Get a preliminary urgency and care-direction assessment—never a diagnosis.',
-                label: 'Start assessment',
-                onTap: () => context.go('/assessment'),
-              ),
-              _ActionCard(
-                icon: Icons.monitor_heart_rounded,
-                color: const Color(0xFFD05A29),
-                title: 'Your care in one place',
-                description:
-                    'Review consultations, records, results, and prescriptions securely.',
-                label: 'Open my care',
-                onTap: () => context.go('/care'),
-              ),
-            ]),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _HeroPanel extends StatelessWidget {
-  const _HeroPanel({required this.isCompact});
-
-  final bool isCompact;
-
-  @override
-  Widget build(BuildContext context) {
-    final content = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-          decoration: BoxDecoration(
-            color: AppColors.mint,
-            borderRadius: BorderRadius.circular(999),
-          ),
-          child: const Text(
-            'HEALTHCARE NAVIGATION FOR EVERY FILIPINO',
-            style: TextStyle(
-              color: AppColors.teal,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.7,
-            ),
-          ),
-        ),
-        const SizedBox(height: 18),
-        Text(
-          'Know where to go.\nGet care with confidence.',
-          style: Theme.of(context).textTheme.displaySmall,
-        ),
-        const SizedBox(height: 14),
-        const Text(
-          'Find verified hospitals, check live availability, and connect with the right healthcare professional.',
-        ),
-        const SizedBox(height: 22),
-        Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: [
-            FilledButton.icon(
-              onPressed: () => context.go('/hospitals'),
-              icon: const Icon(Icons.search),
-              label: const Text('Find a hospital'),
-            ),
-            OutlinedButton.icon(
-              onPressed: () => context.go('/consult'),
-              icon: const Icon(Icons.video_call_outlined),
-              label: const Text('Consult online'),
-            ),
-          ],
-        ),
-      ],
-    );
-
-    return Container(
-      padding: EdgeInsets.all(isCompact ? 24 : 38),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Colors.white, Color(0xFFEAF3FF)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: const Color(0xFFDCE8F6)),
-      ),
-      child: isCompact
-          ? content
-          : Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Expanded(flex: 6, child: content),
-                const SizedBox(width: 30),
-                const Expanded(flex: 4, child: _HeroIllustration()),
+                _LandingHero(compact: compact, hospitalCount: hospitalCount),
+                const SizedBox(height: AppSpacing.lg),
+                const _EmergencyStrip(),
+                SizedBox(
+                  height: compact ? AppSpacing.xxxl : AppSpacing.massive,
+                ),
+                AppSectionHeader(
+                  eyebrow: 'Choose your next step',
+                  title: 'Care starts with the right direction.',
+                  subtitle:
+                      'Each path is designed around a specific healthcare task—not a generic dashboard.',
+                  action: compact
+                      ? null
+                      : hospitals.when(
+                          data: (items) => AppStatusBadge(
+                            label: '${items.length} VERIFIED FACILITIES',
+                            color: AppColors.forest,
+                            icon: AppIcons.verifiedRounded,
+                          ),
+                          loading: () => const SizedBox.shrink(),
+                          error: (_, _) => const SizedBox.shrink(),
+                        ),
+                ),
+                const SizedBox(height: AppSpacing.xxl),
+                _CarePathGrid(compact: compact),
+                SizedBox(
+                  height: compact ? AppSpacing.xxxl : AppSpacing.massive,
+                ),
+                const _CareContinuityBand(),
               ],
             ),
+          ),
+        ),
+      ],
     );
   }
 }
 
-class _HeroIllustration extends StatelessWidget {
-  const _HeroIllustration();
+class _PublicTopBar extends StatelessWidget {
+  const _PublicTopBar({required this.isSignedIn});
+
+  final bool isSignedIn;
 
   @override
-  Widget build(BuildContext context) {
-    return AspectRatio(
-      aspectRatio: 1.15,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: AppColors.navy,
-          borderRadius: BorderRadius.circular(26),
-        ),
-        child: Stack(
-          children: [
-            Positioned(
-              right: -30,
-              top: -40,
-              child: _Orb(
-                size: 150,
-                color: AppColors.teal.withValues(alpha: 0.35),
-              ),
-            ),
-            Positioned(
-              left: -25,
-              bottom: -35,
-              child: _Orb(
-                size: 130,
-                color: AppColors.blue.withValues(alpha: 0.45),
-              ),
-            ),
-            const Center(
-              child: Icon(
-                Icons.health_and_safety_rounded,
-                color: Colors.white,
-                size: 92,
-              ),
-            ),
-            const Positioned(
-              left: 22,
-              right: 22,
-              bottom: 20,
-              child: Text(
-                'Hospitals • Doctors • Care',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _Orb extends StatelessWidget {
-  const _Orb({required this.size, required this.color});
-
-  final double size;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    width: size,
-    height: size,
-    decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+  Widget build(BuildContext context) => AppPageHeader(
+    eyebrow: isSignedIn ? 'YOUR CARE NAVIGATOR' : 'PUBLIC CARE NAVIGATOR',
+    title: 'Healthcare choices, made clearer.',
+    subtitle:
+        'Verified hospitals, consultations, and care guidance in one place.',
+    icon: AppIcons.publicRounded,
   );
 }
 
-class _EmergencyBanner extends StatelessWidget {
-  const _EmergencyBanner();
+class _LandingHero extends StatelessWidget {
+  const _LandingHero({required this.compact, required this.hospitalCount});
+
+  final bool compact;
+  final int? hospitalCount;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF1F0),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFFFD0CC)),
+    final introduction = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const AppStatusBadge(
+          label: 'CARE ATLAS · CENTRAL LUZON',
+          color: AppColors.forest,
+          icon: AppIcons.nearMeOutlined,
+        ),
+        SizedBox(height: compact ? AppSpacing.xl : AppSpacing.xxl),
+        Text(
+          'Know what care you need.\nKnow where to find it.',
+          style:
+              (compact
+                      ? Theme.of(context).textTheme.displaySmall
+                      : Theme.of(context).textTheme.displayLarge)
+                  ?.copyWith(color: AppColors.ink),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 630),
+          child: Text(
+            'Compare verified hospitals, understand the right level of care, and connect with a clinician from one trusted guide.',
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              color: AppColors.inkMuted,
+              fontSize: compact ? 15 : 18,
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xxl),
+        Wrap(
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
+          children: [
+            AppButton(
+              label: 'Find a hospital',
+              icon: AppIcons.searchRounded,
+              onPressed: () => context.go('/hospitals'),
+            ),
+            AppButton(
+              label: 'Check symptoms',
+              icon: AppIcons.symptomCheck,
+              style: AppButtonStyle.secondary,
+              onPressed: () => context.go('/assessment'),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.xxl),
+        Wrap(
+          spacing: AppSpacing.xxl,
+          runSpacing: AppSpacing.md,
+          children: [
+            _HeroMetric(
+              value: hospitalCount?.toString() ?? '—',
+              label: 'verified facilities',
+            ),
+            const _HeroMetric(value: '3', label: 'levels of care'),
+            const _HeroMetric(value: '24/7', label: 'navigation access'),
+          ],
+        ),
+      ],
+    );
+
+    return AppCard(
+      tone: AppCardTone.paper,
+      borderRadius: AppRadius.feature,
+      padding: EdgeInsets.all(compact ? AppSpacing.xl : AppSpacing.xxxl),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (compact || constraints.maxWidth < 760) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                introduction,
+                const SizedBox(height: AppSpacing.xl),
+                const _HeroNavigator(),
+              ],
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(flex: 13, child: introduction),
+              const SizedBox(width: AppSpacing.xxxl),
+              const Expanded(flex: 8, child: _HeroNavigator()),
+            ],
+          );
+        },
       ),
-      child: const Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.emergency_rounded, color: AppColors.danger),
-          SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              'Severe breathing difficulty, chest pain, stroke signs, heavy bleeding, seizures, or loss of consciousness? Call 911 or go to the nearest emergency room now.',
-              style: TextStyle(
-                color: Color(0xFF7A211B),
-                fontWeight: FontWeight.w700,
-                height: 1.4,
+    );
+  }
+}
+
+class _HeroNavigator extends StatelessWidget {
+  const _HeroNavigator();
+
+  @override
+  Widget build(BuildContext context) => AppCard(
+    tone: AppCardTone.blue,
+    padding: const EdgeInsets.all(AppSpacing.xl),
+    borderRadius: AppRadius.extraLarge,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const AppIconTile(icon: AppIcons.routeRounded, color: Colors.white),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                'What do you need today?',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(color: Colors.white),
               ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        _NavigatorRow(
+          icon: AppIcons.localHospitalOutlined,
+          label: 'Compare facilities',
+          inverse: true,
+          detail: 'Services · ER · capacity',
+          onTap: () => context.go('/hospitals'),
+        ),
+        const Divider(color: Color(0x38FFFFFF)),
+        _NavigatorRow(
+          icon: AppIcons.videoCallOutlined,
+          label: 'Request a consultation',
+          inverse: true,
+          detail: 'First-time online care',
+          onTap: () => context.go('/consult'),
+        ),
+        const Divider(color: Color(0x38FFFFFF)),
+        _NavigatorRow(
+          icon: AppIcons.healthAndSafetyOutlined,
+          label: 'Understand urgency',
+          inverse: true,
+          detail: 'Guidance, never diagnosis',
+          onTap: () => context.go('/assessment'),
+        ),
+      ],
+    ),
+  );
+}
+
+class _NavigatorRow extends StatelessWidget {
+  const _NavigatorRow({
+    required this.icon,
+    required this.label,
+    required this.detail,
+    required this.onTap,
+    this.inverse = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final String detail;
+  final VoidCallback onTap;
+  final bool inverse;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(AppRadius.extraLarge),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+      child: Row(
+        children: [
+          Icon(icon, color: inverse ? Colors.white : AppColors.forest),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: inverse ? Colors.white : null,
+                  ),
+                ),
+                Text(
+                  detail,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: inverse ? AppColors.mist : null,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Icon(
+            AppIcons.arrowOutwardRounded,
+            size: 19,
+            color: inverse ? Colors.white : AppColors.ink,
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _EmergencyStrip extends StatelessWidget {
+  const _EmergencyStrip();
+
+  @override
+  Widget build(BuildContext context) => const AppNotice(
+    title: 'Emergency symptoms',
+    icon: AppIcons.emergencyRounded,
+    color: AppColors.danger,
+    message:
+        'For chest pain, stroke signs, severe breathing difficulty, heavy bleeding, or loss of consciousness, call 911 now.',
+  );
+}
+
+class _CarePathGrid extends StatelessWidget {
+  const _CarePathGrid({required this.compact});
+
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final hospital = _PathFeature(
+      eyebrow: 'FACILITY FINDER',
+      title: 'Compare capability, not just distance.',
+      description:
+          'See verified service levels, emergency status, room capacity, and directions before you travel.',
+      icon: AppIcons.localHospitalRounded,
+      tone: AppCardTone.mint,
+      action: 'Explore hospitals',
+      onTap: () => context.go('/hospitals'),
+    );
+    final consult = _PathFeature(
+      eyebrow: 'ONLINE CONSULTATION',
+      title: 'Meet the right clinician.',
+      description:
+          'Submit a guided first-time request and continue care securely.',
+      icon: AppIcons.videoCallRounded,
+      tone: AppCardTone.mint,
+      action: 'Start a request',
+      onTap: () => context.go('/consult'),
+      compact: true,
+    );
+    final assessment = _PathFeature(
+      eyebrow: 'CARE DIRECTION',
+      title: 'Understand how urgent it may be.',
+      description: 'Use a preliminary navigation assessment—never a diagnosis.',
+      icon: AppIcons.symptomCheck,
+      tone: AppCardTone.mint,
+      action: 'Check symptoms',
+      onTap: () => context.go('/assessment'),
+      compact: true,
+    );
+    if (compact) {
+      return Column(
+        children: [
+          hospital,
+          const SizedBox(height: AppSpacing.md),
+          consult,
+          const SizedBox(height: AppSpacing.md),
+          assessment,
+        ],
+      );
+    }
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(flex: 7, child: hospital),
+          const SizedBox(width: AppSpacing.lg),
+          Expanded(
+            flex: 5,
+            child: Column(
+              children: [
+                Expanded(child: consult),
+                const SizedBox(height: AppSpacing.lg),
+                Expanded(child: assessment),
+              ],
             ),
           ),
         ],
@@ -315,61 +388,162 @@ class _EmergencyBanner extends StatelessWidget {
   }
 }
 
-class _ActionCard extends StatelessWidget {
-  const _ActionCard({
-    required this.icon,
-    required this.color,
+class _PathFeature extends StatelessWidget {
+  const _PathFeature({
+    required this.eyebrow,
     required this.title,
     required this.description,
-    required this.label,
+    required this.icon,
+    required this.tone,
+    required this.action,
     required this.onTap,
+    this.compact = false,
   });
 
-  final IconData icon;
-  final Color color;
+  final String eyebrow;
   final String title;
   final String description;
-  final String label;
+  final IconData icon;
+  final AppCardTone tone;
+  final String action;
   final VoidCallback onTap;
+  final bool compact;
 
   @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(9),
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.11),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(icon, color: color),
-                  ),
-                  const Spacer(),
-                  const Icon(Icons.arrow_forward_rounded, size: 20),
-                ],
-              ),
-              const Spacer(),
-              Text(title, style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 6),
-              Text(description, maxLines: 2, overflow: TextOverflow.ellipsis),
-              const SizedBox(height: 8),
-              Text(
-                label,
-                style: TextStyle(color: color, fontWeight: FontWeight.w800),
-              ),
-            ],
+  Widget build(BuildContext context) => AppCard(
+    tone: tone,
+    onTap: onTap,
+    padding: EdgeInsets.all(compact ? AppSpacing.xl : AppSpacing.xxl),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AppIconTile(
+              icon: icon,
+              color: AppColors.forest,
+              size: compact ? 44 : 56,
+            ),
+            const Spacer(),
+            const Icon(AppIcons.arrowOutwardRounded),
+          ],
+        ),
+        SizedBox(height: compact ? AppSpacing.lg : AppSpacing.xxxl),
+        Text(
+          eyebrow,
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+            color: AppColors.forest,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1,
           ),
         ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          title,
+          style: compact
+              ? Theme.of(context).textTheme.titleLarge
+              : Theme.of(context).textTheme.headlineMedium,
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Text(description),
+        const SizedBox(height: AppSpacing.lg),
+        Text(
+          action,
+          style: const TextStyle(
+            color: AppColors.forest,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _CareContinuityBand extends StatelessWidget {
+  const _CareContinuityBand();
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final compact = constraints.maxWidth < 700;
+      final content = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Already receiving care?',
+            style: Theme.of(
+              context,
+            ).textTheme.headlineSmall?.copyWith(color: Colors.white),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            'Appointments, records, laboratory results, prescriptions, and messages stay together in your private workspace.',
+            style: Theme.of(
+              context,
+            ).textTheme.bodyLarge?.copyWith(color: const Color(0xFFD2E0DB)),
+          ),
+        ],
+      );
+      return AppCard(
+        tone: AppCardTone.blue,
+        padding: const EdgeInsets.all(AppSpacing.xxl),
+        child: compact
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  content,
+                  const SizedBox(height: AppSpacing.xl),
+                  AppButton(
+                    label: 'Open my care',
+                    icon: AppIcons.arrowForwardRounded,
+                    backgroundColor: AppColors.ink,
+                    foregroundColor: Colors.white,
+                    onPressed: () => context.go('/care'),
+                  ),
+                ],
+              )
+            : Row(
+                children: [
+                  const AppIconTile(
+                    icon: AppIcons.monitorHeartRounded,
+                    color: Colors.white,
+                    size: 58,
+                  ),
+                  const SizedBox(width: AppSpacing.xl),
+                  Expanded(child: content),
+                  const SizedBox(width: AppSpacing.xl),
+                  AppButton(
+                    label: 'Open my care workspace',
+                    icon: AppIcons.arrowForwardRounded,
+                    backgroundColor: AppColors.ink,
+                    foregroundColor: Colors.white,
+                    onPressed: () => context.go('/care'),
+                  ),
+                ],
+              ),
+      );
+    },
+  );
+}
+
+class _HeroMetric extends StatelessWidget {
+  const _HeroMetric({required this.value, required this.label});
+
+  final String value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        value,
+        style: Theme.of(
+          context,
+        ).textTheme.titleLarge?.copyWith(color: AppColors.ink),
       ),
-    );
-  }
+      Text(label, style: const TextStyle(color: AppColors.inkMuted)),
+    ],
+  );
 }

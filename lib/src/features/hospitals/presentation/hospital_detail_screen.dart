@@ -1,6 +1,10 @@
+import 'package:care_navigator_ph/src/features/hospitals/presentation/hospital_image.dart';
 import 'package:care_navigator_ph/src/models/hospital.dart';
 import 'package:care_navigator_ph/src/providers/app_providers.dart';
 import 'package:care_navigator_ph/src/theme/app_theme.dart';
+import 'package:care_navigator_ph/src/widgets/app_layout.dart';
+import 'package:care_navigator_ph/src/widgets/app_page_header.dart';
+import 'package:care_navigator_ph/src/widgets/app_states.dart';
 import 'package:care_navigator_ph/src/widgets/async_value_panel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -33,152 +37,262 @@ class _HospitalDetailBody extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final details = ref.watch(hospitalServicesProvider(hospital.id));
-    final width = MediaQuery.sizeOf(context).width;
-    final horizontal = width < 600 ? 20.0 : 40.0;
+    final compact = MediaQuery.sizeOf(context).width < AppBreakpoints.medium;
 
-    return CustomScrollView(
-      slivers: [
-        SliverAppBar(
-          pinned: true,
-          backgroundColor: AppColors.navy,
-          foregroundColor: Colors.white,
-          expandedHeight: 260,
-          leading: IconButton(
-            tooltip: 'Back to hospitals',
-            onPressed: () => context.go('/hospitals'),
-            icon: const Icon(Icons.arrow_back_rounded),
+    return SafeArea(
+      child: Column(
+        children: [
+          AppPageHeader(
+            eyebrow: 'Verified facility profile',
+            title: 'Hospital details',
+            subtitle: 'Capability, access, and service information',
+            icon: AppIcons.localHospitalRounded,
+            onBack: () => context.go('/hospitals'),
+            backTooltip: 'Back to hospital directory',
           ),
-          flexibleSpace: FlexibleSpaceBar(
-            titlePadding: const EdgeInsets.fromLTRB(24, 0, 24, 18),
-            title: Text(
-              hospital.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontWeight: FontWeight.w800),
-            ),
-            background: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [AppColors.navy, AppColors.blue],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+          Expanded(
+            child: ListView(
+              children: [
+                ResponsivePageContainer(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _HospitalHero(hospital: hospital, compact: compact),
+                      const SizedBox(height: AppSpacing.xl),
+                      if (compact) ...[
+                        _HospitalSummary(hospital: hospital),
+                        const SizedBox(height: AppSpacing.xl),
+                        _details(details),
+                      ] else
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(flex: 8, child: _details(details)),
+                            const SizedBox(width: AppSpacing.xl),
+                            SizedBox(
+                              width: 340,
+                              child: _HospitalSummary(hospital: hospital),
+                            ),
+                          ],
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-              child: const Center(
-                child: Icon(
-                  Icons.local_hospital_rounded,
-                  color: Colors.white24,
-                  size: 120,
-                ),
-              ),
+              ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _details(AsyncValue<Map<String, dynamic>> details) => details.when(
+    data: (data) => Column(
+      children: [
+        _Section(
+          title: 'About this facility',
+          child: Text(
+            (hospital.description?.trim().isNotEmpty ?? false)
+                ? hospital.description!
+                : 'This hospital has not added a public description yet.',
           ),
         ),
-        SliverPadding(
-          padding: EdgeInsets.fromLTRB(horizontal, 24, horizontal, 40),
-          sliver: SliverList.list(
+        _HospitalCapabilities(data: data),
+      ],
+    ),
+    loading: () => const AppLoadingState(label: 'Loading clinical services…'),
+    error: (error, stack) => AppNotice(
+      icon: AppIcons.infoOutline,
+      color: AppColors.warning,
+      message: 'Service details are unavailable: $error',
+    ),
+  );
+}
+
+class _HospitalHero extends StatelessWidget {
+  const _HospitalHero({required this.hospital, required this.compact});
+
+  final Hospital hospital;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final content = Padding(
+      padding: EdgeInsets.all(compact ? AppSpacing.xl : AppSpacing.xxl),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const AppStatusBadge(
+            label: 'VERIFIED FACILITY',
+            color: Color(0xFF9DD8C8),
+            icon: AppIcons.verifiedRounded,
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Text(
+            hospital.name,
+            style:
+                (compact
+                        ? Theme.of(context).textTheme.headlineLarge
+                        : Theme.of(context).textTheme.displaySmall)
+                    ?.copyWith(color: Colors.white),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            hospital.locationLabel.isEmpty
+                ? hospital.address
+                : hospital.locationLabel,
+            style: Theme.of(
+              context,
+            ).textTheme.bodyLarge?.copyWith(color: const Color(0xFFC7D7D1)),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Wrap(
+            spacing: AppSpacing.xs,
+            runSpacing: AppSpacing.xs,
             children: [
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: [
-                  _InfoChip(
-                    icon: Icons.verified_rounded,
-                    label: hospital.classification ?? 'Verified hospital',
-                    color: AppColors.blue,
-                  ),
-                  _InfoChip(
-                    icon: Icons.emergency_rounded,
-                    label:
-                        'ER ${_pretty(hospital.emergencyRoomStatus ?? 'unreported')}',
-                    color: hospital.isEmergencyAvailable
-                        ? AppColors.teal
-                        : const Color(0xFF8B5B00),
-                  ),
-                  _InfoChip(
-                    icon: Icons.bed_rounded,
-                    label: '${hospital.availableBeds} available beds',
-                    color: const Color(0xFF6A4BBC),
-                  ),
-                  _InfoChip(
-                    icon: Icons.meeting_room_outlined,
-                    label: '${hospital.availableRooms} available rooms',
-                    color: const Color(0xFF9A6700),
-                  ),
-                ],
+              AppStatusBadge(
+                label: hospital.classificationLabel,
+                color: const Color(0xFF9DD8C8),
               ),
-              const SizedBox(height: 24),
-              _Section(
-                title: 'About',
-                child: Text(
-                  (hospital.description?.trim().isNotEmpty ?? false)
-                      ? hospital.description!
-                      : 'This hospital has not added a public description yet.',
-                ),
-              ),
-              _Section(
-                title: 'Location & contact',
-                child: Column(
-                  children: [
-                    _ContactRow(
-                      icon: Icons.location_on_outlined,
-                      value: hospital.address,
-                    ),
-                    if (hospital.contactNumber != null)
-                      _ContactRow(
-                        icon: Icons.phone_outlined,
-                        value: hospital.contactNumber!,
-                      ),
-                    if (hospital.emergencyContactNumber != null)
-                      _ContactRow(
-                        icon: Icons.emergency_outlined,
-                        value: hospital.emergencyContactNumber!,
-                      ),
-                    if (hospital.email != null)
-                      _ContactRow(
-                        icon: Icons.email_outlined,
-                        value: hospital.email!,
-                      ),
-                  ],
-                ),
-              ),
-              if (_hoursLabel(hospital.operatingHours) case final hours?)
-                _Section(title: 'Operating hours', child: Text(hours)),
-              details.when(
-                data: (data) => _HospitalCapabilities(data: data),
-                loading: () => const Padding(
-                  padding: EdgeInsets.all(32),
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-                error: (error, stack) => Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.info_outline),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            'Service details are unavailable: $error',
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              FilledButton.icon(
-                onPressed: () => context.go('/consult?hospital=${hospital.id}'),
-                icon: const Icon(Icons.video_call_rounded),
-                label: const Text('Request an online consultation'),
+              AppStatusBadge(
+                label:
+                    'ER ${_pretty(hospital.emergencyRoomStatus ?? 'unreported')}',
+                color: hospital.isEmergencyAvailable
+                    ? const Color(0xFF9DD8C8)
+                    : const Color(0xFFFFD27E),
+                icon: AppIcons.emergencyOutlined,
               ),
             ],
           ),
-        ),
-      ],
+        ],
+      ),
+    );
+    return AppCard(
+      tone: AppCardTone.dark,
+      padding: EdgeInsets.zero,
+      borderRadius: AppRadius.feature,
+      child: compact
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SizedBox(height: 190, child: HospitalImage(hospital: hospital)),
+                content,
+              ],
+            )
+          : SizedBox(
+              height: 360,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(flex: 6, child: content),
+                  Expanded(
+                    flex: 5,
+                    child: ClipRRect(
+                      borderRadius: const BorderRadius.only(
+                        topRight: Radius.circular(AppRadius.feature),
+                        bottomRight: Radius.circular(AppRadius.feature),
+                      ),
+                      child: HospitalImage(hospital: hospital),
+                    ),
+                  ),
+                ],
+              ),
+            ),
     );
   }
+}
+
+class _HospitalSummary extends StatelessWidget {
+  const _HospitalSummary({required this.hospital});
+
+  final Hospital hospital;
+
+  @override
+  Widget build(BuildContext context) => AppCard(
+    tone: AppCardTone.mint,
+    padding: const EdgeInsets.all(AppSpacing.xl),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('Plan your visit', style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: AppSpacing.lg),
+        Row(
+          children: [
+            Expanded(
+              child: _CapacityMetric(
+                value: hospital.availableBeds.toString(),
+                label: 'beds',
+                icon: AppIcons.bedOutlined,
+              ),
+            ),
+            Expanded(
+              child: _CapacityMetric(
+                value: hospital.availableRooms.toString(),
+                label: 'rooms',
+                icon: AppIcons.meetingRoomOutlined,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        _ContactRow(icon: AppIcons.locationOnOutlined, value: hospital.address),
+        if (hospital.contactNumber != null)
+          _ContactRow(
+            icon: AppIcons.phoneOutlined,
+            value: hospital.contactNumber!,
+          ),
+        if (hospital.emergencyContactNumber != null)
+          _ContactRow(
+            icon: AppIcons.emergencyOutlined,
+            value: hospital.emergencyContactNumber!,
+          ),
+        if (hospital.email != null)
+          _ContactRow(icon: AppIcons.emailOutlined, value: hospital.email!),
+        if (_hoursLabel(hospital.operatingHours) case final hours?) ...[
+          const Divider(),
+          _ContactRow(icon: AppIcons.scheduleOutlined, value: hours),
+        ],
+        const SizedBox(height: AppSpacing.lg),
+        AppButton(
+          label: 'Request online consultation',
+          icon: AppIcons.videoCallRounded,
+          expand: true,
+          onPressed: () => context.go('/consult?hospital=${hospital.id}'),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        AppButton(
+          label: 'Compare on map',
+          icon: AppIcons.nearMeOutlined,
+          style: AppButtonStyle.quiet,
+          expand: true,
+          onPressed: () => context.go('/hospitals/map'),
+        ),
+      ],
+    ),
+  );
+}
+
+class _CapacityMetric extends StatelessWidget {
+  const _CapacityMetric({
+    required this.value,
+    required this.label,
+    required this.icon,
+  });
+
+  final String value;
+  final String label;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      Icon(icon, color: AppColors.forest),
+      const SizedBox(height: AppSpacing.xs),
+      Text(value, style: Theme.of(context).textTheme.headlineMedium),
+      Text(label, style: Theme.of(context).textTheme.bodySmall),
+    ],
+  );
 }
 
 class _HospitalCapabilities extends StatelessWidget {
@@ -205,8 +319,8 @@ class _HospitalCapabilities extends StatelessWidget {
                     contentPadding: EdgeInsets.zero,
                     leading: Icon(
                       item['is_global'] == true
-                          ? Icons.public_rounded
-                          : Icons.campaign_outlined,
+                          ? AppIcons.publicRounded
+                          : AppIcons.campaignOutlined,
                       color: AppColors.blue,
                     ),
                     title: Text(item['title']?.toString() ?? 'Announcement'),
@@ -217,7 +331,7 @@ class _HospitalCapabilities extends StatelessWidget {
           ),
         _ListSection(
           title: 'Departments',
-          icon: Icons.apartment_rounded,
+          icon: AppIcons.apartmentRounded,
           items: departments
               .map((item) => item['department_name']?.toString() ?? '')
               .where((value) => value.isNotEmpty)
@@ -226,7 +340,7 @@ class _HospitalCapabilities extends StatelessWidget {
         _ServiceOfferingsSection(services: services),
         _ListSection(
           title: 'Available doctors',
-          icon: Icons.medical_services_outlined,
+          icon: AppIcons.medicalServicesOutlined,
           items: doctors
               .map(
                 (item) => '${item['display_name']} — ${item['specialization']}',
@@ -235,7 +349,7 @@ class _HospitalCapabilities extends StatelessWidget {
         ),
         _ListSection(
           title: 'Facilities',
-          icon: Icons.monitor_heart_rounded,
+          icon: AppIcons.monitorHeartRounded,
           items: facilities
               .map(
                 (item) =>
@@ -292,127 +406,133 @@ class _ServiceOfferingCard extends StatelessWidget {
     final hours = _hoursLabel(service['operating_hours']);
     final availability = service['availability_status']?.toString() ?? '';
 
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(17),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFD),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE0E8F2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(
-                Icons.health_and_safety_outlined,
-                color: AppColors.blue,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      service['service_name']?.toString() ?? 'Hospital service',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    if (category != null || department != null)
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: AppCard(
+        tone: AppCardTone.soft,
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(
+                  AppIcons.healthAndSafetyOutlined,
+                  color: AppColors.blue,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Text(
-                        [category, department].whereType<String>().join(' · '),
+                        service['service_name']?.toString() ??
+                            'Hospital service',
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w800),
                       ),
-                  ],
+                      if (category != null || department != null)
+                        Text(
+                          [
+                            category,
+                            department,
+                          ].whereType<String>().join(' · '),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-              _ServiceStatus(value: availability),
-            ],
-          ),
-          if ((service['description'] ?? '').toString().trim().isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Text(service['description'].toString()),
-          ],
-          const SizedBox(height: 11),
-          Wrap(
-            spacing: 7,
-            runSpacing: 7,
-            children: [
-              for (final mode in modes)
-                Chip(
-                  avatar: const Icon(Icons.check_circle_outline, size: 16),
-                  label: Text(mode),
-                ),
-              if (service['appointment_required'] == true)
-                const Chip(label: Text('Appointment required')),
-              if (service['accepts_walk_ins'] == true)
-                const Chip(label: Text('Walk-ins accepted')),
-              if (fee != null) Chip(label: Text(fee)),
-            ],
-          ),
-          if (hours != null) ...[
-            const SizedBox(height: 9),
-            _DetailLine(icon: Icons.schedule_outlined, text: hours),
-          ],
-          if ((service['preparation_instructions'] ?? '')
-              .toString()
-              .trim()
-              .isNotEmpty) ...[
-            const SizedBox(height: 8),
-            _DetailLine(
-              icon: Icons.assignment_outlined,
-              text: 'Before your visit: ${service['preparation_instructions']}',
+                _ServiceStatus(value: availability),
+              ],
             ),
-          ],
-          if ((service['contact_number'] ?? '')
-              .toString()
-              .trim()
-              .isNotEmpty) ...[
-            const SizedBox(height: 8),
-            _DetailLine(
-              icon: Icons.phone_outlined,
-              text: 'Service contact: ${service['contact_number']}',
-            ),
-          ],
-          if (assignments.isNotEmpty) ...[
+            if ((service['description'] ?? '')
+                .toString()
+                .trim()
+                .isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Text(service['description'].toString()),
+            ],
             const SizedBox(height: 11),
-            Text(
-              'Assigned doctors',
-              style: Theme.of(context).textTheme.labelLarge,
-            ),
-            const SizedBox(height: 6),
             Wrap(
               spacing: 7,
               runSpacing: 7,
-              children: assignments
-                  .map((assignment) {
-                    final doctor = assignment['doctors'];
-                    final doctorMap = doctor is Map ? doctor : const {};
-                    final primary = assignment['is_primary'] == true;
-                    return Chip(
-                      avatar: Icon(
-                        primary ? Icons.star_rounded : Icons.person_outline,
-                        size: 16,
-                      ),
-                      label: Text(
-                        '${doctorMap['display_name'] ?? 'Doctor'}${primary ? ' · Primary' : ''}',
-                      ),
-                    );
-                  })
-                  .toList(growable: false),
+              children: [
+                for (final mode in modes)
+                  Chip(
+                    avatar: const Icon(AppIcons.checkCircleOutline, size: 16),
+                    label: Text(mode),
+                  ),
+                if (service['appointment_required'] == true)
+                  const Chip(label: Text('Appointment required')),
+                if (service['accepts_walk_ins'] == true)
+                  const Chip(label: Text('Walk-ins accepted')),
+                if (fee != null) Chip(label: Text(fee)),
+              ],
             ),
+            if (hours != null) ...[
+              const SizedBox(height: 9),
+              _DetailLine(icon: AppIcons.scheduleOutlined, text: hours),
+            ],
+            if ((service['preparation_instructions'] ?? '')
+                .toString()
+                .trim()
+                .isNotEmpty) ...[
+              const SizedBox(height: 8),
+              _DetailLine(
+                icon: AppIcons.assignmentOutlined,
+                text:
+                    'Before your visit: ${service['preparation_instructions']}',
+              ),
+            ],
+            if ((service['contact_number'] ?? '')
+                .toString()
+                .trim()
+                .isNotEmpty) ...[
+              const SizedBox(height: 8),
+              _DetailLine(
+                icon: AppIcons.phoneOutlined,
+                text: 'Service contact: ${service['contact_number']}',
+              ),
+            ],
+            if (assignments.isNotEmpty) ...[
+              const SizedBox(height: 11),
+              Text(
+                'Assigned doctors',
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 7,
+                runSpacing: 7,
+                children: assignments
+                    .map((assignment) {
+                      final doctor = assignment['doctors'];
+                      final doctorMap = doctor is Map ? doctor : const {};
+                      final primary = assignment['is_primary'] == true;
+                      return Chip(
+                        avatar: Icon(
+                          primary
+                              ? AppIcons.starRounded
+                              : AppIcons.personOutline,
+                          size: 16,
+                        ),
+                        label: Text(
+                          '${doctorMap['display_name'] ?? 'Doctor'}${primary ? ' · Primary' : ''}',
+                        ),
+                      );
+                    })
+                    .toList(growable: false),
+              ),
+            ],
+            if (tags.isNotEmpty) ...[
+              const SizedBox(height: 9),
+              Text(
+                tags.map((tag) => '#$tag').join('  '),
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
           ],
-          if (tags.isNotEmpty) ...[
-            const SizedBox(height: 9),
-            Text(
-              tags.map((tag) => '#$tag').join('  '),
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        ],
+        ),
       ),
     );
   }
@@ -474,20 +594,15 @@ class _Section extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: 22),
-    child: SizedBox(
-      width: double.infinity,
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(22),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 14),
-              child,
-            ],
-          ),
-        ),
+    child: AppCard(
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AppSectionHeader(title: title),
+          const SizedBox(height: AppSpacing.lg),
+          child,
+        ],
       ),
     ),
   );
@@ -535,38 +650,6 @@ class _ContactRow extends StatelessWidget {
         Icon(icon, size: 20, color: AppColors.blue),
         const SizedBox(width: 10),
         Expanded(child: SelectableText(value)),
-      ],
-    ),
-  );
-}
-
-class _InfoChip extends StatelessWidget {
-  const _InfoChip({
-    required this.icon,
-    required this.label,
-    required this.color,
-  });
-
-  final IconData icon;
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-    decoration: BoxDecoration(
-      color: color.withValues(alpha: 0.09),
-      borderRadius: BorderRadius.circular(999),
-    ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 17, color: color),
-        const SizedBox(width: 6),
-        Text(
-          label,
-          style: TextStyle(color: color, fontWeight: FontWeight.w700),
-        ),
       ],
     ),
   );

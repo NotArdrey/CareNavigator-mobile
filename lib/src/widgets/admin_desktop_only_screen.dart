@@ -1,6 +1,8 @@
 import 'package:care_navigator_ph/src/providers/app_providers.dart';
 import 'package:care_navigator_ph/src/routing/role_routes.dart';
 import 'package:care_navigator_ph/src/theme/app_theme.dart';
+import 'package:care_navigator_ph/src/widgets/app_layout.dart';
+import 'package:care_navigator_ph/src/widgets/app_page_header.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -44,51 +46,93 @@ class _AdminDesktopOnlyScreenState
 
   @override
   Widget build(BuildContext context) => SafeArea(
-    child: Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 480),
-          child: Card(
-            child: Padding(
-              padding: const EdgeInsets.all(28),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: const BoxDecoration(
+    child: Column(
+      children: [
+        const AppPageHeader(
+          eyebrow: 'SECURE ADMINISTRATOR PORTAL',
+          title: 'A wider control surface is required',
+          subtitle: 'Operational tables and audit tools are desktop-only',
+          icon: AppIcons.adminPanelSettingsRounded,
+        ),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 48),
+            children: [
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.xxl),
+                decoration: BoxDecoration(
+                  color: AppColors.evergreenDark,
+                  borderRadius: BorderRadius.circular(AppRadius.extraLarge),
+                  boxShadow: AppShadows.medium,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const AppStatusBadge(
+                      label: 'DESKTOP SECURITY POLICY',
                       color: AppColors.mint,
-                      shape: BoxShape.circle,
+                      icon: AppIcons.lockRounded,
+                      inverse: true,
                     ),
-                    child: const Icon(
-                      Icons.desktop_windows_outlined,
-                      size: 40,
-                      color: AppColors.teal,
+                    const SizedBox(height: AppSpacing.xl),
+                    Container(
+                      width: 84,
+                      height: 84,
+                      decoration: BoxDecoration(
+                        color: AppColors.forest,
+                        borderRadius: BorderRadius.circular(26),
+                      ),
+                      child: const Icon(
+                        AppIcons.desktopWindowsRounded,
+                        color: Colors.white,
+                        size: 42,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    'Desktop web portal required',
-                    style: Theme.of(context).textTheme.headlineMedium,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    adminMobileAccessMessage,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 22),
-                  FilledButton(
-                    onPressed: _returnToLogin,
-                    child: const Text('Return to sign in'),
-                  ),
-                ],
+                    const SizedBox(height: AppSpacing.xl),
+                    Text(
+                      'Open the administrator portal on desktop web.',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.headlineMedium?.copyWith(color: Colors.white),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      adminMobileAccessMessage,
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyLarge?.copyWith(color: AppColors.mist),
+                    ),
+                  ],
+                ),
               ),
-            ),
+              const SizedBox(height: AppSpacing.md),
+              AppCard(
+                tone: AppCardTone.mint,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Recommended workspace',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    const Text(
+                      'Use a display at least 1024 logical pixels wide so tables, filters, and audit context remain visible together.',
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    AppButton(
+                      label: 'Return to sign in',
+                      icon: AppIcons.arrowBackRounded,
+                      onPressed: _returnToLogin,
+                      expand: true,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
-      ),
+      ],
     ),
   );
 }

@@ -22,10 +22,26 @@ if (-not $url -or -not $key) {
 
 Push-Location $root
 try {
+  $flutterArgs = @($args)
+  $deviceIndex = [Array]::IndexOf([string[]]$flutterArgs, '-d')
+  if ($deviceIndex -lt 0) {
+    $deviceIndex = [Array]::IndexOf([string[]]$flutterArgs, '--device-id')
+  }
+
+  if ($deviceIndex -ge 0 -and $deviceIndex + 1 -lt $flutterArgs.Count -and $flutterArgs[$deviceIndex + 1] -eq 'chrome') {
+    $devices = flutter devices 2>$null | Out-String
+    if ($devices -notmatch '(?im)^\s*Chrome\s+.*\bchrome\b') {
+      if ($devices -match '(?im)^\s*Edge\s+.*\bedge\b') {
+        Write-Warning 'Chrome is not available. Using Edge instead.'
+        $flutterArgs[$deviceIndex + 1] = 'edge'
+      }
+    }
+  }
+
   flutter run `
     "--dart-define=NEXT_PUBLIC_SUPABASE_URL=$url" `
     "--dart-define=NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$key" `
-    @args
+    @flutterArgs
 }
 finally {
   Pop-Location

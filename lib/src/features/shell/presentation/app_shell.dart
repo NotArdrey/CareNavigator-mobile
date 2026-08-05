@@ -2,6 +2,8 @@ import 'package:care_navigator_ph/src/providers/app_providers.dart';
 import 'package:care_navigator_ph/src/routing/role_routes.dart';
 import 'package:care_navigator_ph/src/theme/app_theme.dart';
 import 'package:care_navigator_ph/src/widgets/admin_desktop_only_screen.dart';
+import 'package:care_navigator_ph/src/widgets/app_page_header.dart';
+import 'package:care_navigator_ph/src/widgets/app_states.dart';
 import 'package:care_navigator_ph/src/widgets/brand_mark.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -51,10 +53,11 @@ class AppShell extends ConsumerWidget {
 
     final role = ref.watch(currentProfileProvider).value?.role;
     final destinations = navigationForRole(role);
+    final mobileDestinations = _mobileDestinations(role);
     final selectedIndex = _selectedIndex(destinations);
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isWide = constraints.maxWidth >= 920;
+        final isWide = constraints.maxWidth >= AppBreakpoints.medium;
         if (shouldBlockAdminAccess(
           role: role,
           isWeb: kIsWeb,
@@ -81,71 +84,88 @@ class AppShell extends ConsumerWidget {
           orElse: () => child,
         );
         if (isWide) {
+          final railWidth = constraints.maxWidth >= AppBreakpoints.expanded
+              ? 240.0
+              : 216.0;
           return Scaffold(
             body: Row(
               children: [
                 SafeArea(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 8, 16),
-                    child: Container(
-                      width: 240,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: const Color(0xFFE0E8F2)),
-                      ),
-                      child: Column(
-                        children: [
-                          const Padding(
-                            padding: EdgeInsets.fromLTRB(20, 22, 20, 28),
-                            child: Align(
-                              alignment: Alignment.centerLeft,
-                              child: BrandMark(),
-                            ),
+                  right: false,
+                  child: Container(
+                    width: railWidth,
+                    padding: const EdgeInsets.fromLTRB(16, 22, 16, 18),
+                    color: AppColors.evergreenDark,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.fromLTRB(8, 0, 8, 0),
+                          child: BrandMark(inverse: true),
+                        ),
+                        const SizedBox(height: 40),
+                        Text(
+                          'YOUR CARE MAP',
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(
+                                color: AppColors.mist,
+                                letterSpacing: 1.25,
+                                fontWeight: FontWeight.w800,
+                              ),
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        for (
+                          var index = 0;
+                          index < destinations.length;
+                          index++
+                        )
+                          _RailItem(
+                            destination: destinations[index],
+                            selected: index == selectedIndex,
+                            expanded: true,
+                            onTap: () =>
+                                _navigate(context, destinations, index),
                           ),
-                          for (
-                            var index = 0;
-                            index < destinations.length;
-                            index++
-                          )
-                            _RailItem(
-                              destination: destinations[index],
-                              selected: index == selectedIndex,
-                              onTap: () =>
-                                  _navigate(context, destinations, index),
-                            ),
-                          const Spacer(),
-                          Container(
-                            margin: const EdgeInsets.all(16),
-                            padding: const EdgeInsets.all(15),
+                        const Spacer(),
+                        Tooltip(
+                          message:
+                              'Emergency? Call 911 or go to the nearest ER.',
+                          child: Container(
+                            margin: const EdgeInsets.fromLTRB(0, 8, 0, 0),
+                            padding: const EdgeInsets.all(AppSpacing.md),
                             decoration: BoxDecoration(
-                              color: AppColors.mint,
-                              borderRadius: BorderRadius.circular(16),
+                              color: Colors.white.withValues(alpha: .08),
+                              borderRadius: BorderRadius.circular(
+                                AppRadius.extraLarge,
+                              ),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: .1),
+                              ),
                             ),
                             child: const Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Icon(
-                                  Icons.emergency_rounded,
-                                  size: 20,
-                                  color: AppColors.danger,
+                                  AppIcons.emergencyRounded,
+                                  size: 21,
+                                  color: AppColors.coral,
                                 ),
-                                SizedBox(width: 9),
+                                SizedBox(width: AppSpacing.sm),
                                 Expanded(
                                   child: Text(
-                                    'Emergency? Call 911 or go to the nearest ER.',
+                                    'Need urgent help?\nCall 911 or go to the nearest ER.',
                                     style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
+                                      fontSize: 11,
                                       height: 1.35,
+                                      fontWeight: FontWeight.w700,
                                     ),
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -157,20 +177,11 @@ class AppShell extends ConsumerWidget {
 
         return Scaffold(
           body: effectiveChild,
-          bottomNavigationBar: NavigationBar(
-            selectedIndex: selectedIndex,
+          bottomNavigationBar: _MobileNavigationBar(
+            destinations: mobileDestinations,
+            selectedIndex: _selectedIndex(mobileDestinations),
             onDestinationSelected: (index) =>
-                _navigate(context, destinations, index),
-            destinations: [
-              for (final destination in destinations)
-                NavigationDestination(
-                  icon: Icon(_iconFor(destination.destination)),
-                  selectedIcon: Icon(
-                    _iconFor(destination.destination, selected: true),
-                  ),
-                  label: destination.label,
-                ),
-            ],
+                _navigate(context, mobileDestinations, index),
           ),
         );
       },
@@ -196,7 +207,7 @@ class AppShell extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
               child: Row(
                 children: [
-                  const Icon(Icons.engineering_rounded, size: 20),
+                  const Icon(AppIcons.engineeringRounded, size: 20),
                   const SizedBox(width: 9),
                   Expanded(
                     child: Text(
@@ -213,98 +224,202 @@ class AppShell extends ConsumerWidget {
       );
     }
     final end = DateTime.tryParse(state['ends_at']?.toString() ?? '');
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 560),
-        child: Card(
-          margin: const EdgeInsets.all(24),
-          child: Padding(
-            padding: const EdgeInsets.all(28),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.engineering_rounded, size: 52),
-                const SizedBox(height: 14),
-                Text(
-                  state['title']?.toString() ?? 'Scheduled maintenance',
-                  style: Theme.of(context).textTheme.headlineSmall,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  state['message']?.toString() ??
-                      'Care workflows are temporarily unavailable.',
-                  textAlign: TextAlign.center,
-                ),
-                if (end != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    'Expected end: ${DateFormat.yMMMd().add_jm().format(end.toLocal())}',
-                  ),
-                ],
-                const SizedBox(height: 18),
-                FilledButton.icon(
-                  onPressed: () => context.go('/hospitals'),
-                  icon: const Icon(Icons.local_hospital_outlined),
-                  label: const Text('Open hospital directory'),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'For an emergency, call 911 or go to the nearest emergency room.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: AppColors.danger,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
+    final expectedEnd = end == null
+        ? ''
+        : '\nExpected end: ${DateFormat.yMMMd().add_jm().format(end.toLocal())}';
+    return Column(
+      children: [
+        AppPageHeader(
+          title: state['title']?.toString() ?? 'Scheduled maintenance',
+          subtitle: 'CareNavigator service notice',
+          icon: AppIcons.engineeringRounded,
+        ),
+        Expanded(
+          child: AppStatePanel(
+            kind: AppStateKind.restricted,
+            icon: AppIcons.engineeringRounded,
+            title: state['title']?.toString() ?? 'Scheduled maintenance',
+            message:
+                '${state['message']?.toString() ?? 'Care workflows are temporarily unavailable.'}$expectedEnd\n\nFor an emergency, call 911 or go to the nearest emergency room.',
+            action: FilledButton.icon(
+              onPressed: () => context.go('/hospitals'),
+              icon: const Icon(AppIcons.localHospitalOutlined),
+              label: const Text('Open hospital directory'),
             ),
           ),
         ),
-      ),
+      ],
     );
   }
+}
+
+List<RoleNavigationItem> _mobileDestinations(String? role) => switch (role) {
+  'doctor' => const [
+    RoleNavigationItem(RoleDestination.dashboard, 'Overview'),
+    RoleNavigationItem(RoleDestination.care, 'Clinical'),
+    RoleNavigationItem(RoleDestination.notifications, 'Updates'),
+  ],
+  'patient' => const [
+    RoleNavigationItem(RoleDestination.home, 'Home'),
+    RoleNavigationItem(RoleDestination.hospitals, 'Hospitals'),
+    RoleNavigationItem(RoleDestination.dashboard, 'My care'),
+    RoleNavigationItem(RoleDestination.care, 'Records'),
+  ],
+  'guest' => const [
+    RoleNavigationItem(RoleDestination.home, 'Home'),
+    RoleNavigationItem(RoleDestination.hospitals, 'Hospitals'),
+    RoleNavigationItem(RoleDestination.consult, 'Consult'),
+    RoleNavigationItem(RoleDestination.dashboard, 'My care'),
+  ],
+  _ => const [
+    RoleNavigationItem(RoleDestination.home, 'Home'),
+    RoleNavigationItem(RoleDestination.hospitals, 'Hospitals'),
+    RoleNavigationItem(RoleDestination.consult, 'Consult'),
+    RoleNavigationItem(RoleDestination.dashboard, 'My care'),
+  ],
+};
+
+class _MobileNavigationBar extends StatelessWidget {
+  const _MobileNavigationBar({
+    required this.destinations,
+    required this.selectedIndex,
+    required this.onDestinationSelected,
+  });
+
+  final List<RoleNavigationItem> destinations;
+  final int selectedIndex;
+  final ValueChanged<int> onDestinationSelected;
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+    top: false,
+    child: Material(
+      color: AppColors.paper,
+      elevation: 8,
+      shadowColor: AppColors.evergreenDark.withValues(alpha: .16),
+      child: NavigationBarTheme(
+        data: NavigationBarThemeData(
+          height: 72,
+          backgroundColor: AppColors.paper,
+          surfaceTintColor: Colors.transparent,
+          indicatorColor: AppColors.seaGlass,
+          indicatorShape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.button),
+          ),
+          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+          iconTheme: WidgetStateProperty.resolveWith(
+            (states) => IconThemeData(
+              size: 21,
+              color: states.contains(WidgetState.selected)
+                  ? AppColors.forest
+                  : AppColors.inkMuted,
+            ),
+          ),
+          labelTextStyle: WidgetStateProperty.resolveWith(
+            (states) => TextStyle(
+              fontSize: 10,
+              color: states.contains(WidgetState.selected)
+                  ? AppColors.forest
+                  : AppColors.inkMuted,
+              fontWeight: states.contains(WidgetState.selected)
+                  ? FontWeight.w800
+                  : FontWeight.w600,
+            ),
+          ),
+        ),
+        child: NavigationBar(
+          selectedIndex: selectedIndex.clamp(0, destinations.length - 1),
+          onDestinationSelected: onDestinationSelected,
+          destinations: [
+            for (final destination in destinations)
+              NavigationDestination(
+                icon: Icon(_iconFor(destination.destination)),
+                selectedIcon: Icon(_iconFor(destination.destination)),
+                label: destination.label,
+              ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class _RailItem extends StatelessWidget {
   const _RailItem({
     required this.destination,
     required this.selected,
+    this.expanded = false,
     required this.onTap,
   });
 
   final RoleNavigationItem destination;
   final bool selected;
+  final bool expanded;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+      padding: const EdgeInsets.symmetric(vertical: 3),
       child: Material(
-        color: selected ? const Color(0xFFE8F1FD) : Colors.transparent,
-        borderRadius: BorderRadius.circular(14),
+        color: selected ? AppColors.forest : Colors.transparent,
+        borderRadius: BorderRadius.circular(AppRadius.extraLarge),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(AppRadius.extraLarge),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-            child: Row(
-              children: [
-                Icon(
-                  _iconFor(destination.destination, selected: selected),
-                  color: selected ? AppColors.blue : const Color(0xFF60758C),
-                ),
-                const SizedBox(width: 13),
-                Text(
-                  destination.label,
-                  style: TextStyle(
-                    color: selected ? AppColors.blue : AppColors.ink,
-                    fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+            padding: expanded
+                ? const EdgeInsets.symmetric(horizontal: 14, vertical: 14)
+                : const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+            child: expanded
+                ? Row(
+                    children: [
+                      Icon(
+                        _iconFor(destination.destination),
+                        size: 21,
+                        color: selected ? Colors.white : AppColors.mist,
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: Text(
+                          destination.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: selected ? Colors.white : AppColors.mist,
+                            fontSize: 13,
+                            fontWeight: selected
+                                ? FontWeight.w800
+                                : FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _iconFor(destination.destination),
+                        size: 23,
+                        color: selected ? Colors.white : AppColors.mist,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        destination.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: selected ? Colors.white : AppColors.mist,
+                          fontSize: 10,
+                          fontWeight: selected
+                              ? FontWeight.w700
+                              : FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
-            ),
           ),
         ),
       ),
@@ -312,27 +427,14 @@ class _RailItem extends StatelessWidget {
   }
 }
 
-IconData _iconFor(
-  RoleDestination destination, {
-  bool selected = false,
-}) => switch (destination) {
-  RoleDestination.home => selected ? Icons.home_rounded : Icons.home_outlined,
-  RoleDestination.hospitals =>
-    selected ? Icons.local_hospital_rounded : Icons.local_hospital_outlined,
-  RoleDestination.consult =>
-    selected ? Icons.video_call_rounded : Icons.video_call_outlined,
-  RoleDestination.dashboard =>
-    selected ? Icons.dashboard_rounded : Icons.dashboard_outlined,
-  RoleDestination.care =>
-    selected ? Icons.medical_services_rounded : Icons.medical_services_outlined,
-  RoleDestination.admin =>
-    selected
-        ? Icons.admin_panel_settings_rounded
-        : Icons.admin_panel_settings_outlined,
-  RoleDestination.operations =>
-    selected ? Icons.settings_rounded : Icons.settings_outlined,
-  RoleDestination.profile =>
-    selected ? Icons.account_circle_rounded : Icons.account_circle_outlined,
-  RoleDestination.notifications =>
-    selected ? Icons.notifications_rounded : Icons.notifications_outlined,
+IconData _iconFor(RoleDestination destination) => switch (destination) {
+  RoleDestination.home => AppIcons.home,
+  RoleDestination.hospitals => AppIcons.hospitals,
+  RoleDestination.consult => AppIcons.videoConsultation,
+  RoleDestination.dashboard => AppIcons.medicalRecords,
+  RoleDestination.care => AppIcons.consultation,
+  RoleDestination.admin => AppIcons.admin,
+  RoleDestination.operations => AppIcons.settings,
+  RoleDestination.profile => AppIcons.profile,
+  RoleDestination.notifications => AppIcons.notifications,
 };

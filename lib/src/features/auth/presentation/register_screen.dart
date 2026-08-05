@@ -1,5 +1,7 @@
 import 'package:care_navigator_ph/src/providers/app_providers.dart';
-import 'package:care_navigator_ph/src/widgets/brand_mark.dart';
+import 'package:care_navigator_ph/src/theme/app_theme.dart';
+import 'package:care_navigator_ph/src/widgets/app_layout.dart';
+import 'package:care_navigator_ph/src/widgets/auth_page_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -70,156 +72,169 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 500),
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.all(28),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const Align(
-                        alignment: Alignment.centerLeft,
-                        child: BrandMark(),
-                      ),
-                      const SizedBox(height: 28),
-                      Text(
-                        'Create your account',
-                        style: Theme.of(context).textTheme.headlineLarge,
-                      ),
-                      const SizedBox(height: 7),
-                      const Text(
-                        'Register to save your CareNavigator activity and begin the patient activation process.',
-                      ),
-                      const SizedBox(height: 24),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: _firstNameController,
-                              textCapitalization: TextCapitalization.words,
-                              decoration: const InputDecoration(
-                                labelText: 'First name',
-                              ),
-                              validator: _requiredName,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: TextFormField(
-                              controller: _lastNameController,
-                              textCapitalization: TextCapitalization.words,
-                              decoration: const InputDecoration(
-                                labelText: 'Last name',
-                              ),
-                              validator: _requiredName,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-                      TextFormField(
-                        controller: _emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        autofillHints: const [AutofillHints.email],
-                        decoration: const InputDecoration(
-                          labelText: 'Email address',
-                          prefixIcon: Icon(Icons.email_outlined),
-                        ),
-                        validator: (value) =>
-                            value == null || !value.trim().contains('@')
-                            ? 'Enter a valid email address.'
-                            : null,
-                      ),
-                      const SizedBox(height: 14),
-                      TextFormField(
-                        controller: _passwordController,
-                        obscureText: _obscurePassword,
-                        autofillHints: const [AutofillHints.newPassword],
-                        decoration: InputDecoration(
-                          labelText: 'Password',
-                          prefixIcon: const Icon(Icons.lock_outline_rounded),
-                          suffixIcon: IconButton(
-                            tooltip: _obscurePassword
-                                ? 'Show passwords'
-                                : 'Hide passwords',
-                            onPressed: () => setState(
-                              () => _obscurePassword = !_obscurePassword,
-                            ),
-                            icon: Icon(
-                              _obscurePassword
-                                  ? Icons.visibility_outlined
-                                  : Icons.visibility_off_outlined,
-                            ),
-                          ),
-                        ),
-                        validator: (value) => value == null || value.length < 8
-                            ? 'Use at least 8 characters.'
-                            : null,
-                      ),
-                      const SizedBox(height: 14),
-                      TextFormField(
-                        controller: _confirmPasswordController,
-                        obscureText: _obscurePassword,
-                        autofillHints: const [AutofillHints.newPassword],
-                        decoration: const InputDecoration(
-                          labelText: 'Confirm password',
-                          prefixIcon: Icon(Icons.lock_reset_rounded),
-                        ),
-                        validator: (value) => value != _passwordController.text
-                            ? 'Passwords do not match.'
-                            : null,
-                        onFieldSubmitted: (_) =>
-                            _submitting ? null : _register(),
-                      ),
-                      const SizedBox(height: 22),
-                      FilledButton(
-                        onPressed: _submitting ? null : _register,
-                        child: _submitting
-                            ? const SizedBox(
-                                width: 22,
-                                height: 22,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Text('Create account'),
-                      ),
-                      const SizedBox(height: 10),
-                      TextButton(
-                        onPressed: _submitting
-                            ? null
-                            : () => context.go('/login'),
-                        child: const Text('Already registered? Sign in'),
-                      ),
-                      TextButton(
-                        onPressed: _submitting
-                            ? null
-                            : () => context.go('/home'),
-                        child: const Text('Continue as guest'),
-                      ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Registration creates a visitor account. A doctor or hospital must verify and activate access to clinical patient records.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF6B7C91),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+    return AuthPageShell(
+      maxWidth: 520,
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Start your care journey',
+              style: Theme.of(context).textTheme.displaySmall,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'Create a secure visitor account. Your care team can activate clinical access after verification.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodyLarge?.copyWith(color: AppColors.inkMuted),
+            ),
+            const SizedBox(height: AppSpacing.xxl),
+            Text(
+              'YOUR DETAILS',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: AppColors.forest,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.1,
               ),
             ),
-          ),
+            const SizedBox(height: AppSpacing.md),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final firstName = AppTextField(
+                  label: 'First name',
+                  controller: _firstNameController,
+                  textCapitalization: TextCapitalization.words,
+                  textInputAction: TextInputAction.next,
+                  hint: 'Juan',
+                  validator: _requiredName,
+                );
+                final lastName = AppTextField(
+                  label: 'Last name',
+                  controller: _lastNameController,
+                  textCapitalization: TextCapitalization.words,
+                  textInputAction: TextInputAction.next,
+                  hint: 'Dela Cruz',
+                  validator: _requiredName,
+                );
+                if (constraints.maxWidth < 430) {
+                  return Column(
+                    children: [
+                      firstName,
+                      const SizedBox(height: AppSpacing.lg),
+                      lastName,
+                    ],
+                  );
+                }
+                return Row(
+                  children: [
+                    Expanded(child: firstName),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(child: lastName),
+                  ],
+                );
+              },
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            AppTextField(
+              label: 'Email address',
+              controller: _emailController,
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
+              autofillHints: const [AutofillHints.email],
+              hint: 'you@example.com',
+              prefixIcon: AppIcons.alternateEmailRounded,
+              validator: (value) => value == null || !value.trim().contains('@')
+                  ? 'Enter a valid email address.'
+                  : null,
+            ),
+            const SizedBox(height: AppSpacing.xxl),
+            Text(
+              'SECURE YOUR ACCOUNT',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: AppColors.forest,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.1,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            AppTextField(
+              label: 'Password',
+              controller: _passwordController,
+              obscureText: _obscurePassword,
+              autofillHints: const [AutofillHints.newPassword],
+              prefixIcon: AppIcons.keyRounded,
+              suffix: IconButton(
+                tooltip: _obscurePassword ? 'Show passwords' : 'Hide passwords',
+                onPressed: () =>
+                    setState(() => _obscurePassword = !_obscurePassword),
+                icon: Icon(
+                  _obscurePassword
+                      ? AppIcons.visibilityOutlined
+                      : AppIcons.visibilityOffOutlined,
+                ),
+              ),
+              validator: (value) => value == null || value.length < 8
+                  ? 'Use at least 8 characters.'
+                  : null,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            AppTextField(
+              label: 'Confirm password',
+              controller: _confirmPasswordController,
+              obscureText: _obscurePassword,
+              autofillHints: const [AutofillHints.newPassword],
+              prefixIcon: AppIcons.lockResetRounded,
+              validator: (value) => value != _passwordController.text
+                  ? 'Passwords do not match.'
+                  : null,
+              onSubmitted: (_) {
+                if (!_submitting) _register();
+              },
+            ),
+            const SizedBox(height: AppSpacing.md),
+            const AppCard(
+              tone: AppCardTone.soft,
+              padding: EdgeInsets.all(AppSpacing.md),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    AppIcons.shieldOutlined,
+                    color: AppColors.forest,
+                    size: 20,
+                  ),
+                  SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      'Use at least 8 characters. Your password is handled by secure authentication and is never visible to care staff.',
+                      style: TextStyle(fontSize: 12, height: 1.45),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            AppButton(
+              label: 'I already have an account',
+              style: AppButtonStyle.secondary,
+              expand: true,
+              onPressed: _submitting ? null : () => context.go('/login'),
+            ),
+            AppButton(
+              label: 'Explore as a guest',
+              style: AppButtonStyle.quiet,
+              expand: true,
+              onPressed: _submitting ? null : () => context.go('/home'),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              'By creating an account, you agree to use Care Navigator for healthcare navigation—not emergency response or diagnosis.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
         ),
       ),
     );

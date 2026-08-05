@@ -6,7 +6,9 @@ import 'package:care_navigator_ph/src/repositories/admin_repository.dart';
 import 'package:care_navigator_ph/src/routing/role_routes.dart';
 import 'package:care_navigator_ph/src/theme/app_theme.dart';
 import 'package:care_navigator_ph/src/widgets/admin_desktop_only_screen.dart';
+import 'package:care_navigator_ph/src/widgets/app_layout.dart';
 import 'package:care_navigator_ph/src/widgets/app_page_header.dart';
+import 'package:care_navigator_ph/src/widgets/app_states.dart';
 import 'package:care_navigator_ph/src/widgets/async_value_panel.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -70,18 +72,20 @@ class _AdminFrame extends StatelessWidget {
     child: Column(
       children: [
         AppPageHeader(
-          title: 'Administration',
-          subtitle: '${profile.displayName} · ${profile.roleLabel}',
-          icon: Icons.admin_panel_settings_rounded,
+          eyebrow: 'CONTROLLED ADMINISTRATOR PORTAL',
+          title: 'Directory command console',
+          subtitle:
+              '${profile.displayName} · ${profile.roleLabel} · audited access',
+          icon: AppIcons.adminPanelSettingsRounded,
           actions: [
             IconButton(
               tooltip: 'Notifications',
               onPressed: () => context.go('/notifications'),
-              icon: const Icon(Icons.notifications_outlined),
+              icon: const Icon(AppIcons.notificationsOutlined),
             ),
             OutlinedButton.icon(
               onPressed: () => context.go('/admin/operations'),
-              icon: const Icon(Icons.monitor_heart_outlined),
+              icon: const Icon(AppIcons.monitorHeartOutlined),
               label: const Text('Reports & operations'),
             ),
           ],
@@ -101,6 +105,7 @@ class _SuperAdminPanel extends ConsumerStatefulWidget {
 
 class _SuperAdminPanelState extends ConsumerState<_SuperAdminPanel> {
   bool _loading = true;
+  int _selectedModule = 0;
   Object? _error;
   List<JsonMap> _hospitals = const [];
   List<JsonMap> _classifications = const [];
@@ -170,44 +175,39 @@ class _SuperAdminPanelState extends ConsumerState<_SuperAdminPanel> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_loading) {
+      return const AppLoadingState(label: 'Loading administration');
+    }
     if (_error != null) return _ErrorPanel(error: _error!, onRetry: _load);
-    return DefaultTabController(
-      length: 4,
-      child: Column(
-        children: [
-          const Material(
-            color: Colors.white,
-            child: TabBar(
-              tabs: [
-                Tab(icon: Icon(Icons.domain_rounded), text: 'Hospitals'),
-                Tab(
-                  icon: Icon(Icons.manage_accounts_rounded),
-                  text: 'Administrators',
-                ),
-                Tab(
-                  icon: Icon(Icons.category_outlined),
-                  text: 'Service categories',
-                ),
-                Tab(
-                  icon: Icon(Icons.medical_services_outlined),
-                  text: 'Doctors',
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: TabBarView(
-              children: [
-                _hospitalList(),
-                _administratorList(),
-                _serviceCategoryList(),
-                _doctorList(),
-              ],
-            ),
-          ),
-        ],
+    final destinations = const [
+      AppModuleDestination(label: 'Hospitals', icon: AppIcons.domainRounded),
+      AppModuleDestination(
+        label: 'Administrators',
+        icon: AppIcons.manageAccountsRounded,
       ),
+      AppModuleDestination(
+        label: 'Service categories',
+        icon: AppIcons.categoryOutlined,
+      ),
+      AppModuleDestination(
+        label: 'Doctors',
+        icon: AppIcons.medicalServicesOutlined,
+      ),
+    ];
+    final bodies = [
+      _hospitalList(),
+      _administratorList(),
+      _serviceCategoryList(),
+      _doctorList(),
+    ];
+    return AppModuleLayout(
+      eyebrow: 'PLATFORM DIRECTORY',
+      title: 'Manage verified care access',
+      summary: '${_hospitals.length} hospitals · ${_doctors.length} clinicians',
+      destinations: destinations,
+      selectedIndex: _selectedModule,
+      onSelected: (value) => setState(() => _selectedModule = value),
+      child: bodies[_selectedModule],
     );
   }
 
@@ -216,7 +216,7 @@ class _SuperAdminPanelState extends ConsumerState<_SuperAdminPanel> {
     subtitle: '${_hospitals.length} registered hospitals',
     action: FilledButton.icon(
       onPressed: _addHospital,
-      icon: const Icon(Icons.add),
+      icon: const Icon(AppIcons.add),
       label: const Text('Add hospital'),
     ),
     children: _hospitals.isEmpty
@@ -242,7 +242,7 @@ class _SuperAdminPanelState extends ConsumerState<_SuperAdminPanel> {
             const CircleAvatar(
               backgroundColor: AppColors.mint,
               foregroundColor: AppColors.teal,
-              child: Icon(Icons.local_hospital_rounded),
+              child: Icon(AppIcons.localHospitalRounded),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -339,7 +339,7 @@ class _SuperAdminPanelState extends ConsumerState<_SuperAdminPanel> {
                       vertical: 8,
                     ),
                     leading: const CircleAvatar(
-                      child: Icon(Icons.admin_panel_settings_outlined),
+                      child: Icon(AppIcons.adminPanelSettingsOutlined),
                     ),
                     title: Text(
                       name.isEmpty ? admin['email'].toString() : name,
@@ -423,7 +423,7 @@ class _SuperAdminPanelState extends ConsumerState<_SuperAdminPanel> {
                   child: TextField(
                     decoration: const InputDecoration(
                       labelText: 'Search doctors',
-                      prefixIcon: Icon(Icons.search_rounded),
+                      prefixIcon: Icon(AppIcons.searchRounded),
                     ),
                     onChanged: (value) => setState(() => _doctorQuery = value),
                   ),
@@ -497,7 +497,7 @@ class _SuperAdminPanelState extends ConsumerState<_SuperAdminPanel> {
                 leading: const CircleAvatar(
                   backgroundColor: AppColors.mint,
                   foregroundColor: AppColors.teal,
-                  child: Icon(Icons.medical_services_outlined),
+                  child: Icon(AppIcons.medicalServicesOutlined),
                 ),
                 title: Text(doctor['display_name']?.toString() ?? 'Doctor'),
                 subtitle: Text(
@@ -533,7 +533,7 @@ class _SuperAdminPanelState extends ConsumerState<_SuperAdminPanel> {
         title: 'Hospital classifications',
         action: FilledButton.icon(
           onPressed: () => _editClassification(),
-          icon: const Icon(Icons.add),
+          icon: const Icon(AppIcons.add),
           label: const Text('Add classification'),
         ),
         children: _classifications.isEmpty
@@ -547,7 +547,7 @@ class _SuperAdminPanelState extends ConsumerState<_SuperAdminPanel> {
                     (classification) => ListTile(
                       leading: const CircleAvatar(
                         backgroundColor: AppColors.mint,
-                        child: Icon(Icons.account_tree_outlined),
+                        child: Icon(AppIcons.accountTreeOutlined),
                       ),
                       title: Text(
                         classification['classification_name'].toString(),
@@ -572,7 +572,7 @@ class _SuperAdminPanelState extends ConsumerState<_SuperAdminPanel> {
         title: 'Healthcare service categories',
         action: FilledButton.icon(
           onPressed: () => _editServiceCategory(),
-          icon: const Icon(Icons.add),
+          icon: const Icon(AppIcons.add),
           label: const Text('Add category'),
         ),
         children: _serviceCategories.isEmpty
@@ -584,7 +584,7 @@ class _SuperAdminPanelState extends ConsumerState<_SuperAdminPanel> {
                     (category) => ListTile(
                       leading: const CircleAvatar(
                         backgroundColor: AppColors.mint,
-                        child: Icon(Icons.category_outlined),
+                        child: Icon(AppIcons.categoryOutlined),
                       ),
                       title: Text(category['category_name'].toString()),
                       subtitle: Text(category['description']?.toString() ?? ''),
@@ -799,6 +799,7 @@ class _HospitalAdminPanel extends ConsumerStatefulWidget {
 
 class _HospitalAdminPanelState extends ConsumerState<_HospitalAdminPanel> {
   bool _loading = true;
+  int _selectedModule = 0;
   Object? _error;
   List<JsonMap> _departments = const [];
   List<JsonMap> _services = const [];
@@ -870,52 +871,61 @@ class _HospitalAdminPanelState extends ConsumerState<_HospitalAdminPanel> {
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
     if (_error != null) return _ErrorPanel(error: _error!, onRetry: _load);
-    return DefaultTabController(
-      length: 3,
+    final hospitalName =
+        _hospital?['hospital_name']?.toString() ?? 'Assigned hospital';
+    return AppModuleLayout(
+      eyebrow: 'HOSPITAL DIRECTORY',
+      title: hospitalName,
+      summary: '${_services.length} services · ${_doctors.length} clinicians',
+      destinations: const [
+        AppModuleDestination(
+          label: 'Departments & services',
+          icon: AppIcons.medicalServicesOutlined,
+        ),
+        AppModuleDestination(
+          label: 'Live availability',
+          icon: AppIcons.bedOutlined,
+        ),
+        AppModuleDestination(label: 'Doctors', icon: AppIcons.badgeOutlined),
+      ],
+      selectedIndex: _selectedModule,
+      onSelected: (value) => setState(() => _selectedModule = value),
       child: Column(
         children: [
-          Material(
-            color: Colors.white,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 10, 20, 8),
-              child: Row(
-                children: [
-                  const Icon(Icons.local_hospital_outlined),
-                  const SizedBox(width: 9),
-                  Expanded(
-                    child: Text(
-                      _hospital?['hospital_name']?.toString() ??
-                          'Assigned hospital',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: _editHospitalProfile,
-                    icon: const Icon(Icons.edit_location_alt_outlined),
-                    label: const Text('Edit hospital profile'),
-                  ),
-                ],
-              ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.xl,
+              AppSpacing.md,
+              AppSpacing.xl,
+              AppSpacing.xs,
             ),
-          ),
-          const Material(
-            color: Colors.white,
-            child: TabBar(
-              isScrollable: true,
-              tabs: [
-                Tab(
-                  icon: Icon(Icons.medical_services_outlined),
-                  text: 'Departments & services',
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _selectedModule == 0
+                        ? 'Care catalog'
+                        : _selectedModule == 1
+                        ? 'Capacity control'
+                        : 'Clinical roster',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
                 ),
-                Tab(icon: Icon(Icons.bed_outlined), text: 'Live availability'),
-                Tab(icon: Icon(Icons.badge_outlined), text: 'Doctors'),
+                OutlinedButton.icon(
+                  onPressed: _editHospitalProfile,
+                  icon: const Icon(AppIcons.editLocationAltOutlined),
+                  label: const Text('Edit hospital profile'),
+                ),
               ],
             ),
           ),
+          const Divider(height: 1),
           Expanded(
-            child: TabBarView(
-              children: [_careCatalog(), _availability(), _doctorList()],
-            ),
+            child: [
+              _careCatalog(),
+              _availability(),
+              _doctorList(),
+            ][_selectedModule],
           ),
         ],
       ),
@@ -963,12 +973,12 @@ class _HospitalAdminPanelState extends ConsumerState<_HospitalAdminPanel> {
         children: [
           OutlinedButton.icon(
             onPressed: () => _editDepartment(),
-            icon: const Icon(Icons.add),
+            icon: const Icon(AppIcons.add),
             label: const Text('Department'),
           ),
           FilledButton.icon(
             onPressed: () => _editService(),
-            icon: const Icon(Icons.add),
+            icon: const Icon(AppIcons.add),
             label: const Text('Service offering'),
           ),
         ],
@@ -979,7 +989,7 @@ class _HospitalAdminPanelState extends ConsumerState<_HospitalAdminPanel> {
           children: _departments
               .map(
                 (item) => _editableTile(
-                  icon: Icons.account_tree_outlined,
+                  icon: AppIcons.accountTreeOutlined,
                   title: item['department_name'].toString(),
                   subtitle: item['description']?.toString() ?? '',
                   status: item['availability_status'].toString(),
@@ -1005,7 +1015,7 @@ class _HospitalAdminPanelState extends ConsumerState<_HospitalAdminPanel> {
                   child: TextField(
                     decoration: const InputDecoration(
                       labelText: 'Search service, code, or tag',
-                      prefixIcon: Icon(Icons.search),
+                      prefixIcon: Icon(AppIcons.search),
                     ),
                     onChanged: (value) => setState(() => _serviceQuery = value),
                   ),
@@ -1085,7 +1095,7 @@ class _HospitalAdminPanelState extends ConsumerState<_HospitalAdminPanel> {
     final assignments = item['hospital_service_doctors'] as List? ?? const [];
     final fee = _feeLabel(item['fee_min'], item['fee_max']);
     return _editableTile(
-      icon: Icons.health_and_safety_outlined,
+      icon: AppIcons.healthAndSafetyOutlined,
       title: item['service_name'].toString(),
       subtitle: <String?>[
         category,
@@ -1106,7 +1116,7 @@ class _HospitalAdminPanelState extends ConsumerState<_HospitalAdminPanel> {
     subtitle: 'Keep counts accurate for patients choosing where to go.',
     action: FilledButton.icon(
       onPressed: _editEmergency,
-      icon: const Icon(Icons.emergency_outlined),
+      icon: const Icon(AppIcons.emergencyOutlined),
       label: const Text('Update ER'),
     ),
     children: [
@@ -1116,12 +1126,12 @@ class _HospitalAdminPanelState extends ConsumerState<_HospitalAdminPanel> {
         action: IconButton(
           tooltip: 'Add room type',
           onPressed: () => _editInventory('room'),
-          icon: const Icon(Icons.add_circle_outline),
+          icon: const Icon(AppIcons.addCircleOutline),
         ),
         children: _rooms
             .map(
               (item) => _editableTile(
-                icon: Icons.meeting_room_outlined,
+                icon: AppIcons.meetingRoomOutlined,
                 title: item['room_type'].toString(),
                 subtitle:
                     '${item['available_rooms']} available · ${item['occupied_rooms']} occupied · ${item['total_rooms']} total',
@@ -1141,12 +1151,12 @@ class _HospitalAdminPanelState extends ConsumerState<_HospitalAdminPanel> {
         action: IconButton(
           tooltip: 'Add bed type',
           onPressed: () => _editInventory('bed'),
-          icon: const Icon(Icons.add_circle_outline),
+          icon: const Icon(AppIcons.addCircleOutline),
         ),
         children: _beds
             .map(
               (item) => _editableTile(
-                icon: Icons.bed_outlined,
+                icon: AppIcons.bedOutlined,
                 title: item['bed_type'].toString(),
                 subtitle:
                     '${item['available_beds']} available · ${item['occupied_beds']} occupied · ${item['total_beds']} total',
@@ -1162,12 +1172,12 @@ class _HospitalAdminPanelState extends ConsumerState<_HospitalAdminPanel> {
         action: IconButton(
           tooltip: 'Add facility',
           onPressed: () => _editFacility(),
-          icon: const Icon(Icons.add_circle_outline),
+          icon: const Icon(AppIcons.addCircleOutline),
         ),
         children: _facilities
             .map(
               (item) => _editableTile(
-                icon: Icons.precision_manufacturing_outlined,
+                icon: AppIcons.precisionManufacturingOutlined,
                 title: _pretty(item['facility_type'].toString()),
                 subtitle:
                     '${item['available_units'] ?? '—'} available units${(item['notes'] ?? '').toString().isEmpty ? '' : ' · ${item['notes']}'}',
@@ -1190,7 +1200,7 @@ class _HospitalAdminPanelState extends ConsumerState<_HospitalAdminPanel> {
     subtitle: '${_doctors.length} doctors assigned to this hospital',
     action: FilledButton.icon(
       onPressed: _createDoctor,
-      icon: const Icon(Icons.person_add_alt_1),
+      icon: const Icon(AppIcons.personAddAlt1),
       label: const Text('Add doctor'),
     ),
     children: _doctors.isEmpty
@@ -1209,7 +1219,7 @@ class _HospitalAdminPanelState extends ConsumerState<_HospitalAdminPanel> {
                     ),
                     leading: const CircleAvatar(
                       backgroundColor: AppColors.mint,
-                      child: Icon(Icons.medical_information_outlined),
+                      child: Icon(AppIcons.medicalInformationOutlined),
                     ),
                     title: Text(doctor['display_name'].toString()),
                     subtitle: Text(
@@ -1505,7 +1515,7 @@ class _EmergencyCard extends StatelessWidget {
       leading: const CircleAvatar(
         backgroundColor: Color(0xFFFFE8E6),
         foregroundColor: AppColors.danger,
-        child: Icon(Icons.emergency_rounded),
+        child: Icon(AppIcons.emergencyRounded),
       ),
       title: const Text('Emergency room'),
       subtitle: value == null
@@ -1539,21 +1549,7 @@ class _StatusChip extends StatelessWidget {
         : warning
         ? const Color(0xFF9A6700)
         : AppColors.danger;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        _pretty(value),
-        style: TextStyle(
-          color: color,
-          fontSize: 12,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-    );
+    return AppStatusBadge(label: _pretty(value), color: color);
   }
 }
 
@@ -1562,11 +1558,11 @@ class _EmptyCard extends StatelessWidget {
   final String message;
 
   @override
-  Widget build(BuildContext context) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(28),
-      child: Center(child: Text(message, textAlign: TextAlign.center)),
-    ),
+  Widget build(BuildContext context) => AppStatePanel(
+    compact: true,
+    icon: AppIcons.inboxOutlined,
+    title: 'Nothing to show yet',
+    message: message,
   );
 }
 
@@ -1576,23 +1572,15 @@ class _ErrorPanel extends StatelessWidget {
   final VoidCallback onRetry;
 
   @override
-  Widget build(BuildContext context) => Center(
-    child: Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.cloud_off_rounded, size: 44),
-          const SizedBox(height: 10),
-          Text(_cleanError(error), textAlign: TextAlign.center),
-          const SizedBox(height: 16),
-          FilledButton.icon(
-            onPressed: onRetry,
-            icon: const Icon(Icons.refresh),
-            label: const Text('Try again'),
-          ),
-        ],
-      ),
+  Widget build(BuildContext context) => AppStatePanel(
+    kind: AppStateKind.error,
+    icon: AppIcons.cloudOffRounded,
+    title: 'Unable to load administration data',
+    message: _cleanError(error),
+    action: FilledButton.icon(
+      onPressed: onRetry,
+      icon: const Icon(AppIcons.refreshRounded),
+      label: const Text('Try again'),
     ),
   );
 }
@@ -1604,29 +1592,14 @@ class _AccessMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SafeArea(
-    child: Center(
-      child: Card(
-        margin: const EdgeInsets.all(24),
-        child: Padding(
-          padding: const EdgeInsets.all(28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.lock_outline_rounded, size: 44),
-              const SizedBox(height: 12),
-              Text(
-                title,
-                style: Theme.of(context).textTheme.titleLarge,
-                textAlign: TextAlign.center,
-              ),
-              if (action != null) ...[
-                const SizedBox(height: 18),
-                FilledButton(onPressed: action, child: const Text('Sign in')),
-              ],
-            ],
-          ),
-        ),
-      ),
+    child: AppStatePanel(
+      kind: AppStateKind.restricted,
+      icon: AppIcons.lockOutlineRounded,
+      title: title,
+      message: 'This workspace is restricted to authorized administrators.',
+      action: action == null
+          ? null
+          : FilledButton(onPressed: action, child: const Text('Sign in')),
     ),
   );
 }
@@ -1935,11 +1908,12 @@ Future<JsonMap?> _showAccountDialog(
                     labelText: 'Temporary password',
                     helperText: 'At least 12 characters',
                     suffixIcon: IconButton(
+                      tooltip: hidden ? 'Show password' : 'Hide password',
                       onPressed: () => setState(() => hidden = !hidden),
                       icon: Icon(
                         hidden
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
+                            ? AppIcons.visibilityOutlined
+                            : AppIcons.visibilityOffOutlined,
                       ),
                     ),
                   ),
@@ -2698,7 +2672,7 @@ Future<JsonMap?> _showServiceDialog(
                 'primary_doctor_id': primaryDoctorId,
               });
             },
-            icon: const Icon(Icons.save_outlined),
+            icon: const Icon(AppIcons.saveOutlined),
             label: const Text('Save offering'),
           ),
         ],
@@ -3136,7 +3110,7 @@ class _DoctorSchedulesDialogState extends State<_DoctorSchedulesDialog> {
                     backgroundColor: schedule['is_active'] == true
                         ? AppColors.mint
                         : const Color(0xFFFFE8E6),
-                    child: const Icon(Icons.schedule_outlined),
+                    child: const Icon(AppIcons.scheduleOutlined),
                   ),
                   title: Text(
                     '${_dayName(schedule['day_of_week'])} · ${_shortTime(schedule['starts_at'])}–${_shortTime(schedule['ends_at'])}',
@@ -3151,14 +3125,14 @@ class _DoctorSchedulesDialogState extends State<_DoctorSchedulesDialog> {
                         onPressed: _saving
                             ? null
                             : () => _editSchedule(schedule),
-                        icon: const Icon(Icons.edit_outlined),
+                        icon: const Icon(AppIcons.editOutlined),
                       ),
                       IconButton(
                         tooltip: 'Delete schedule',
                         onPressed: _saving
                             ? null
                             : () => _deleteSchedule(schedule),
-                        icon: const Icon(Icons.delete_outline),
+                        icon: const Icon(AppIcons.deleteOutline),
                       ),
                     ],
                   ),
@@ -3173,7 +3147,7 @@ class _DoctorSchedulesDialogState extends State<_DoctorSchedulesDialog> {
       ),
       FilledButton.icon(
         onPressed: _saving ? null : () => _editSchedule(),
-        icon: const Icon(Icons.add),
+        icon: const Icon(AppIcons.add),
         label: const Text('Add hours'),
       ),
     ],

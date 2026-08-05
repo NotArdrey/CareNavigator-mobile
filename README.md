@@ -2,6 +2,8 @@
 
 CareNavigator PH is a Flutter mobile/web healthcare-navigation platform backed by Supabase. Guests can find verified care, receive preliminary AI guidance, and request a first consultation. Patients and doctors use role-protected care workflows, while hospital and platform administrators manage operations without receiving unrestricted access to clinical records.
 
+See [docs/SYSTEM_ARCHITECTURE.md](<docs/SYSTEM_ARCHITECTURE.md>) for the system architecture, component boundaries, security model, deployment view, and primary data flows.
+
 ## Implemented modules
 
 - Public hospital directory, classification/search filters, live ER/bed/room/facility availability, departments, services, doctors, schedules, operating hours, announcements, contacts, distance ranking, and external directions
@@ -23,8 +25,11 @@ CareNavigator PH is a Flutter mobile/web healthcare-navigation platform backed b
 3. Run the app from PowerShell:
 
    ```powershell
-   .\tool\run.ps1 -d chrome
+   .\tool\run.ps1 -d edge
    ```
+
+   If Chrome is installed and configured for Flutter, `-d chrome` also works;
+   the launcher automatically falls back to Edge when Chrome is unavailable.
 
 Only the Supabase URL and publishable client key are available to Flutter. They
 also live in `assets/config/public.env` so a plain `flutter run` works; explicit

@@ -18,7 +18,9 @@ coverage/
 .DS_Store
 Thumbs.db
 
+# Local visual verification captures
+artifacts/browser/stitch-redesign-*.png
+
 # Supabase local state
 supabase/.branches/
 supabase/.temp/
-

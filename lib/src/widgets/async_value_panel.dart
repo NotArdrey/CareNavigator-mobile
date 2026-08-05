@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:care_navigator_ph/src/design_system/app_icons.dart';
+import 'package:care_navigator_ph/src/widgets/app_states.dart';
 
 class AsyncValuePanel<T> extends StatelessWidget {
   const AsyncValuePanel({
@@ -17,36 +19,16 @@ class AsyncValuePanel<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     return value.when(
       data: data,
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, stackTrace) => Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 440),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.cloud_off_rounded,
-                  size: 44,
-                  color: Theme.of(context).colorScheme.error,
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'We could not load this information.',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 6),
-                Text(error.toString(), textAlign: TextAlign.center),
-                const SizedBox(height: 18),
-                FilledButton.icon(
-                  onPressed: onRetry,
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Try again'),
-                ),
-              ],
-            ),
-          ),
+      loading: () => const AppLoadingState(),
+      error: (error, stackTrace) => AppStatePanel(
+        kind: AppStateKind.error,
+        icon: AppIcons.cloudOffRounded,
+        title: 'Unable to load this information',
+        message: error.toString(),
+        action: FilledButton.icon(
+          onPressed: onRetry,
+          icon: const Icon(AppIcons.refreshRounded),
+          label: const Text('Try again'),
         ),
       ),
     );

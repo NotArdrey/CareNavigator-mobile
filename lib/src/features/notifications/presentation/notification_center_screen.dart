@@ -1,6 +1,8 @@
 import 'package:care_navigator_ph/src/providers/app_providers.dart';
 import 'package:care_navigator_ph/src/theme/app_theme.dart';
+import 'package:care_navigator_ph/src/widgets/app_layout.dart';
 import 'package:care_navigator_ph/src/widgets/app_page_header.dart';
+import 'package:care_navigator_ph/src/widgets/app_states.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -131,22 +133,24 @@ class _NotificationCenterScreenState
 
   void _error(Object error) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(error.toString()),
-        backgroundColor: AppColors.danger,
-      ),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(error.toString())));
   }
 
   @override
   Widget build(BuildContext context) {
     final client = ref.watch(supabaseClientProvider);
+    final width = MediaQuery.sizeOf(context).width;
     if (client.auth.currentSession == null) {
-      return Center(
-        child: FilledButton(
+      return AppStatePanel(
+        kind: AppStateKind.restricted,
+        icon: AppIcons.lockPersonOutlined,
+        title: 'Sign in required',
+        message: 'Sign in to view your private CareNavigator notifications.',
+        action: FilledButton(
           onPressed: () => context.go('/login'),
-          child: const Text('Sign in to view notifications'),
+          child: const Text('Sign in'),
         ),
       );
     }
@@ -163,107 +167,56 @@ class _NotificationCenterScreenState
           return Column(
             children: [
               AppPageHeader(
-                title: 'Notifications',
-                subtitle: '$unread unread',
-                icon: Icons.notifications_rounded,
+                eyebrow: 'PRIVATE CARE INBOX',
+                title: 'Updates that need a decision',
+                subtitle: '$unread unread · ${items.length} total care updates',
+                icon: AppIcons.notificationsRounded,
                 onBack: () => context.go('/dashboard'),
                 backTooltip: 'Back to my care',
                 actions: [
                   IconButton(
                     tooltip: 'Preferences',
                     onPressed: _updating ? null : _preferences,
-                    icon: const Icon(Icons.tune_rounded),
+                    icon: const Icon(AppIcons.tuneRounded),
                   ),
-                  TextButton.icon(
-                    onPressed: unread == 0 || _updating
-                        ? null
-                        : () => _markAllRead(items),
-                    icon: const Icon(Icons.done_all_rounded),
-                    label: const Text('Mark all read'),
-                  ),
+                  if (width < 600)
+                    IconButton(
+                      tooltip: 'Mark all as read',
+                      onPressed: unread == 0 || _updating
+                          ? null
+                          : () => _markAllRead(items),
+                      icon: const Icon(AppIcons.doneAllRounded),
+                    )
+                  else
+                    TextButton.icon(
+                      onPressed: unread == 0 || _updating
+                          ? null
+                          : () => _markAllRead(items),
+                      icon: const Icon(AppIcons.doneAllRounded),
+                      label: const Text('Mark all read'),
+                    ),
                 ],
               ),
               Expanded(
                 child: snapshot.hasError
-                    ? Center(
-                        child: Text(
-                          'Could not load notifications: ${snapshot.error}',
-                        ),
+                    ? AppStatePanel(
+                        kind: AppStateKind.error,
+                        icon: AppIcons.cloudOffRounded,
+                        title: 'Unable to load notifications',
+                        message: snapshot.error.toString(),
                       )
                     : snapshot.connectionState == ConnectionState.waiting
-                    ? const Center(child: CircularProgressIndicator())
-                    : items.isEmpty
-                    ? const Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.notifications_none_rounded,
-                              size: 54,
-                              color: Color(0xFF8094A8),
-                            ),
-                            SizedBox(height: 10),
-                            Text('No notifications yet.'),
-                          ],
-                        ),
-                      )
-                    : ListView.separated(
-                        padding: const EdgeInsets.all(20),
-                        itemCount: items.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 8),
-                        itemBuilder: (context, index) {
-                          final item = items[index];
-                          final isUnread = item['is_read'] != true;
-                          return Card(
-                            color: isUnread
-                                ? const Color(0xFFF2F7FE)
-                                : Colors.white,
-                            child: ListTile(
-                              onTap: () async {
-                                if (isUnread) {
-                                  await _markRead(item['id'].toString());
-                                }
-                                if (mounted) _open(item);
-                              },
-                              leading: CircleAvatar(
-                                backgroundColor: isUnread
-                                    ? const Color(0xFFDDEBFB)
-                                    : const Color(0xFFEDF1F5),
-                                child: Icon(
-                                  _icon(item['notification_type']?.toString()),
-                                  color: isUnread
-                                      ? AppColors.blue
-                                      : const Color(0xFF60758C),
-                                ),
-                              ),
-                              title: Text(
-                                item['title']?.toString() ?? 'Update',
-                                style: TextStyle(
-                                  fontWeight: isUnread
-                                      ? FontWeight.w800
-                                      : FontWeight.w600,
-                                ),
-                              ),
-                              subtitle: Text(
-                                '${item['message'] ?? ''}\n${_time(item['created_at'])}',
-                              ),
-                              isThreeLine: true,
-                              trailing: isUnread
-                                  ? IconButton(
-                                      tooltip: 'Mark as read',
-                                      onPressed: _updating
-                                          ? null
-                                          : () => _markRead(
-                                              item['id'].toString(),
-                                            ),
-                                      icon: const Icon(
-                                        Icons.check_circle_outline_rounded,
-                                      ),
-                                    )
-                                  : null,
-                            ),
-                          );
-                        },
+                    ? const AppLoadingState(label: 'Loading notifications')
+                    : _NotificationWorkspace(
+                        items: items,
+                        unread: unread,
+                        updating: _updating,
+                        onPreferences: _preferences,
+                        onMarkAll: unread == 0
+                            ? null
+                            : () => _markAllRead(items),
+                        onMarkRead: _markRead,
+                        onOpen: _open,
                       ),
               ),
             ],
@@ -274,18 +227,395 @@ class _NotificationCenterScreenState
   }
 }
 
+class _NotificationWorkspace extends StatelessWidget {
+  const _NotificationWorkspace({
+    required this.items,
+    required this.unread,
+    required this.updating,
+    required this.onPreferences,
+    required this.onMarkAll,
+    required this.onMarkRead,
+    required this.onOpen,
+  });
+
+  final List<Map<String, dynamic>> items;
+  final int unread;
+  final bool updating;
+  final VoidCallback onPreferences;
+  final VoidCallback? onMarkAll;
+  final Future<void> Function(String id) onMarkRead;
+  final ValueChanged<Map<String, dynamic>> onOpen;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final desktop = constraints.maxWidth >= AppBreakpoints.medium;
+      final horizontal = AppPageBody.horizontalPadding(constraints.maxWidth);
+      final summary = _NotificationSummary(
+        unread: unread,
+        total: items.length,
+        onPreferences: updating ? null : onPreferences,
+        onMarkAll: updating ? null : onMarkAll,
+        compact: !desktop,
+      );
+      final inbox = _NotificationInbox(
+        items: items,
+        updating: updating,
+        onMarkRead: onMarkRead,
+        onOpen: onOpen,
+      );
+      if (!desktop) {
+        return Padding(
+          padding: EdgeInsets.fromLTRB(
+            horizontal,
+            AppSpacing.lg,
+            horizontal,
+            84,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              summary,
+              const SizedBox(height: AppSpacing.md),
+              Expanded(child: inbox),
+            ],
+          ),
+        );
+      }
+      return Padding(
+        padding: EdgeInsets.fromLTRB(
+          horizontal,
+          AppSpacing.lg,
+          horizontal,
+          AppSpacing.xl,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SizedBox(width: 300, child: summary),
+            const SizedBox(width: AppSpacing.lg),
+            Expanded(child: inbox),
+          ],
+        ),
+      );
+    },
+  );
+}
+
+class _NotificationSummary extends StatelessWidget {
+  const _NotificationSummary({
+    required this.unread,
+    required this.total,
+    required this.onPreferences,
+    required this.onMarkAll,
+    required this.compact,
+  });
+
+  final int unread;
+  final int total;
+  final VoidCallback? onPreferences;
+  final VoidCallback? onMarkAll;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: EdgeInsets.all(compact ? AppSpacing.lg : AppSpacing.xl),
+    decoration: BoxDecoration(
+      color: AppColors.evergreenDark,
+      borderRadius: BorderRadius.circular(AppRadius.extraLarge),
+      boxShadow: AppShadows.medium,
+    ),
+    child: compact
+        ? Row(
+            children: [
+              Container(
+                width: 58,
+                height: 58,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.forest,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Text(
+                  '$unread',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.headlineMedium?.copyWith(color: Colors.white),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Unread care updates',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.titleMedium?.copyWith(color: Colors.white),
+                    ),
+                    Text(
+                      '$total total in your private inbox',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: AppColors.mist),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: 'Notification preferences',
+                onPressed: onPreferences,
+                color: Colors.white,
+                icon: const Icon(AppIcons.tuneRounded),
+              ),
+            ],
+          )
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const AppStatusBadge(
+                label: 'PRIVATE CARE FEED',
+                color: AppColors.mint,
+                icon: AppIcons.lockRounded,
+                inverse: true,
+              ),
+              const SizedBox(height: AppSpacing.xl),
+              Text(
+                '$unread',
+                style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                  color: Colors.white,
+                  height: .9,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'Unread updates',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(color: Colors.white),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                '$total total events are retained in this care inbox.',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: AppColors.mist),
+              ),
+              const SizedBox(height: AppSpacing.xxl),
+              _SummaryLegend(
+                icon: AppIcons.calendarMonthOutlined,
+                label: 'Appointments',
+              ),
+              _SummaryLegend(
+                icon: AppIcons.scienceOutlined,
+                label: 'Results and records',
+              ),
+              _SummaryLegend(
+                icon: AppIcons.chatBubbleOutlineRounded,
+                label: 'Care conversations',
+              ),
+              const Spacer(),
+              OutlinedButton.icon(
+                onPressed: onPreferences,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  side: const BorderSide(color: Color(0x55FFFFFF)),
+                ),
+                icon: const Icon(AppIcons.tuneRounded),
+                label: const Text('Delivery preferences'),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              TextButton.icon(
+                onPressed: onMarkAll,
+                style: TextButton.styleFrom(foregroundColor: AppColors.mint),
+                icon: const Icon(AppIcons.doneAllRounded),
+                label: const Text('Mark all as read'),
+              ),
+            ],
+          ),
+  );
+}
+
+class _SummaryLegend extends StatelessWidget {
+  const _SummaryLegend({required this.icon, required this.label});
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: AppSpacing.md),
+    child: Row(
+      children: [
+        Icon(icon, color: AppColors.mint, size: 20),
+        const SizedBox(width: AppSpacing.sm),
+        Text(
+          label,
+          style: const TextStyle(
+            color: AppColors.mist,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _NotificationInbox extends StatelessWidget {
+  const _NotificationInbox({
+    required this.items,
+    required this.updating,
+    required this.onMarkRead,
+    required this.onOpen,
+  });
+  final List<Map<String, dynamic>> items;
+  final bool updating;
+  final Future<void> Function(String id) onMarkRead;
+  final ValueChanged<Map<String, dynamic>> onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    if (items.isEmpty) {
+      return const AppCard(
+        child: AppEmptyState(
+          icon: AppIcons.notificationsNoneRounded,
+          title: 'Your care inbox is clear',
+          message:
+              'Appointments, records, prescriptions, and message updates will be grouped here.',
+        ),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const AppSectionHeader(
+          eyebrow: 'LATEST FIRST',
+          title: 'Care activity',
+          subtitle: 'Unread events stay visually prominent until reviewed.',
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Expanded(
+          child: AppCard(
+            padding: EdgeInsets.zero,
+            child: ListView.separated(
+              itemCount: items.length,
+              separatorBuilder: (_, _) => const Divider(height: 1, indent: 76),
+              itemBuilder: (context, index) => _NotificationRow(
+                item: items[index],
+                updating: updating,
+                onMarkRead: onMarkRead,
+                onOpen: onOpen,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _NotificationRow extends StatelessWidget {
+  const _NotificationRow({
+    required this.item,
+    required this.updating,
+    required this.onMarkRead,
+    required this.onOpen,
+  });
+  final Map<String, dynamic> item;
+  final bool updating;
+  final Future<void> Function(String id) onMarkRead;
+  final ValueChanged<Map<String, dynamic>> onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final isUnread = item['is_read'] != true;
+    return InkWell(
+      onTap: () async {
+        if (isUnread) await onMarkRead(item['id'].toString());
+        onOpen(item);
+      },
+      child: Container(
+        color: isUnread
+            ? AppColors.seaGlass.withValues(alpha: .42)
+            : Colors.transparent,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.md,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AppIconTile(
+              icon: _icon(item['notification_type']?.toString()),
+              color: AppColors.forest,
+              size: 42,
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          item['title']?.toString() ?? 'Care update',
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(
+                                fontWeight: isUnread
+                                    ? FontWeight.w900
+                                    : FontWeight.w700,
+                              ),
+                        ),
+                      ),
+                      if (isUnread)
+                        const AppStatusBadge(
+                          label: 'NEW',
+                          color: AppColors.forest,
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(item['message']?.toString() ?? ''),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    _time(item['created_at']),
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            if (isUnread)
+              IconButton(
+                tooltip: 'Mark as read',
+                onPressed: updating
+                    ? null
+                    : () => onMarkRead(item['id'].toString()),
+                icon: const Icon(AppIcons.checkCircleOutlineRounded),
+              )
+            else
+              const Icon(AppIcons.arrowOutwardRounded),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 IconData _icon(String? type) {
   if (type?.contains('message') == true) {
-    return Icons.chat_bubble_outline_rounded;
+    return AppIcons.chatBubbleOutlineRounded;
   }
-  if (type?.contains('prescription') == true) return Icons.medication_outlined;
-  if (type?.contains('result') == true) return Icons.science_outlined;
+  if (type?.contains('prescription') == true) {
+    return AppIcons.medicationOutlined;
+  }
+  if (type?.contains('result') == true) return AppIcons.scienceOutlined;
   if (type?.contains('consultation') == true ||
       type?.contains('appointment') == true) {
-    return Icons.calendar_month_outlined;
+    return AppIcons.calendarMonthOutlined;
   }
-  if (type?.contains('emergency') == true) return Icons.emergency_outlined;
-  return Icons.notifications_outlined;
+  if (type?.contains('emergency') == true) return AppIcons.emergencyOutlined;
+  return AppIcons.notificationsOutlined;
 }
 
 String _time(dynamic value) {

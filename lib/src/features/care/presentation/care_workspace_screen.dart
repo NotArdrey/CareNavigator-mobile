@@ -3,7 +3,9 @@ import 'dart:typed_data';
 import 'package:care_navigator_ph/src/models/user_profile.dart';
 import 'package:care_navigator_ph/src/providers/app_providers.dart';
 import 'package:care_navigator_ph/src/theme/app_theme.dart';
+import 'package:care_navigator_ph/src/widgets/app_layout.dart';
 import 'package:care_navigator_ph/src/widgets/app_page_header.dart';
+import 'package:care_navigator_ph/src/widgets/app_states.dart';
 import 'package:care_navigator_ph/src/widgets/async_value_panel.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -101,6 +103,7 @@ class _WorkspaceBody extends ConsumerStatefulWidget {
 class _WorkspaceBodyState extends ConsumerState<_WorkspaceBody> {
   bool _loading = true;
   bool _busy = false;
+  int _selectedTab = 0;
   Object? _error;
   JsonMap _workspace = const {};
 
@@ -184,66 +187,124 @@ class _WorkspaceBodyState extends ConsumerState<_WorkspaceBody> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_loading) {
+      return const AppLoadingState(label: 'Loading care workspace');
+    }
     if (_error != null) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Could not load your care workspace: $_error'),
-            const SizedBox(height: 12),
-            FilledButton(onPressed: _load, child: const Text('Retry')),
-          ],
+      return AppStatePanel(
+        kind: AppStateKind.error,
+        icon: AppIcons.cloudOffRounded,
+        title: 'Unable to load your care workspace',
+        message: _error.toString(),
+        action: FilledButton.icon(
+          onPressed: _load,
+          icon: const Icon(AppIcons.refreshRounded),
+          label: const Text('Try again'),
         ),
       );
     }
     final tabs = _tabs();
-    return DefaultTabController(
-      length: tabs.length,
-      child: SafeArea(
-        child: Column(
-          children: [
-            Material(
-              color: Colors.white,
-              child: Column(
-                children: [
-                  AppPageHeader(
-                    title: 'My care workspace',
-                    subtitle:
-                        '${widget.profile.displayName} · ${widget.profile.roleLabel}',
-                    icon: _isDoctor
-                        ? Icons.medical_services_rounded
-                        : _isHospitalAdmin
-                        ? Icons.local_hospital_rounded
-                        : Icons.health_and_safety_rounded,
-                    actions: [
-                      IconButton(
-                        tooltip: 'Notifications',
-                        onPressed: () => context.go('/notifications'),
-                        icon: const Icon(Icons.notifications_outlined),
-                      ),
-                      IconButton(
-                        tooltip: 'Refresh',
-                        onPressed: _busy ? null : _load,
-                        icon: const Icon(Icons.refresh_rounded),
-                      ),
-                    ],
-                  ),
-                  TabBar(
-                    isScrollable: true,
-                    tabs: tabs.map((item) => item.tab).toList(),
-                  ),
-                  if (_busy) const LinearProgressIndicator(minHeight: 2),
-                ],
+    if (_selectedTab >= tabs.length) _selectedTab = 0;
+    final width = MediaQuery.sizeOf(context).width;
+    final desktop = width >= AppBreakpoints.medium;
+    final selected = tabs[_selectedTab];
+    return SafeArea(
+      child: Column(
+        children: [
+          AppPageHeader(
+            eyebrow: 'ROLE-BASED CARE OPERATIONS',
+            title: _isDoctor
+                ? 'Clinical desk'
+                : _isHospitalAdmin
+                ? 'Hospital care desk'
+                : 'My care journey',
+            subtitle: 'A focused workspace for ${widget.profile.displayName}',
+            icon: _isDoctor
+                ? AppIcons.medicalServicesRounded
+                : _isHospitalAdmin
+                ? AppIcons.localHospitalRounded
+                : AppIcons.healthAndSafetyRounded,
+            actions: [
+              IconButton(
+                tooltip: 'Notifications',
+                onPressed: () => context.go('/notifications'),
+                icon: const Icon(AppIcons.notificationsOutlined),
               ),
-            ),
-            Expanded(
-              child: TabBarView(
-                children: tabs.map((item) => item.body).toList(),
+              IconButton(
+                tooltip: 'Refresh',
+                onPressed: _busy ? null : _load,
+                icon: const Icon(AppIcons.refreshRounded),
               ),
+            ],
+          ),
+          if (_busy) const LinearProgressIndicator(minHeight: 2),
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                AppPageBody.horizontalPadding(width),
+                AppSpacing.lg,
+                AppPageBody.horizontalPadding(width),
+                desktop ? AppSpacing.xl : 84,
+              ),
+              child: desktop
+                  ? Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        SizedBox(
+                          width: 286,
+                          child: _WorkspaceNavigation(
+                            profile: widget.profile,
+                            tabs: tabs,
+                            selected: _selectedTab,
+                            consultationCount: _consultations.length,
+                            attentionCount:
+                                _guestRequests.length + _results.length,
+                            onSelected: (value) =>
+                                setState(() => _selectedTab = value),
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.lg),
+                        Expanded(child: _WorkspaceSection(tab: selected)),
+                      ],
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _WorkspaceMobilePulse(
+                          role: widget.profile.roleLabel,
+                          consultationCount: _consultations.length,
+                          attentionCount:
+                              _guestRequests.length + _results.length,
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        SizedBox(
+                          height: 48,
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: tabs.length,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(width: AppSpacing.xs),
+                            itemBuilder: (context, index) => ChoiceChip(
+                              selected: index == _selectedTab,
+                              onSelected: (_) =>
+                                  setState(() => _selectedTab = index),
+                              avatar: tabs[index].tab.icon,
+                              label: Text(tabs[index].tab.text ?? 'Section'),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        Expanded(
+                          child: _WorkspaceSection(
+                            tab: selected,
+                            compact: true,
+                          ),
+                        ),
+                      ],
+                    ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -252,7 +313,7 @@ class _WorkspaceBodyState extends ConsumerState<_WorkspaceBody> {
     if (_isDoctor) {
       return [
         _WorkspaceTab(
-          const Tab(icon: Icon(Icons.inbox_outlined), text: 'Guest review'),
+          const Tab(icon: Icon(AppIcons.inboxOutlined), text: 'Guest review'),
           _GuestRequestsPanel(
             items: _guestRequests,
             busy: _busy,
@@ -262,7 +323,7 @@ class _WorkspaceBodyState extends ConsumerState<_WorkspaceBody> {
         ),
         _WorkspaceTab(
           const Tab(
-            icon: Icon(Icons.video_call_outlined),
+            icon: Icon(AppIcons.videoCallOutlined),
             text: 'Consultations',
           ),
           _ConsultationsPanel(
@@ -276,7 +337,7 @@ class _WorkspaceBodyState extends ConsumerState<_WorkspaceBody> {
           ),
         ),
         _WorkspaceTab(
-          const Tab(icon: Icon(Icons.groups_outlined), text: 'Patients'),
+          const Tab(icon: Icon(AppIcons.groupsOutlined), text: 'Patients'),
           _PatientsPanel(
             items: _patients,
             historyItems: _records,
@@ -293,7 +354,10 @@ class _WorkspaceBodyState extends ConsumerState<_WorkspaceBody> {
           ),
         ),
         _WorkspaceTab(
-          const Tab(icon: Icon(Icons.science_outlined), text: 'Result review'),
+          const Tab(
+            icon: Icon(AppIcons.scienceOutlined),
+            text: 'Result review',
+          ),
           _ResultsPanel(
             items: _results,
             isDoctor: true,
@@ -305,7 +369,7 @@ class _WorkspaceBodyState extends ConsumerState<_WorkspaceBody> {
           ),
         ),
         _WorkspaceTab(
-          const Tab(icon: Icon(Icons.folder_shared_outlined), text: 'Records'),
+          const Tab(icon: Icon(AppIcons.folderSharedOutlined), text: 'Records'),
           _RecordsPanel(
             items: _records,
             canEdit: true,
@@ -314,7 +378,7 @@ class _WorkspaceBodyState extends ConsumerState<_WorkspaceBody> {
         ),
         _WorkspaceTab(
           const Tab(
-            icon: Icon(Icons.health_and_safety_outlined),
+            icon: Icon(AppIcons.healthAndSafetyOutlined),
             text: 'Clinical',
           ),
           _ClinicalRecordsPanel(
@@ -332,7 +396,7 @@ class _WorkspaceBodyState extends ConsumerState<_WorkspaceBody> {
           ),
         ),
         _WorkspaceTab(
-          const Tab(icon: Icon(Icons.forum_outlined), text: 'Messages'),
+          const Tab(icon: Icon(AppIcons.forumOutlined), text: 'Messages'),
           _ConversationsPanel(items: _conversations, onOpen: _openConversation),
         ),
       ];
@@ -341,7 +405,7 @@ class _WorkspaceBodyState extends ConsumerState<_WorkspaceBody> {
       return [
         _WorkspaceTab(
           const Tab(
-            icon: Icon(Icons.calendar_month_outlined),
+            icon: Icon(AppIcons.calendarMonthOutlined),
             text: 'Consultations',
           ),
           _ConsultationsPanel(
@@ -356,7 +420,7 @@ class _WorkspaceBodyState extends ConsumerState<_WorkspaceBody> {
         ),
         _WorkspaceTab(
           const Tab(
-            icon: Icon(Icons.groups_outlined),
+            icon: Icon(AppIcons.groupsOutlined),
             text: 'Hospital patients',
           ),
           _PatientsPanel(items: _patients, busy: _busy),
@@ -367,7 +431,7 @@ class _WorkspaceBodyState extends ConsumerState<_WorkspaceBody> {
       return [
         _WorkspaceTab(
           const Tab(
-            icon: Icon(Icons.calendar_month_outlined),
+            icon: Icon(AppIcons.calendarMonthOutlined),
             text: 'Appointments',
           ),
           _ConsultationsPanel(
@@ -383,13 +447,13 @@ class _WorkspaceBodyState extends ConsumerState<_WorkspaceBody> {
         ),
         _WorkspaceTab(
           const Tab(
-            icon: Icon(Icons.folder_shared_outlined),
+            icon: Icon(AppIcons.folderSharedOutlined),
             text: 'Medical records',
           ),
           _RecordsPanel(items: _records),
         ),
         _WorkspaceTab(
-          const Tab(icon: Icon(Icons.science_outlined), text: 'Results'),
+          const Tab(icon: Icon(AppIcons.scienceOutlined), text: 'Results'),
           _ResultsPanel(
             items: _results,
             isDoctor: false,
@@ -399,7 +463,7 @@ class _WorkspaceBodyState extends ConsumerState<_WorkspaceBody> {
         ),
         _WorkspaceTab(
           const Tab(
-            icon: Icon(Icons.health_and_safety_outlined),
+            icon: Icon(AppIcons.healthAndSafetyOutlined),
             text: 'Clinical',
           ),
           _ClinicalRecordsPanel(
@@ -416,13 +480,13 @@ class _WorkspaceBodyState extends ConsumerState<_WorkspaceBody> {
         ),
         _WorkspaceTab(
           const Tab(
-            icon: Icon(Icons.medication_outlined),
+            icon: Icon(AppIcons.medicationOutlined),
             text: 'Prescriptions',
           ),
           _PrescriptionsPanel(items: _prescriptions),
         ),
         _WorkspaceTab(
-          const Tab(icon: Icon(Icons.policy_outlined), text: 'Consents'),
+          const Tab(icon: Icon(AppIcons.policyOutlined), text: 'Consents'),
           _PatientConsentsPanel(
             items: _patientConsents,
             busy: _busy,
@@ -430,18 +494,24 @@ class _WorkspaceBodyState extends ConsumerState<_WorkspaceBody> {
           ),
         ),
         _WorkspaceTab(
-          const Tab(icon: Icon(Icons.forum_outlined), text: 'Messages'),
+          const Tab(icon: Icon(AppIcons.forumOutlined), text: 'Messages'),
           _ConversationsPanel(items: _conversations, onOpen: _openConversation),
         ),
       ];
     }
     return [
       _WorkspaceTab(
-        const Tab(icon: Icon(Icons.receipt_long_outlined), text: 'My requests'),
+        const Tab(
+          icon: Icon(AppIcons.receiptLongOutlined),
+          text: 'My requests',
+        ),
         _GuestRequestsPanel(items: _guestRequests, busy: _busy),
       ),
       _WorkspaceTab(
-        const Tab(icon: Icon(Icons.video_call_outlined), text: 'Consultations'),
+        const Tab(
+          icon: Icon(AppIcons.videoCallOutlined),
+          text: 'Consultations',
+        ),
         _ConsultationsPanel(
           items: _consultations,
           role: _role,
@@ -453,7 +523,7 @@ class _WorkspaceBodyState extends ConsumerState<_WorkspaceBody> {
         ),
       ),
       _WorkspaceTab(
-        const Tab(icon: Icon(Icons.forum_outlined), text: 'Messages'),
+        const Tab(icon: Icon(AppIcons.forumOutlined), text: 'Messages'),
         _ConversationsPanel(items: _conversations, onOpen: _openConversation),
       ),
     ];
@@ -1050,6 +1120,277 @@ class _WorkspaceBodyState extends ConsumerState<_WorkspaceBody> {
   }
 }
 
+class _WorkspaceNavigation extends StatelessWidget {
+  const _WorkspaceNavigation({
+    required this.profile,
+    required this.tabs,
+    required this.selected,
+    required this.consultationCount,
+    required this.attentionCount,
+    required this.onSelected,
+  });
+
+  final UserProfile profile;
+  final List<_WorkspaceTab> tabs;
+  final int selected;
+  final int consultationCount;
+  final int attentionCount;
+  final ValueChanged<int> onSelected;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(AppSpacing.lg),
+    decoration: BoxDecoration(
+      color: AppColors.evergreenDark,
+      borderRadius: BorderRadius.circular(AppRadius.extraLarge),
+      boxShadow: AppShadows.medium,
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const AppStatusBadge(
+          label: 'LIVE CARE WORKSPACE',
+          color: AppColors.mint,
+          icon: AppIcons.lockRounded,
+          inverse: true,
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        Text(
+          profile.displayName,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(
+            context,
+          ).textTheme.headlineSmall?.copyWith(color: Colors.white),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          profile.roleLabel,
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(color: AppColors.mist),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        Row(
+          children: [
+            Expanded(
+              child: _WorkspaceNavMetric(
+                value: '$consultationCount',
+                label: 'consults',
+              ),
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Expanded(
+              child: _WorkspaceNavMetric(
+                value: '$attentionCount',
+                label: 'attention',
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.xl),
+        Text(
+          'CARE AREAS',
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: AppColors.mist,
+            letterSpacing: 1.2,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Expanded(
+          child: ListView.separated(
+            padding: EdgeInsets.zero,
+            itemCount: tabs.length,
+            separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.xxs),
+            itemBuilder: (context, index) {
+              final active = selected == index;
+              return Material(
+                color: active ? AppColors.forest : Colors.transparent,
+                borderRadius: BorderRadius.circular(AppRadius.medium),
+                child: InkWell(
+                  onTap: () => onSelected(index),
+                  borderRadius: BorderRadius.circular(AppRadius.medium),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 11,
+                    ),
+                    child: Row(
+                      children: [
+                        IconTheme(
+                          data: IconThemeData(
+                            color: active ? Colors.white : AppColors.mint,
+                            size: 20,
+                          ),
+                          child:
+                              tabs[index].tab.icon ??
+                              const Icon(AppIcons.circleOutlined),
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Text(
+                            tabs[index].tab.text ?? 'Section',
+                            style: TextStyle(
+                              color: active ? Colors.white : AppColors.mist,
+                              fontWeight: active
+                                  ? FontWeight.w800
+                                  : FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _WorkspaceNavMetric extends StatelessWidget {
+  const _WorkspaceNavMetric({required this.value, required this.label});
+  final String value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(AppSpacing.sm),
+    decoration: BoxDecoration(
+      color: Colors.white.withValues(alpha: .08),
+      borderRadius: BorderRadius.circular(AppRadius.medium),
+      border: Border.all(color: Colors.white.withValues(alpha: .1)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          value,
+          style: Theme.of(
+            context,
+          ).textTheme.headlineSmall?.copyWith(color: Colors.white),
+        ),
+        Text(
+          label,
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppColors.mist),
+        ),
+      ],
+    ),
+  );
+}
+
+class _WorkspaceMobilePulse extends StatelessWidget {
+  const _WorkspaceMobilePulse({
+    required this.role,
+    required this.consultationCount,
+    required this.attentionCount,
+  });
+
+  final String role;
+  final int consultationCount;
+  final int attentionCount;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(AppSpacing.lg),
+    decoration: BoxDecoration(
+      color: AppColors.evergreenDark,
+      borderRadius: BorderRadius.circular(AppRadius.extraLarge),
+    ),
+    child: Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'LIVE $role DESK'.toUpperCase(),
+                style: const TextStyle(
+                  color: AppColors.mint,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: .8,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'Care at a glance',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(color: Colors.white),
+              ),
+            ],
+          ),
+        ),
+        _WorkspaceNavMetric(value: '$consultationCount', label: 'consults'),
+        const SizedBox(width: AppSpacing.xs),
+        _WorkspaceNavMetric(value: '$attentionCount', label: 'review'),
+      ],
+    ),
+  );
+}
+
+class _WorkspaceSection extends StatelessWidget {
+  const _WorkspaceSection({required this.tab, this.compact = false});
+  final _WorkspaceTab tab;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    decoration: BoxDecoration(
+      color: AppColors.paper,
+      borderRadius: BorderRadius.circular(AppRadius.extraLarge),
+      border: Border.all(color: AppColors.outline),
+    ),
+    clipBehavior: Clip.antiAlias,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+            compact ? 18 : 24,
+            compact ? 16 : 22,
+            compact ? 18 : 24,
+            compact ? 12 : 18,
+          ),
+          child: Row(
+            children: [
+              AppIconTile(
+                icon:
+                    (tab.tab.icon as Icon?)?.icon ??
+                    AppIcons.healthAndSafetyOutlined,
+                color: AppColors.forest,
+                size: compact ? 40 : 44,
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      tab.tab.text ?? 'Care section',
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                    const SizedBox(height: 2),
+                    const Text('Secure, role-scoped records and actions'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const Divider(height: 1),
+        Expanded(child: tab.body),
+      ],
+    ),
+  );
+}
+
 class _WorkspaceTab {
   const _WorkspaceTab(this.tab, this.body);
   final Tab tab;
@@ -1086,14 +1427,14 @@ class _ConsultationsPanel extends StatelessWidget {
           alignment: Alignment.centerLeft,
           child: FilledButton.icon(
             onPressed: busy ? null : onBook,
-            icon: const Icon(Icons.add_rounded),
+            icon: const Icon(AppIcons.addRounded),
             label: const Text('Book consultation'),
           ),
         ),
       if (onBook != null) const SizedBox(height: 14),
       if (items.isEmpty)
         const _EmptyCard(
-          icon: Icons.calendar_month_outlined,
+          icon: AppIcons.calendarMonthOutlined,
           message: 'No consultations are available for this account.',
         )
       else
@@ -1194,14 +1535,14 @@ class _ConsultationCard extends StatelessWidget {
                 if (canCommunicate)
                   OutlinedButton.icon(
                     onPressed: busy ? null : () => onChat(item),
-                    icon: const Icon(Icons.chat_bubble_outline_rounded),
+                    icon: const Icon(AppIcons.chatBubbleOutlineRounded),
                     label: const Text('Message'),
                   ),
                 if (canCommunicate &&
                     (item['meeting_link']?.toString() ?? '').isNotEmpty)
                   FilledButton.icon(
                     onPressed: busy ? null : () => onJoin(item),
-                    icon: const Icon(Icons.video_call_rounded),
+                    icon: const Icon(AppIcons.videoCallRounded),
                     label: const Text('Join video'),
                   ),
                 if (role == 'patient' &&
@@ -1209,7 +1550,7 @@ class _ConsultationCard extends StatelessWidget {
                     onPatientAttachment != null)
                   OutlinedButton.icon(
                     onPressed: busy ? null : () => onPatientAttachment!(item),
-                    icon: const Icon(Icons.attach_file_rounded),
+                    icon: const Icon(AppIcons.attachFileRounded),
                     label: const Text('Add attachment'),
                   ),
                 for (final transition in transitions)
@@ -1241,7 +1582,7 @@ class _GuestRequestsPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) => items.isEmpty
       ? const _EmptyCard(
-          icon: Icons.inbox_outlined,
+          icon: AppIcons.inboxOutlined,
           message: 'No guest consultation requests are available.',
         )
       : ListView.builder(
@@ -1254,7 +1595,7 @@ class _GuestRequestsPanel extends StatelessWidget {
               margin: const EdgeInsets.only(bottom: 11),
               child: ExpansionTile(
                 leading: const CircleAvatar(
-                  child: Icon(Icons.person_search_rounded),
+                  child: Icon(AppIcons.personSearchRounded),
                 ),
                 title: Text(item['full_name']?.toString() ?? 'Guest'),
                 subtitle: Text(
@@ -1292,14 +1633,14 @@ class _GuestRequestsPanel extends StatelessWidget {
                                 onPressed: busy
                                     ? null
                                     : () => onReview!(item, 'approve'),
-                                icon: const Icon(Icons.check_rounded),
+                                icon: const Icon(AppIcons.checkRounded),
                                 label: const Text('Approve & schedule'),
                               ),
                               OutlinedButton.icon(
                                 onPressed: busy
                                     ? null
                                     : () => onReview!(item, 'reject'),
-                                icon: const Icon(Icons.close_rounded),
+                                icon: const Icon(AppIcons.closeRounded),
                                 label: const Text('Reject'),
                               ),
                             ],
@@ -1312,9 +1653,7 @@ class _GuestRequestsPanel extends StatelessWidget {
                                 }.contains(status))
                               OutlinedButton.icon(
                                 onPressed: busy ? null : () => onConvert!(item),
-                                icon: const Icon(
-                                  Icons.person_add_alt_1_rounded,
-                                ),
+                                icon: const Icon(AppIcons.personAddAlt1Rounded),
                                 label: const Text('Create patient account'),
                               ),
                           ],
@@ -1366,14 +1705,14 @@ class _PatientsPanel extends StatelessWidget {
           alignment: Alignment.centerLeft,
           child: FilledButton.icon(
             onPressed: busy ? null : onCreatePatient,
-            icon: const Icon(Icons.person_add_alt_1_rounded),
+            icon: const Icon(AppIcons.personAddAlt1Rounded),
             label: const Text('Create patient'),
           ),
         ),
       if (onCreatePatient != null) const SizedBox(height: 14),
       if (items.isEmpty)
         const _EmptyCard(
-          icon: Icons.groups_outlined,
+          icon: AppIcons.groupsOutlined,
           message: 'No assigned patients are available.',
         )
       else
@@ -1381,7 +1720,7 @@ class _PatientsPanel extends StatelessWidget {
           Card(
             margin: const EdgeInsets.only(bottom: 10),
             child: ExpansionTile(
-              leading: const CircleAvatar(child: Icon(Icons.person_rounded)),
+              leading: const CircleAvatar(child: Icon(AppIcons.personRounded)),
               title: Text(_person(item['users'])),
               subtitle: Text(
                 '${item['patient_number'] ?? 'Temporary patient'} · ${_label(item['account_activation_status']?.toString() ?? '')}',
@@ -1427,13 +1766,13 @@ class _PatientsPanel extends StatelessWidget {
                             if (onRecord != null)
                               OutlinedButton.icon(
                                 onPressed: busy ? null : () => onRecord!(item),
-                                icon: const Icon(Icons.note_add_outlined),
+                                icon: const Icon(AppIcons.noteAddOutlined),
                                 label: const Text('Add record'),
                               ),
                             if (onResult != null)
                               OutlinedButton.icon(
                                 onPressed: busy ? null : () => onResult!(item),
-                                icon: const Icon(Icons.upload_file_rounded),
+                                icon: const Icon(AppIcons.uploadFileRounded),
                                 label: const Text('Upload result'),
                               ),
                             if (onPrescription != null)
@@ -1441,7 +1780,7 @@ class _PatientsPanel extends StatelessWidget {
                                 onPressed: busy
                                     ? null
                                     : () => onPrescription!(item),
-                                icon: const Icon(Icons.medication_outlined),
+                                icon: const Icon(AppIcons.medicationOutlined),
                                 label: const Text('Prescription'),
                               ),
                             if (onLaboratoryRequest != null)
@@ -1449,7 +1788,7 @@ class _PatientsPanel extends StatelessWidget {
                                 onPressed: busy
                                     ? null
                                     : () => onLaboratoryRequest!(item),
-                                icon: const Icon(Icons.science_outlined),
+                                icon: const Icon(AppIcons.scienceOutlined),
                                 label: const Text('Request laboratory test'),
                               ),
                             if (onDiagnosis != null)
@@ -1457,7 +1796,7 @@ class _PatientsPanel extends StatelessWidget {
                                 onPressed: busy
                                     ? null
                                     : () => onDiagnosis!(item),
-                                icon: const Icon(Icons.verified_outlined),
+                                icon: const Icon(AppIcons.verifiedOutlined),
                                 label: const Text('Confirm diagnosis'),
                               ),
                             if (onTreatmentPlan != null)
@@ -1466,7 +1805,7 @@ class _PatientsPanel extends StatelessWidget {
                                     ? null
                                     : () => onTreatmentPlan!(item),
                                 icon: const Icon(
-                                  Icons.assignment_turned_in_outlined,
+                                  AppIcons.assignmentTurnedInOutlined,
                                 ),
                                 label: const Text('Treatment plan'),
                               ),
@@ -1475,7 +1814,7 @@ class _PatientsPanel extends StatelessWidget {
                                 onPressed: busy
                                     ? null
                                     : () => onMedicalDocument!(item),
-                                icon: const Icon(Icons.file_upload_outlined),
+                                icon: const Icon(AppIcons.fileUploadOutlined),
                                 label: const Text('Medical document'),
                               ),
                             if (onConsultationAttachment != null)
@@ -1483,7 +1822,7 @@ class _PatientsPanel extends StatelessWidget {
                                 onPressed: busy
                                     ? null
                                     : () => onConsultationAttachment!(item),
-                                icon: const Icon(Icons.attach_file_rounded),
+                                icon: const Icon(AppIcons.attachFileRounded),
                                 label: const Text('Consultation attachment'),
                               ),
                           ],
@@ -1519,7 +1858,7 @@ class _PatientCareHistory extends StatelessWidget {
       children: [
         const Row(
           children: [
-            Icon(Icons.history_rounded, size: 20, color: AppColors.blue),
+            Icon(AppIcons.historyRounded, size: 20, color: AppColors.blue),
             SizedBox(width: 8),
             Text(
               'Care history across hospitals',
@@ -1563,7 +1902,7 @@ class _PatientHistoryEntry extends StatelessWidget {
       children: [
         const Padding(
           padding: EdgeInsets.only(top: 2),
-          child: Icon(Icons.local_hospital_outlined, size: 18),
+          child: Icon(AppIcons.localHospitalOutlined, size: 18),
         ),
         const SizedBox(width: 9),
         Expanded(
@@ -1624,7 +1963,7 @@ class _ResultsPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) => items.isEmpty
       ? const _EmptyCard(
-          icon: Icons.science_outlined,
+          icon: AppIcons.scienceOutlined,
           message: 'No laboratory or scanned results are available.',
         )
       : ListView.builder(
@@ -1646,7 +1985,7 @@ class _ResultsPanel extends StatelessWidget {
               margin: const EdgeInsets.only(bottom: 11),
               child: ExpansionTile(
                 leading: const CircleAvatar(
-                  child: Icon(Icons.biotech_outlined),
+                  child: Icon(AppIcons.biotechOutlined),
                 ),
                 title: Text(item['test_name']?.toString() ?? 'Medical result'),
                 subtitle: Text(
@@ -1680,13 +2019,13 @@ class _ResultsPanel extends StatelessWidget {
                           children: [
                             OutlinedButton.icon(
                               onPressed: busy ? null : () => onOpenFile(item),
-                              icon: const Icon(Icons.open_in_new_rounded),
+                              icon: const Icon(AppIcons.openInNewRounded),
                               label: const Text('Open document'),
                             ),
                             if (isDoctor && canAnalyze && onAnalyze != null)
                               FilledButton.icon(
                                 onPressed: busy ? null : () => onAnalyze!(item),
-                                icon: const Icon(Icons.auto_awesome_rounded),
+                                icon: const Icon(AppIcons.symptomCheck),
                                 label: const Text(
                                   'Run preliminary AI analysis',
                                 ),
@@ -1694,13 +2033,13 @@ class _ResultsPanel extends StatelessWidget {
                             if (isDoctor && canReview && onConfirm != null)
                               FilledButton.icon(
                                 onPressed: busy ? null : () => onConfirm!(item),
-                                icon: const Icon(Icons.verified_rounded),
+                                icon: const Icon(AppIcons.verifiedRounded),
                                 label: const Text('Confirm findings'),
                               ),
                             if (isDoctor && canReview && onReject != null)
                               OutlinedButton.icon(
                                 onPressed: busy ? null : () => onReject!(item),
-                                icon: const Icon(Icons.block_rounded),
+                                icon: const Icon(AppIcons.blockRounded),
                                 label: const Text('Reject AI findings'),
                               ),
                           ],
@@ -1735,7 +2074,7 @@ class _RecordsPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) => items.isEmpty
       ? const _EmptyCard(
-          icon: Icons.folder_shared_outlined,
+          icon: AppIcons.folderSharedOutlined,
           message: 'No doctor-confirmed medical records are available.',
         )
       : ListView.builder(
@@ -1747,7 +2086,7 @@ class _RecordsPanel extends StatelessWidget {
               margin: const EdgeInsets.only(bottom: 10),
               child: ListTile(
                 leading: const CircleAvatar(
-                  child: Icon(Icons.description_outlined),
+                  child: Icon(AppIcons.descriptionOutlined),
                 ),
                 title: Text(item['title']?.toString() ?? 'Medical record'),
                 subtitle: Text(
@@ -1759,7 +2098,7 @@ class _RecordsPanel extends StatelessWidget {
                     ? IconButton(
                         tooltip: 'Edit medical record',
                         onPressed: () => onEdit!(item),
-                        icon: const Icon(Icons.edit_rounded),
+                        icon: const Icon(AppIcons.editRounded),
                       )
                     : null,
               ),
@@ -1806,7 +2145,7 @@ class _ClinicalRecordsPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     if (_isEmpty) {
       return const _EmptyCard(
-        icon: Icons.health_and_safety_outlined,
+        icon: AppIcons.healthAndSafetyOutlined,
         message: 'No RLS-authorized clinical records are available.',
       );
     }
@@ -1826,7 +2165,7 @@ class _ClinicalRecordsPanel extends StatelessWidget {
         _clinicalSection(
           context,
           title: 'Doctor-confirmed diagnoses',
-          icon: Icons.verified_outlined,
+          icon: AppIcons.verifiedOutlined,
           emptyMessage: 'No confirmed diagnoses.',
           children: diagnoses
               .map(
@@ -1847,7 +2186,7 @@ class _ClinicalRecordsPanel extends StatelessWidget {
         _clinicalSection(
           context,
           title: 'Treatment plans',
-          icon: Icons.assignment_turned_in_outlined,
+          icon: AppIcons.assignmentTurnedInOutlined,
           emptyMessage: 'No treatment plans.',
           children: treatmentPlans
               .map(
@@ -1888,7 +2227,7 @@ class _ClinicalRecordsPanel extends StatelessWidget {
         _clinicalSection(
           context,
           title: 'Laboratory requests',
-          icon: Icons.science_outlined,
+          icon: AppIcons.scienceOutlined,
           emptyMessage: 'No laboratory requests.',
           children: laboratoryRequests
               .map(
@@ -1912,7 +2251,7 @@ class _ClinicalRecordsPanel extends StatelessWidget {
         _clinicalSection(
           context,
           title: 'Medical documents',
-          icon: Icons.folder_copy_outlined,
+          icon: AppIcons.folderCopyOutlined,
           emptyMessage: 'No medical documents.',
           children: medicalDocuments
               .map(
@@ -1926,7 +2265,7 @@ class _ClinicalRecordsPanel extends StatelessWidget {
                   trailing: IconButton(
                     tooltip: 'Open secure medical document',
                     onPressed: busy ? null : () => onOpenMedicalDocument(item),
-                    icon: const Icon(Icons.open_in_new_rounded),
+                    icon: const Icon(AppIcons.openInNewRounded),
                   ),
                 ),
               )
@@ -1935,7 +2274,7 @@ class _ClinicalRecordsPanel extends StatelessWidget {
         _clinicalSection(
           context,
           title: 'Consultation attachments',
-          icon: Icons.attach_file_rounded,
+          icon: AppIcons.attachFileRounded,
           emptyMessage: 'No consultation attachments.',
           children: consultationAttachments
               .map(
@@ -1950,7 +2289,7 @@ class _ClinicalRecordsPanel extends StatelessWidget {
                   trailing: IconButton(
                     tooltip: 'Open secure consultation attachment',
                     onPressed: busy ? null : () => onOpenAttachment(item),
-                    icon: const Icon(Icons.open_in_new_rounded),
+                    icon: const Icon(AppIcons.openInNewRounded),
                   ),
                 ),
               )
@@ -2018,7 +2357,7 @@ class _PatientConsentsPanel extends StatelessWidget {
       if (items.isNotEmpty)
         Card(
           child: ExpansionTile(
-            leading: const Icon(Icons.history_rounded),
+            leading: const Icon(AppIcons.historyRounded),
             title: const Text('Consent decision history'),
             children: items
                 .map(
@@ -2086,14 +2425,14 @@ class _PatientConsentsPanel extends StatelessWidget {
                   onPressed: busy || granted
                       ? null
                       : () => onDecision(definition, true),
-                  icon: const Icon(Icons.check_circle_outline_rounded),
+                  icon: const Icon(AppIcons.checkCircleOutlineRounded),
                   label: Text(record == null ? 'Review & grant' : 'Grant'),
                 ),
                 OutlinedButton.icon(
                   onPressed: busy || !granted
                       ? null
                       : () => onDecision(definition, false),
-                  icon: const Icon(Icons.block_outlined),
+                  icon: const Icon(AppIcons.blockOutlined),
                   label: const Text('Review & revoke'),
                 ),
               ],
@@ -2112,7 +2451,7 @@ class _PrescriptionsPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) => items.isEmpty
       ? const _EmptyCard(
-          icon: Icons.medication_outlined,
+          icon: AppIcons.medicationOutlined,
           message: 'No prescriptions are available.',
         )
       : ListView.builder(
@@ -2124,7 +2463,7 @@ class _PrescriptionsPanel extends StatelessWidget {
               margin: const EdgeInsets.only(bottom: 10),
               child: ListTile(
                 leading: const CircleAvatar(
-                  child: Icon(Icons.medication_rounded),
+                  child: Icon(AppIcons.medicationRounded),
                 ),
                 title: Text(
                   item['medication_name']?.toString() ?? 'Medication',
@@ -2148,7 +2487,7 @@ class _ConversationsPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) => items.isEmpty
       ? const _EmptyCard(
-          icon: Icons.forum_outlined,
+          icon: AppIcons.forumOutlined,
           message:
               'No active care conversations. A conversation becomes available after consultation approval.',
         )
@@ -2165,13 +2504,13 @@ class _ConversationsPanel extends StatelessWidget {
               child: ListTile(
                 onTap: () => onOpen(item),
                 leading: const CircleAvatar(
-                  child: Icon(Icons.chat_bubble_outline_rounded),
+                  child: Icon(AppIcons.chatBubbleOutlineRounded),
                 ),
                 title: Text(other.isEmpty ? 'Care conversation' : other),
                 subtitle: Text(
                   '${_label(item['status']?.toString() ?? '')} · Updated ${_dateTime(item['updated_at'])}',
                 ),
-                trailing: const Icon(Icons.chevron_right_rounded),
+                trailing: const Icon(AppIcons.chevronRightRounded),
               ),
             );
           },
@@ -2244,18 +2583,11 @@ class _EmptyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Center(
-    child: Card(
-      child: Padding(
-        padding: const EdgeInsets.all(26),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 48, color: const Color(0xFF8094A8)),
-            const SizedBox(height: 10),
-            Text(message, textAlign: TextAlign.center),
-          ],
-        ),
-      ),
+    child: AppStatePanel(
+      compact: true,
+      icon: icon,
+      title: 'Nothing to show yet',
+      message: message,
     ),
   );
 }
@@ -2291,7 +2623,7 @@ class _BookingSlotState extends StatelessWidget {
           const SizedBox(height: 8),
           TextButton.icon(
             onPressed: onAction,
-            icon: const Icon(Icons.refresh_rounded),
+            icon: const Icon(AppIcons.refreshRounded),
             label: Text(actionLabel!),
           ),
         ],
@@ -2311,24 +2643,14 @@ class _SignInRequired extends StatelessWidget {
   final String actionLabel;
 
   @override
-  Widget build(BuildContext context) => Center(
-    child: Card(
-      child: Padding(
-        padding: const EdgeInsets.all(26),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.lock_outline_rounded, size: 46),
-            const SizedBox(height: 12),
-            Text(message, textAlign: TextAlign.center),
-            if (onSignIn != null) ...[
-              const SizedBox(height: 15),
-              FilledButton(onPressed: onSignIn, child: Text(actionLabel)),
-            ],
-          ],
-        ),
-      ),
-    ),
+  Widget build(BuildContext context) => AppStatePanel(
+    kind: AppStateKind.restricted,
+    icon: AppIcons.lockOutlineRounded,
+    title: 'Care workspace unavailable',
+    message: message,
+    action: onSignIn == null
+        ? null
+        : FilledButton(onPressed: onSignIn, child: Text(actionLabel)),
   );
 }
 
@@ -2461,10 +2783,10 @@ Future<JsonMap?> _bookDialog(
                   const SizedBox(height: 12),
                   ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.event_rounded),
+                    leading: const Icon(AppIcons.eventRounded),
                     title: const Text('Appointment date'),
                     subtitle: Text(DateFormat.yMMMd().format(selectedDate)),
-                    trailing: const Icon(Icons.edit_calendar_rounded),
+                    trailing: const Icon(AppIcons.editCalendarRounded),
                     enabled: !slotsLoading,
                     onTap: slotsLoading
                         ? null
@@ -2494,7 +2816,7 @@ Future<JsonMap?> _bookDialog(
                   const SizedBox(height: 8),
                   if (doctorId == null)
                     const _BookingSlotState(
-                      icon: Icons.person_search_outlined,
+                      icon: AppIcons.personSearchOutlined,
                       message: 'Choose a doctor to load available slots.',
                     )
                   else if (slotsLoading)
@@ -2510,7 +2832,7 @@ Future<JsonMap?> _bookDialog(
                     )
                   else if (slotError != null)
                     _BookingSlotState(
-                      icon: Icons.error_outline_rounded,
+                      icon: AppIcons.errorOutlineRounded,
                       message:
                           'Available slots could not be loaded: $slotError',
                       actionLabel: 'Retry',
@@ -2518,7 +2840,7 @@ Future<JsonMap?> _bookDialog(
                     )
                   else if (slots.isEmpty)
                     _BookingSlotState(
-                      icon: Icons.event_busy_outlined,
+                      icon: AppIcons.eventBusyOutlined,
                       message:
                           'No ${_label(type).toLowerCase()} slots are available on ${DateFormat.yMMMd().format(selectedDate)}.',
                       actionLabel: 'Check again',
@@ -2646,7 +2968,7 @@ Future<JsonMap?> _guestReviewDialog(
                 const SizedBox(height: 10),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.event_rounded),
+                  leading: const Icon(AppIcons.eventRounded),
                   title: const Text('Scheduled appointment *'),
                   subtitle: Text(
                     DateFormat.yMMMd().add_jm().format(appointment),
@@ -2761,11 +3083,12 @@ Future<JsonMap?> _patientAccountDialog(
                   helperText:
                       'At least 12 characters. The patient must change it securely.',
                   suffixIcon: IconButton(
+                    tooltip: obscure ? 'Show password' : 'Hide password',
                     onPressed: () => setDialogState(() => obscure = !obscure),
                     icon: Icon(
                       obscure
-                          ? Icons.visibility_outlined
-                          : Icons.visibility_off_outlined,
+                          ? AppIcons.visibilityOutlined
+                          : AppIcons.visibilityOffOutlined,
                     ),
                   ),
                 ),
@@ -2889,8 +3212,8 @@ Future<JsonMap?> _directPatientAccountDialog(BuildContext context) async {
                       onPressed: () => setDialogState(() => obscure = !obscure),
                       icon: Icon(
                         obscure
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
+                            ? AppIcons.visibilityOutlined
+                            : AppIcons.visibilityOffOutlined,
                       ),
                     ),
                   ),
@@ -2905,16 +3228,16 @@ Future<JsonMap?> _directPatientAccountDialog(BuildContext context) async {
                 ),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.cake_outlined),
+                  leading: const Icon(AppIcons.cakeOutlined),
                   title: const Text('Birth date (optional)'),
                   subtitle: Text(_dateOnlyLabel(birthDate)),
                   trailing: birthDate == null
-                      ? const Icon(Icons.edit_calendar_outlined)
+                      ? const Icon(AppIcons.editCalendarOutlined)
                       : IconButton(
                           tooltip: 'Clear birth date',
                           onPressed: () =>
                               setDialogState(() => birthDate = null),
-                          icon: const Icon(Icons.clear_rounded),
+                          icon: const Icon(AppIcons.clearRounded),
                         ),
                   onTap: () async {
                     final selected = await showDatePicker(
@@ -3875,7 +4198,7 @@ Future<JsonMap?> _clinicalDocumentDialog(
                     final picked = await _pickClinicalFile(context);
                     if (picked != null) setDialogState(() => file = picked);
                   },
-                  icon: const Icon(Icons.file_upload_outlined),
+                  icon: const Icon(AppIcons.fileUploadOutlined),
                   label: Text(
                     file == null ? 'Choose JPEG, PNG, or PDF *' : file!.name,
                   ),
@@ -3948,7 +4271,7 @@ Future<JsonMap?> _patientAttachmentDialog(
                   final picked = await _pickClinicalFile(context);
                   if (picked != null) setDialogState(() => file = picked);
                 },
-                icon: const Icon(Icons.attach_file_rounded),
+                icon: const Icon(AppIcons.attachFileRounded),
                 label: Text(
                   file == null ? 'Choose JPEG, PNG, or PDF *' : file!.name,
                 ),
@@ -4032,7 +4355,7 @@ Future<JsonMap?> _consultationAttachmentDialog(
                   final picked = await _pickClinicalFile(context);
                   if (picked != null) setDialogState(() => file = picked);
                 },
-                icon: const Icon(Icons.attach_file_rounded),
+                icon: const Icon(AppIcons.attachFileRounded),
                 label: Text(
                   file == null ? 'Choose JPEG, PNG, or PDF *' : file!.name,
                 ),
@@ -4144,7 +4467,7 @@ Future<JsonMap?> _laboratoryRequestDialog(
                       ? 'No due date'
                       : 'Due ${DateFormat.yMMMd().add_jm().format(dueAt!)}',
                 ),
-                trailing: const Icon(Icons.event_rounded),
+                trailing: const Icon(AppIcons.eventRounded),
                 onTap: () async {
                   final value = await _pickDateTime(
                     context,
@@ -4281,7 +4604,7 @@ Future<JsonMap?> _resultUploadDialog(
                       setDialogState(() => file = picked.files.single);
                     }
                   },
-                  icon: const Icon(Icons.upload_file_rounded),
+                  icon: const Icon(AppIcons.uploadFileRounded),
                   label: Text(
                     file == null
                         ? 'Choose image, PDF, or text file *'
@@ -4563,17 +4886,17 @@ Widget _transitionButton(String status, VoidCallback? onPressed) {
   return destructive
       ? OutlinedButton.icon(
           onPressed: onPressed,
-          icon: const Icon(Icons.close_rounded),
+          icon: const Icon(AppIcons.closeRounded),
           label: Text(_label(status)),
         )
       : FilledButton.tonalIcon(
           onPressed: onPressed,
           icon: Icon(
             status == 'completed'
-                ? Icons.task_alt_rounded
+                ? AppIcons.taskAltRounded
                 : status == 'in_progress'
-                ? Icons.play_arrow_rounded
-                : Icons.arrow_forward_rounded,
+                ? AppIcons.playArrowRounded
+                : AppIcons.arrowForwardRounded,
           ),
           label: Text(_label(status)),
         );

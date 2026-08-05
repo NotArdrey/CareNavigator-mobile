@@ -5,7 +5,9 @@ import 'package:care_navigator_ph/src/providers/app_providers.dart';
 import 'package:care_navigator_ph/src/routing/role_routes.dart';
 import 'package:care_navigator_ph/src/theme/app_theme.dart';
 import 'package:care_navigator_ph/src/widgets/admin_desktop_only_screen.dart';
+import 'package:care_navigator_ph/src/widgets/app_layout.dart';
 import 'package:care_navigator_ph/src/widgets/app_page_header.dart';
+import 'package:care_navigator_ph/src/widgets/app_states.dart';
 import 'package:care_navigator_ph/src/widgets/async_value_panel.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -64,6 +66,7 @@ class _OperationsBody extends ConsumerStatefulWidget {
 
 class _OperationsBodyState extends ConsumerState<_OperationsBody> {
   bool _loading = true;
+  int _selectedModule = 0;
   Object? _error;
   JsonMap _analytics = const {};
   List<JsonMap> _announcements = const [];
@@ -526,125 +529,135 @@ class _OperationsBodyState extends ConsumerState<_OperationsBody> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_loading) {
+      return const AppLoadingState(label: 'Loading operations');
+    }
     if (_error != null) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Could not load operations: $_error'),
-            const SizedBox(height: 10),
-            FilledButton(onPressed: _load, child: const Text('Retry')),
-          ],
+      return AppStatePanel(
+        kind: AppStateKind.error,
+        icon: AppIcons.cloudOffRounded,
+        title: 'Unable to load operations',
+        message: _error.toString(),
+        action: FilledButton.icon(
+          onPressed: _load,
+          icon: const Icon(AppIcons.refreshRounded),
+          label: const Text('Try again'),
         ),
       );
     }
     final tabs = <Tab>[
-      const Tab(icon: Icon(Icons.analytics_outlined), text: 'Reports'),
-      const Tab(icon: Icon(Icons.campaign_outlined), text: 'Announcements'),
-      const Tab(icon: Icon(Icons.policy_outlined), text: 'Audit'),
+      const Tab(icon: Icon(AppIcons.analyticsOutlined), text: 'Reports'),
+      const Tab(icon: Icon(AppIcons.campaignOutlined), text: 'Announcements'),
+      const Tab(icon: Icon(AppIcons.policyOutlined), text: 'Audit'),
       if (!_isSuper)
-        const Tab(icon: Icon(Icons.people_outline_rounded), text: 'Patients'),
+        const Tab(icon: Icon(AppIcons.peopleOutlineRounded), text: 'Patients'),
       if (!_isSuper)
         const Tab(
-          icon: Icon(Icons.calendar_month_outlined),
+          icon: Icon(AppIcons.calendarMonthOutlined),
           text: 'Appointments',
         ),
-      if (_isSuper) const Tab(icon: Icon(Icons.tune_rounded), text: 'Settings'),
       if (_isSuper)
-        const Tab(icon: Icon(Icons.psychology_outlined), text: 'AI controls'),
+        const Tab(icon: Icon(AppIcons.tuneRounded), text: 'Settings'),
       if (_isSuper)
-        const Tab(icon: Icon(Icons.key_outlined), text: 'Permissions'),
+        const Tab(icon: Icon(AppIcons.psychologyOutlined), text: 'AI controls'),
       if (_isSuper)
-        const Tab(icon: Icon(Icons.build_outlined), text: 'Maintenance'),
+        const Tab(icon: Icon(AppIcons.keyOutlined), text: 'Permissions'),
       if (_isSuper)
-        const Tab(icon: Icon(Icons.security_outlined), text: 'Security'),
+        const Tab(icon: Icon(AppIcons.buildOutlined), text: 'Maintenance'),
+      if (_isSuper)
+        const Tab(icon: Icon(AppIcons.securityOutlined), text: 'Security'),
     ];
-    return DefaultTabController(
-      length: tabs.length,
-      child: SafeArea(
-        child: Column(
-          children: [
-            Material(
-              color: Colors.white,
-              child: Column(
-                children: [
-                  AppPageHeader(
-                    title: _isSuper
-                        ? 'Platform operations'
-                        : 'Hospital reports & operations',
-                    subtitle:
-                        '${widget.profile.displayName} · ${widget.profile.roleLabel}',
-                    icon: Icons.monitor_heart_rounded,
-                    onBack: () => context.go('/admin'),
-                    backTooltip: 'Back to administration',
-                    actions: [
-                      IconButton(
-                        tooltip: 'Notifications',
-                        onPressed: () => context.go('/notifications'),
-                        icon: const Icon(Icons.notifications_outlined),
-                      ),
-                      IconButton(
-                        tooltip: 'Refresh',
-                        onPressed: _load,
-                        icon: const Icon(Icons.refresh_rounded),
-                      ),
-                    ],
-                  ),
-                  TabBar(isScrollable: true, tabs: tabs),
-                ],
-              ),
-            ),
-            Expanded(
-              child: TabBarView(
-                children: [
-                  _AnalyticsPanel(values: _analytics),
-                  _AnnouncementPanel(
-                    items: _announcements,
-                    onAdd: () => _saveAnnouncement(),
-                    onEdit: _saveAnnouncement,
-                    onDelete: _deleteAnnouncement,
-                  ),
-                  _AuditPanel(items: _audit),
-                  if (!_isSuper)
-                    _HospitalPatientsPanel(items: _hospitalPatients),
-                  if (!_isSuper)
-                    _HospitalConsultationsPanel(items: _hospitalConsultations),
-                  if (_isSuper)
-                    _SettingsPanel(items: _settings, onEdit: _editSetting),
-                  if (_isSuper)
-                    _AiConfigurationsPanel(
-                      items: _aiConfigurations,
-                      isBusy: (item) => _isBusy('ai:${item['id']}'),
-                      isCreating: _isBusy('ai:new'),
-                      onAdd: () => _saveAiConfiguration(),
-                      onEdit: _saveAiConfiguration,
-                      onDelete: _deleteAiConfiguration,
-                    ),
-                  if (_isSuper)
-                    _RolePermissionsPanel(
-                      items: _rolePermissions,
-                      isBusy: (item) => _isBusy('permission:${item['id']}'),
-                      isCreating: _isBusy('permission:new'),
-                      onAdd: () => _saveRolePermission(),
-                      onEdit: _saveRolePermission,
-                      onDelete: _deleteRolePermission,
-                    ),
-                  if (_isSuper)
-                    _MaintenancePanel(
-                      items: _maintenanceWindows,
-                      isBusy: (item) => _isBusy('maintenance:${item['id']}'),
-                      isCreating: _isBusy('maintenance:new'),
-                      onAdd: () => _saveMaintenanceWindow(),
-                      onEdit: _saveMaintenanceWindow,
-                      onDelete: _deleteMaintenanceWindow,
-                    ),
-                  if (_isSuper) _SecurityLogsPanel(items: _securityLogs),
-                ],
-              ),
-            ),
-          ],
+    final destinations = tabs
+        .map(
+          (tab) => AppModuleDestination(
+            label: tab.text ?? 'Module',
+            icon: (tab.icon as Icon?)?.icon ?? AppIcons.settingsOutlined,
+          ),
+        )
+        .toList(growable: false);
+    final bodies = <Widget>[
+      _AnalyticsPanel(values: _analytics),
+      _AnnouncementPanel(
+        items: _announcements,
+        onAdd: () => _saveAnnouncement(),
+        onEdit: _saveAnnouncement,
+        onDelete: _deleteAnnouncement,
+      ),
+      _AuditPanel(items: _audit),
+      if (!_isSuper) _HospitalPatientsPanel(items: _hospitalPatients),
+      if (!_isSuper) _HospitalConsultationsPanel(items: _hospitalConsultations),
+      if (_isSuper) _SettingsPanel(items: _settings, onEdit: _editSetting),
+      if (_isSuper)
+        _AiConfigurationsPanel(
+          items: _aiConfigurations,
+          isBusy: (item) => _isBusy('ai:${item['id']}'),
+          isCreating: _isBusy('ai:new'),
+          onAdd: () => _saveAiConfiguration(),
+          onEdit: _saveAiConfiguration,
+          onDelete: _deleteAiConfiguration,
         ),
+      if (_isSuper)
+        _RolePermissionsPanel(
+          items: _rolePermissions,
+          isBusy: (item) => _isBusy('permission:${item['id']}'),
+          isCreating: _isBusy('permission:new'),
+          onAdd: () => _saveRolePermission(),
+          onEdit: _saveRolePermission,
+          onDelete: _deleteRolePermission,
+        ),
+      if (_isSuper)
+        _MaintenancePanel(
+          items: _maintenanceWindows,
+          isBusy: (item) => _isBusy('maintenance:${item['id']}'),
+          isCreating: _isBusy('maintenance:new'),
+          onAdd: () => _saveMaintenanceWindow(),
+          onEdit: _saveMaintenanceWindow,
+          onDelete: _deleteMaintenanceWindow,
+        ),
+      if (_isSuper) _SecurityLogsPanel(items: _securityLogs),
+    ];
+    if (_selectedModule >= bodies.length) _selectedModule = 0;
+    return SafeArea(
+      child: Column(
+        children: [
+          AppPageHeader(
+            eyebrow: 'AUDITED OPERATIONS CENTER',
+            title: _isSuper
+                ? 'Platform operating picture'
+                : 'Hospital operating picture',
+            subtitle:
+                '${widget.profile.displayName} · ${widget.profile.roleLabel}',
+            icon: AppIcons.monitorHeartRounded,
+            onBack: () => context.go('/admin'),
+            backTooltip: 'Back to administration',
+            actions: [
+              IconButton(
+                tooltip: 'Notifications',
+                onPressed: () => context.go('/notifications'),
+                icon: const Icon(AppIcons.notificationsOutlined),
+              ),
+              IconButton(
+                tooltip: 'Refresh',
+                onPressed: _load,
+                icon: const Icon(AppIcons.refreshRounded),
+              ),
+            ],
+          ),
+          Expanded(
+            child: AppModuleLayout(
+              eyebrow: _isSuper ? 'PLATFORM OPERATIONS' : 'HOSPITAL OPERATIONS',
+              title: _isSuper
+                  ? 'Control, evidence, and resilience'
+                  : 'Activity, patients, and capacity',
+              summary:
+                  '${_announcements.length} announcements · ${_audit.length} audit events',
+              destinations: destinations,
+              selectedIndex: _selectedModule,
+              onSelected: (value) => setState(() => _selectedModule = value),
+              child: bodies[_selectedModule],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -696,7 +709,7 @@ class _AnalyticsPanel extends StatelessWidget {
                               Text(_label(entry.key)),
                               const SizedBox(height: 8),
                               Text(
-                                entry.value.toString(),
+                                _metricValue(entry.key, entry.value),
                                 style: Theme.of(context)
                                     .textTheme
                                     .headlineMedium
@@ -736,7 +749,7 @@ class _AnnouncementPanel extends StatelessWidget {
         alignment: Alignment.centerLeft,
         child: FilledButton.icon(
           onPressed: onAdd,
-          icon: const Icon(Icons.add_rounded),
+          icon: const Icon(AppIcons.addRounded),
           label: const Text('New announcement'),
         ),
       ),
@@ -786,7 +799,7 @@ class _AuditPanel extends StatelessWidget {
             final item = items[index];
             return Card(
               child: ExpansionTile(
-                leading: const Icon(Icons.history_rounded),
+                leading: const Icon(AppIcons.historyRounded),
                 title: Text(
                   '${_label(item['action']?.toString() ?? '')} · ${_label(item['module']?.toString() ?? '')}',
                 ),
@@ -867,7 +880,7 @@ class _HospitalPatientsPanelState extends State<_HospitalPatientsPanel> {
               child: TextField(
                 decoration: const InputDecoration(
                   labelText: 'Find patient',
-                  prefixIcon: Icon(Icons.search_rounded),
+                  prefixIcon: Icon(AppIcons.searchRounded),
                 ),
                 onChanged: (value) => setState(() => _search = value),
               ),
@@ -1047,8 +1060,8 @@ class _HospitalConsultationsPanelState
               child: ListTile(
                 leading: Icon(
                   item['consultation_type']?.toString() == 'online'
-                      ? Icons.videocam_outlined
-                      : Icons.local_hospital_outlined,
+                      ? AppIcons.videocamOutlined
+                      : AppIcons.localHospitalOutlined,
                   color: AppColors.blue,
                 ),
                 title: Text(_consultationPatientName(item)),
@@ -1093,7 +1106,7 @@ class _SettingsPanel extends StatelessWidget {
                 trailing: IconButton(
                   tooltip: 'Edit setting',
                   onPressed: () => onEdit(item),
-                  icon: const Icon(Icons.edit_rounded),
+                  icon: const Icon(AppIcons.editRounded),
                 ),
               ),
             );
@@ -1144,8 +1157,8 @@ class _AiConfigurationsPanel extends StatelessWidget {
             child: ExpansionTile(
               leading: Icon(
                 item['is_active'] == true
-                    ? Icons.smart_toy_rounded
-                    : Icons.pause_circle_outline_rounded,
+                    ? AppIcons.smartToyRounded
+                    : AppIcons.pauseCircleOutlineRounded,
                 color: item['is_active'] == true ? AppColors.blue : null,
               ),
               title: Text(item['configuration_key']?.toString() ?? ''),
@@ -1217,8 +1230,8 @@ class _RolePermissionsPanel extends StatelessWidget {
             child: ListTile(
               leading: Icon(
                 item['is_allowed'] == true
-                    ? Icons.check_circle_outline_rounded
-                    : Icons.block_rounded,
+                    ? AppIcons.checkCircleOutlineRounded
+                    : AppIcons.blockRounded,
                 color: item['is_allowed'] == true
                     ? Colors.green
                     : AppColors.danger,
@@ -1281,8 +1294,8 @@ class _MaintenancePanel extends StatelessWidget {
             child: ListTile(
               leading: Icon(
                 item['is_active'] == true
-                    ? Icons.build_circle_outlined
-                    : Icons.hide_source_rounded,
+                    ? AppIcons.buildCircleOutlined
+                    : AppIcons.hideSourceRounded,
                 color: item['is_active'] == true ? Colors.orange : null,
               ),
               title: Text(item['title']?.toString() ?? ''),
@@ -1320,10 +1333,10 @@ class _SecurityLogsPanel extends StatelessWidget {
               child: ExpansionTile(
                 leading: Icon(
                   severity == 'critical'
-                      ? Icons.gpp_bad_outlined
+                      ? AppIcons.gppBadOutlined
                       : severity == 'warning'
-                      ? Icons.warning_amber_rounded
-                      : Icons.shield_outlined,
+                      ? AppIcons.warningAmberRounded
+                      : AppIcons.shieldOutlined,
                   color: severity == 'critical'
                       ? AppColors.danger
                       : severity == 'warning'
@@ -1391,7 +1404,7 @@ class _CrudHeader extends StatelessWidget {
                 dimension: 18,
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
-            : const Icon(Icons.add_rounded),
+            : const Icon(AppIcons.addRounded),
         label: Text(isCreating ? 'Saving...' : buttonLabel),
       ),
     ],
@@ -1440,7 +1453,7 @@ class _AccessCard extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.lock_outline_rounded, size: 42),
+            const Icon(AppIcons.lockOutlineRounded, size: 42),
             const SizedBox(height: 10),
             const Text('Administrator access required.'),
             if (onSignIn != null) ...[
@@ -1502,7 +1515,7 @@ Future<JsonMap?> _announcementDialog(
                       IconButton(
                         tooltip: 'Remove expiry',
                         onPressed: () => setDialogState(() => expires = null),
-                        icon: const Icon(Icons.clear_rounded),
+                        icon: const Icon(AppIcons.clearRounded),
                       ),
                     IconButton(
                       tooltip: 'Choose expiry',
@@ -1536,7 +1549,7 @@ Future<JsonMap?> _announcementDialog(
                           );
                         }
                       },
-                      icon: const Icon(Icons.event_rounded),
+                      icon: const Icon(AppIcons.eventRounded),
                     ),
                   ],
                 ),
@@ -1890,7 +1903,7 @@ Future<JsonMap?> _maintenanceWindowDialog(
                         });
                       }
                     },
-                    icon: const Icon(Icons.event_rounded),
+                    icon: const Icon(AppIcons.eventRounded),
                   ),
                 ),
                 ListTile(
@@ -1905,7 +1918,7 @@ Future<JsonMap?> _maintenanceWindowDialog(
                         setDialogState(() => endsAt = value);
                       }
                     },
-                    icon: const Icon(Icons.event_rounded),
+                    icon: const Icon(AppIcons.eventRounded),
                   ),
                 ),
                 SwitchListTile(
@@ -2050,6 +2063,21 @@ String _label(String value) => value
     .where((part) => part.isNotEmpty)
     .map((part) => '${part[0].toUpperCase()}${part.substring(1)}')
     .join(' ');
+
+String _metricValue(String key, dynamic value) {
+  if (value is bool) return value ? 'Yes' : 'No';
+  if (value is String &&
+      (RegExp(r'^\d{4}-\d{2}-\d{2}T').hasMatch(value) ||
+          key.endsWith('_at') ||
+          key.endsWith('_time') ||
+          key.contains('timestamp'))) {
+    final date = DateTime.tryParse(value);
+    if (date != null) {
+      return DateFormat.yMMMd().add_jm().format(date.toLocal());
+    }
+  }
+  return value.toString();
+}
 
 String _relation(dynamic value, String key) {
   final relation = value is List ? (value.isEmpty ? null : value.first) : value;

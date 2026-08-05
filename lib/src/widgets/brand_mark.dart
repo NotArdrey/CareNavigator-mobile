@@ -2,9 +2,10 @@ import 'package:care_navigator_ph/src/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 
 class BrandMark extends StatelessWidget {
-  const BrandMark({super.key, this.compact = false});
+  const BrandMark({super.key, this.compact = false, this.inverse = false});
 
   final bool compact;
+  final bool inverse;
 
   @override
   Widget build(BuildContext context) {
@@ -14,40 +15,40 @@ class BrandMark extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 40,
-            height: 40,
+            width: compact ? 44 : 46,
+            height: compact ? 44 : 46,
             decoration: BoxDecoration(
-              color: AppColors.blue,
-              borderRadius: BorderRadius.circular(12),
+              color: AppColors.forest,
+              borderRadius: BorderRadius.circular(AppRadius.extraLarge),
             ),
             child: const Icon(
-              Icons.health_and_safety_rounded,
+              AppIcons.navigation,
               color: Colors.white,
-              size: 24,
+              size: 27,
             ),
           ),
           if (!compact) ...[
             const SizedBox(width: 11),
-            const Column(
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'CareNavigator',
+                  'Care Navigator',
                   style: TextStyle(
-                    color: AppColors.navy,
-                    fontSize: 18,
+                    color: inverse ? Colors.white : AppColors.ink,
+                    fontSize: 17,
                     fontWeight: FontWeight.w800,
-                    letterSpacing: -0.4,
+                    letterSpacing: -0.55,
                   ),
                 ),
                 Text(
-                  'PH',
+                  'PHILIPPINES',
                   style: TextStyle(
-                    color: AppColors.teal,
-                    fontSize: 10,
+                    color: inverse ? AppColors.sunflower : AppColors.forest,
+                    fontSize: 8,
                     fontWeight: FontWeight.w800,
-                    letterSpacing: 2,
+                    letterSpacing: 1.65,
                   ),
                 ),
               ],

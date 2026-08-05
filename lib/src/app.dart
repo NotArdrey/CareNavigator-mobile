@@ -1,6 +1,9 @@
 import 'package:care_navigator_ph/src/config/app_config.dart';
 import 'package:care_navigator_ph/src/routing/app_router.dart';
 import 'package:care_navigator_ph/src/theme/app_theme.dart';
+import 'package:care_navigator_ph/src/widgets/app_layout.dart';
+import 'package:care_navigator_ph/src/widgets/app_page_header.dart';
+import 'package:care_navigator_ph/src/widgets/app_states.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -36,36 +39,31 @@ class _MissingConfigurationScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 560),
-          child: Card(
-            margin: const EdgeInsets.all(24),
-            child: Padding(
-              padding: const EdgeInsets.all(28),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.health_and_safety,
-                    size: 52,
-                    color: AppColors.blue,
+      body: const SafeArea(
+        child: Column(
+          children: [
+            AppPageHeader(
+              eyebrow: 'STARTUP DIAGNOSTIC',
+              title: 'Care network connection unavailable',
+              subtitle:
+                  'The application is protecting access until configuration is restored',
+              icon: AppIcons.healthAndSafetyRounded,
+            ),
+            Expanded(
+              child: ResponsivePageContainer(
+                child: AppCard(
+                  tone: AppCardTone.coral,
+                  child: AppEmptyState(
+                    kind: AppStateKind.error,
+                    icon: AppIcons.settingsSuggestOutlined,
+                    title: 'Configuration unavailable',
+                    message:
+                        'The public client configuration could not be loaded. Rebuild the app and try again. Administrative credentials are never compiled into Flutter.',
                   ),
-                  const SizedBox(height: 18),
-                  Text(
-                    'CareNavigator PH needs its public Supabase configuration.',
-                    style: Theme.of(context).textTheme.headlineMedium,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'The public client configuration could not be loaded. Rebuild the app and try again. Administrative credentials are never compiled into Flutter.',
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
+          ],
         ),
       ),
     );

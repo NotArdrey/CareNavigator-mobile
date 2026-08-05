@@ -15,6 +15,10 @@ import 'package:care_navigator_ph/src/features/notifications/presentation/notifi
 import 'package:care_navigator_ph/src/features/profile/presentation/profile_screen.dart';
 import 'package:care_navigator_ph/src/features/shell/presentation/app_shell.dart';
 import 'package:care_navigator_ph/src/providers/app_providers.dart';
+import 'package:care_navigator_ph/src/theme/app_theme.dart';
+import 'package:care_navigator_ph/src/widgets/app_layout.dart';
+import 'package:care_navigator_ph/src/widgets/app_page_header.dart';
+import 'package:care_navigator_ph/src/widgets/app_states.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -96,10 +100,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/dashboard',
-            redirect: (context, state) =>
-                ref.read(authRepositoryProvider).currentSession == null
-                ? '/login?redirect=${Uri.encodeComponent(state.uri.toString())}'
-                : null,
             builder: (context, state) => const DashboardScreen(),
           ),
           GoRoute(
@@ -112,10 +112,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/profile',
-            redirect: (context, state) =>
-                ref.read(authRepositoryProvider).currentSession == null
-                ? '/login?redirect=${Uri.encodeComponent(state.uri.toString())}'
-                : null,
             builder: (context, state) => const ProfileScreen(),
           ),
           GoRoute(
@@ -150,27 +146,97 @@ class _NotFoundScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.explore_off_outlined, size: 54),
-              const SizedBox(height: 14),
-              Text(
-                'Page not found',
-                style: Theme.of(context).textTheme.headlineMedium,
+      body: SafeArea(
+        child: Column(
+          children: [
+            const AppPageHeader(
+              eyebrow: 'ROUTE RECOVERY',
+              title: 'This path is outside the care map',
+              subtitle: 'Return to a verified CareNavigator destination',
+              icon: AppIcons.healthAndSafetyRounded,
+            ),
+            Expanded(
+              child: ResponsivePageContainer(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final marker = Container(
+                      padding: const EdgeInsets.all(AppSpacing.xxl),
+                      decoration: BoxDecoration(
+                        color: AppColors.evergreenDark,
+                        borderRadius: BorderRadius.circular(
+                          AppRadius.extraLarge,
+                        ),
+                        boxShadow: AppShadows.medium,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const AppStatusBadge(
+                            label: 'UNMAPPED DESTINATION',
+                            color: AppColors.mint,
+                            icon: AppIcons.exploreOffOutlined,
+                            inverse: true,
+                          ),
+                          const Spacer(),
+                          Text(
+                            '404',
+                            style: Theme.of(context).textTheme.displayLarge
+                                ?.copyWith(
+                                  color: AppColors.coral,
+                                  fontSize: 92,
+                                  height: .9,
+                                ),
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          Text(
+                            path,
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(color: Colors.white),
+                          ),
+                        ],
+                      ),
+                    );
+                    final recovery = AppCard(
+                      tone: AppCardTone.mint,
+                      child: AppEmptyState(
+                        kind: AppStateKind.error,
+                        icon: AppIcons.signpostOutlined,
+                        title: 'Choose a verified route',
+                        message:
+                            'This address does not match an existing CareNavigator screen. Your account and records are unchanged.',
+                        compact: constraints.maxWidth < 720,
+                        action: AppButton(
+                          label: 'Return to care home',
+                          icon: AppIcons.homeOutlined,
+                          onPressed: () => context.go('/home'),
+                        ),
+                      ),
+                    );
+                    if (constraints.maxWidth < 720) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          SizedBox(height: 220, child: marker),
+                          const SizedBox(height: AppSpacing.md),
+                          Expanded(child: recovery),
+                        ],
+                      );
+                    }
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(flex: 4, child: marker),
+                        const SizedBox(width: AppSpacing.lg),
+                        Expanded(flex: 6, child: recovery),
+                      ],
+                    );
+                  },
+                ),
               ),
-              const SizedBox(height: 7),
-              Text('There is no CareNavigator page at $path.'),
-              const SizedBox(height: 18),
-              FilledButton(
-                onPressed: () => context.go('/home'),
-                child: const Text('Return home'),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

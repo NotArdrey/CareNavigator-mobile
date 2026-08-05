@@ -1,0 +1,1855 @@
+{
+  "generatedAt": "2026-08-03T09:04:06.744Z",
+  "routes": 17,
+  "public": {
+    "mobile": [
+      {
+        "name": "root",
+        "path": "/",
+        "href": "http://127.0.0.1:8095/?theme-audit=public-mobile-0-1785747846767#/",
+        "w": 390,
+        "h": 844,
+        "rootReady": true,
+        "documentWidth": 390,
+        "bodyWidth": 390
+      },
+      {
+        "name": "home",
+        "path": "/home",
+        "href": "http://127.0.0.1:8095/?theme-audit=public-mobile-1-1785747847251#/home",
+        "w": 390,
+        "h": 844,
+        "rootReady": true,
+        "documentWidth": 390,
+        "bodyWidth": 390
+      },
+      {
+        "name": "hospitals",
+        "path": "/hospitals",
+        "href": "http://127.0.0.1:8095/?theme-audit=public-mobile-2-1785747847928#/hospitals",
+        "w": 390,
+        "h": 844,
+        "rootReady": true,
+        "documentWidth": 390,
+        "bodyWidth": 390
+      },
+      {
+        "name": "hospital-map",
+        "path": "/hospitals/map",
+        "href": "http://127.0.0.1:8095/?theme-audit=public-mobile-3-1785747848396#/hospitals/map",
+        "w": 390,
+        "h": 844,
+        "rootReady": true,
+        "documentWidth": 390,
+        "bodyWidth": 390
+      },
+      {
+        "name": "hospital-detail",
+        "path": "/hospitals/20000000-0000-4000-8000-000000000001",
+        "href": "http://127.0.0.1:8095/?theme-audit=public-mobile-4-1785747848871#/hospitals/20000000-0000-4000-8000-000000000001",
+        "w": 390,
+        "h": 844,
+        "rootReady": true,
+        "documentWidth": 390,
+        "bodyWidth": 390
+      },
+      {
+        "name": "assessment",
+        "path": "/assessment",
+        "href": "http://127.0.0.1:8095/?theme-audit=public-mobile-5-1785747849346#/assessment",
+        "w": 390,
+        "h": 844,
+        "rootReady": true,
+        "documentWidth": 390,
+        "bodyWidth": 390
+      },
+      {
+        "name": "consult",
+        "path": "/consult",
+        "href": "http://127.0.0.1:8095/?theme-audit=public-mobile-6-1785747850029#/consult",
+        "w": 390,
+        "h": 844,
+        "rootReady": true,
+        "documentWidth": 390,
+        "bodyWidth": 390
+      },
+      {
+        "name": "dashboard",
+        "path": "/dashboard",
+        "href": "http://127.0.0.1:8095/?theme-audit=public-mobile-7-1785747910226#/dashboard",
+        "w": 390,
+        "h": 844,
+        "rootReady": true,
+        "documentWidth": 390,
+        "bodyWidth": 390
+      },
+      {
+        "name": "care",
+        "path": "/care",
+        "href": "http://127.0.0.1:8095/?theme-audit=public-mobile-8-1785747910696#/login?redirect=/care",
+        "w": 390,
+        "h": 844,
+        "rootReady": true,
+        "documentWidth": 390,
+        "bodyWidth": 390
+      },
+      {
+        "name": "profile",
+        "path": "/profile",
+        "href": "http://127.0.0.1:8095/?theme-audit=public-mobile-9-1785747911168#/login?redirect=/profile",
+        "w": 390,
+        "h": 844,
+        "rootReady": true,
+        "documentWidth": 390,
+        "bodyWidth": 390
+      },
+      {
+        "name": "messages",
+        "path": "/messages/60000000-0000-4000-8000-000000000001",
+        "href": "http://127.0.0.1:8095/?theme-audit=public-mobile-10-1785747911643#/messages/60000000-0000-4000-8000-000000000001",
+        "w": 390,
+        "h": 844,
+        "rootReady": true,
+        "documentWidth": 390,
+        "bodyWidth": 390
+      },
+      {
+        "name": "notifications",
+        "path": "/notifications",
+        "href": "http://127.0.0.1:8095/?theme-audit=public-mobile-11-1785747912116#/notifications",
+        "w": 390,
+        "h": 844,
+        "rootReady": true,
+        "documentWidth": 390,
+        "bodyWidth": 390
+      },
+      {
+        "name": "admin",
+        "path": "/admin",
+        "href": "http://127.0.0.1:8095/?theme-audit=public-mobile-12-1785747912591#/login?redirect=/admin",
+        "w": 390,
+        "h": 844,
+        "rootReady": true,
+        "documentWidth": 390,
+        "bodyWidth": 390
+      },
+      {
+        "name": "admin-operations",
+        "path": "/admin/operations",
+        "href": "http://127.0.0.1:8095/?theme-audit=public-mobile-13-1785747913067#/login?redirect=/admin/operations",
+        "w": 390,
+        "h": 844,
+        "rootReady": true,
+        "documentWidth": 390,
+        "bodyWidth": 390
+      },
+      {
+        "name": "login",
+        "path": "/login",
+        "href": "http://127.0.0.1:8095/?theme-audit=public-mobile-14-1785747913539#/login",
+        "w": 390,
+        "h": 844,
+        "rootReady": true,
+        "documentWidth": 390,
+        "bodyWidth": 390
+      },
+      {
+        "name": "register",
+        "path": "/register",
+        "href": "http://127.0.0.1:8095/?theme-audit=public-mobile-15-1785747914013#/register",
+        "w": 390,
+        "h": 844,
+        "rootReady": true,
+        "documentWidth": 390,
+        "bodyWidth": 390
+      },
+      {
+        "name": "not-found",
+        "path": "/not-a-real-route",
+        "href": "http://127.0.0.1:8095/?theme-audit=public-mobile-16-1785747914485#/not-a-real-route",
+        "w": 390,
+        "h": 844,
+        "rootReady": true,
+        "documentWidth": 390,
+        "bodyWidth": 390
+      }
+    ],
+    "web": [
+      {
+        "name": "root",
+        "path": "/",
+        "href": "http://127.0.0.1:8095/?theme-audit=public-web-0-1785747976307#/login",
+        "w": 1440,
+        "h": 1000,
+        "rootReady": true,
+        "documentWidth": 1440,
+        "bodyWidth": 1440
+      },
+      {
+        "name": "home",
+        "path": "/home",
+        "href": "http://127.0.0.1:8095/?theme-audit=public-web-1-1785747976781#/home",
+        "w": 1440,
+        "h": 1000,
+        "rootReady": true,
+        "documentWidth": 1440,
+        "bodyWidth": 1440
+      },
+      {
+        "name": "hospitals",
+        "path": "/hospitals",
+        "href": "http://127.0.0.1:8095/?theme-audit=public-web-2-1785747977430#/hospitals",
+        "w": 1440,
+        "h": 1000,
+        "rootReady": true,
+        "documentWidth": 1440,
+        "bodyWidth": 1440
+      },
+      {
+        "name": "hospital-map",
+        "path": "/hospitals/map",
+        "href": "http://127.0.0.1:8095/?theme-audit=public-web-3-1785747977896#/hospitals/map",
+        "w": 1440,
+        "h": 1000,
+        "rootReady": true,
+        "documentWidth": 1440,
+        "bodyWidth": 1440
+      },
+      {
+        "name": "hospital-detail",
+        "path": "/hospitals/20000000-0000-4000-8000-000000000001",
+        "href": "http://127.0.0.1:8095/?theme-audit=public-web-4-1785747978370#/hospitals/20000000-0000-4000-8000-000000000001",
+        "w": 1440,
+        "h": 1000,
+        "rootReady": true,
+        "documentWidth": 1440,
+        "bodyWidth": 1440
+      },
+      {
+        "name": "assessment",
+        "path": "/assessment",
+        "href": "http://127.0.0.1:8095/?theme-audit=public-web-5-1785747978844#/assessment",
+        "w": 1440,
+        "h": 1000,
+        "rootReady": true,
+        "documentWidth": 1440,
+        "bodyWidth": 1440
+      },
+      {
+        "name": "consult",
+        "path": "/consult",
+        "href": "http://127.0.0.1:8095/?theme-audit=public-web-6-1785748040740#/consult",
+        "w": 1440,
+        "h": 1000,
+        "rootReady": true,
+        "documentWidth": 1440,
+        "bodyWidth": 1440
+      },
+      {
+        "name": "dashboard",
+        "path": "/dashboard",
+        "href": "http://127.0.0.1:8095/?theme-audit=public-web-7-1785748041575#/dashboard",
+        "w": 1440,
+        "h": 1000,
+        "rootReady": true,
+        "documentWidth": 1440,
+        "bodyWidth": 1440
+      },
+      {
+        "name": "care",
+        "path": "/care",
+        "href": "http://127.0.0.1:8095/?theme-audit=public-web-8-1785748042044#/login?redirect=/care",
+        "w": 1440,
+        "h": 1000,
+        "rootReady": true,
+        "documentWidth": 1440,
+        "bodyWidth": 1440
+      },
+      {
+        "name": "profile",
+        "path": "/profile",
+        "href": "http://127.0.0.1:8095/?theme-audit=public-web-9-1785748042518#/login?redirect=/profile",
+        "w": 1440,
+        "h": 1000,
+        "rootReady": true,
+        "documentWidth": 1440,
+        "bodyWidth": 1440
+      },
+      {
+        "name": "messages",
+        "path": "/messages/60000000-0000-4000-8000-000000000001",
+        "href": "http://127.0.0.1:8095/?theme-audit=public-web-10-1785748042977#/messages/60000000-0000-4000-8000-000000000001",
+        "w": 1440,
+        "h": 1000,
+        "rootReady": true,
+        "documentWidth": 1440,
+        "bodyWidth": 1440
+      },
+      {
+        "name": "notifications",
+        "path": "/notifications",
+        "href": "http://127.0.0.1:8095/?theme-audit=public-web-11-1785748043452#/notifications",
+        "w": 1440,
+        "h": 1000,
+        "rootReady": true,
+        "documentWidth": 1440,
+        "bodyWidth": 1440
+      },
+      {
+        "name": "admin",
+        "path": "/admin",
+        "href": "http://127.0.0.1:8095/?theme-audit=public-web-12-1785748043926#/login?redirect=/admin",
+        "w": 1440,
+        "h": 1000,
+        "rootReady": true,
+        "documentWidth": 1440,
+        "bodyWidth": 1440
+      },
+      {
+        "name": "admin-operations",
+        "path": "/admin/operations",
+        "href": "http://127.0.0.1:8095/?theme-audit=public-web-13-1785748044385#/login?redirect=/admin/operations",
+        "w": 1440,
+        "h": 1000,
+        "rootReady": true,
+        "documentWidth": 1440,
+        "bodyWidth": 1440
+      },
+      {
+        "name": "login",
+        "path": "/login",
+        "href": "http://127.0.0.1:8095/?theme-audit=public-web-14-1785748044861#/login",
+        "w": 1440,
+        "h": 1000,
+        "rootReady": true,
+        "documentWidth": 1440,
+        "bodyWidth": 1440
+      },
+      {
+        "name": "register",
+        "path": "/register",
+        "href": "http://127.0.0.1:8095/?theme-audit=public-web-15-1785748045320#/register",
+        "w": 1440,
+        "h": 1000,
+        "rootReady": true,
+        "documentWidth": 1440,
+        "bodyWidth": 1440
+      },
+      {
+        "name": "not-found",
+        "path": "/not-a-real-route",
+        "href": "http://127.0.0.1:8095/?theme-audit=public-web-16-1785748045794#/not-a-real-route",
+        "w": 1440,
+        "h": 1000,
+        "rootReady": true,
+        "documentWidth": 1440,
+        "bodyWidth": 1440
+      }
+    ]
+  },
+  "roles": {
+    "patient": {
+      "mobile": {
+        "landing": {
+          "href": "http://127.0.0.1:8095/?theme-auth=patient-mobile-1785748106409#/login",
+          "w": 390,
+          "h": 844,
+          "rootReady": true,
+          "documentWidth": 390,
+          "bodyWidth": 390
+        },
+        "routes": [
+          {
+            "name": "root",
+            "path": "/",
+            "href": "http://127.0.0.1:8095/?theme-auth=patient-mobile-0-1785748110076#/login",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "home",
+            "path": "/home",
+            "href": "http://127.0.0.1:8095/?theme-auth=patient-mobile-1-1785748110551#/home",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "hospitals",
+            "path": "/hospitals",
+            "href": "http://127.0.0.1:8095/?theme-auth=patient-mobile-2-1785748111009#/hospitals",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "hospital-map",
+            "path": "/hospitals/map",
+            "href": "http://127.0.0.1:8095/?theme-auth=patient-mobile-3-1785748111484#/hospitals/map",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "hospital-detail",
+            "path": "/hospitals/20000000-0000-4000-8000-000000000001",
+            "href": "http://127.0.0.1:8095/?theme-auth=patient-mobile-4-1785748111956#/hospitals/20000000-0000-4000-8000-000000000001",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "assessment",
+            "path": "/assessment",
+            "href": "http://127.0.0.1:8095/?theme-auth=patient-mobile-5-1785748112429#/assessment",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "consult",
+            "path": "/consult",
+            "href": "http://127.0.0.1:8095/?theme-auth=patient-mobile-6-1785748112888#/consult",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "dashboard",
+            "path": "/dashboard",
+            "href": "http://127.0.0.1:8095/?theme-auth=patient-mobile-7-1785748113362#/dashboard",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "care",
+            "path": "/care",
+            "href": "http://127.0.0.1:8095/?theme-auth=patient-mobile-8-1785748114035#/care",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "profile",
+            "path": "/profile",
+            "href": "http://127.0.0.1:8095/?theme-auth=patient-mobile-9-1785748114630#/profile",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "messages",
+            "path": "/messages/60000000-0000-4000-8000-000000000001",
+            "href": "http://127.0.0.1:8095/?theme-auth=patient-mobile-10-1785748115233#/messages/60000000-0000-4000-8000-000000000001",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "notifications",
+            "path": "/notifications",
+            "href": "http://127.0.0.1:8095/?theme-auth=patient-mobile-11-1785748115702#/notifications",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "admin",
+            "path": "/admin",
+            "href": "http://127.0.0.1:8095/?theme-auth=patient-mobile-12-1785748116176#/admin",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "admin-operations",
+            "path": "/admin/operations",
+            "href": "http://127.0.0.1:8095/?theme-auth=patient-mobile-13-1785748116650#/admin/operations",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "login",
+            "path": "/login",
+            "href": "http://127.0.0.1:8095/?theme-auth=patient-mobile-14-1785748117123#/login",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "register",
+            "path": "/register",
+            "href": "http://127.0.0.1:8095/?theme-auth=patient-mobile-15-1785748117583#/register",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "not-found",
+            "path": "/not-a-real-route",
+            "href": "http://127.0.0.1:8095/?theme-auth=patient-mobile-16-1785748118057#/not-a-real-route",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          }
+        ]
+      },
+      "web": {
+        "landing": {
+          "href": "http://127.0.0.1:8095/?theme-auth=patient-web-1785748118531#/login",
+          "w": 1440,
+          "h": 1000,
+          "rootReady": true,
+          "documentWidth": 1440,
+          "bodyWidth": 1440
+        },
+        "routes": [
+          {
+            "name": "root",
+            "path": "/",
+            "href": "http://127.0.0.1:8095/?theme-auth=patient-web-0-1785748122180#/login",
+            "w": 1440,
+            "h": 1000,
+            "rootReady": true,
+            "documentWidth": 1440,
+            "bodyWidth": 1440
+          },
+          {
+            "name": "home",
+            "path": "/home",
+            "href": "http://127.0.0.1:8095/?theme-auth=patient-web-1-1785748122654#/home",
+            "w": 1440,
+            "h": 1000,
+            "rootReady": true,
+            "documentWidth": 1440,
+            "bodyWidth": 1440
+          },
+          {
+            "name": "hospitals",
+            "path": "/hospitals",
+            "href": "http://127.0.0.1:8095/?theme-auth=patient-web-2-1785748123128#/hospitals",
+            "w": 1440,
+            "h": 1000,
+            "rootReady": true,
+            "documentWidth": 1440,
+            "bodyWidth": 1440
+          },
+          {
+            "name": "hospital-map",
+            "path": "/hospitals/map",
+            "href": "http://127.0.0.1:8095/?theme-auth=patient-web-3-1785748123587#/hospitals/map",
+            "w": 1440,
+            "h": 1000,
+            "rootReady": true,
+            "documentWidth": 1440,
+            "bodyWidth": 1440
+          },
+          {
+            "name": "hospital-detail",
+            "path": "/hospitals/20000000-0000-4000-8000-000000000001",
+            "href": "http://127.0.0.1:8095/?theme-auth=patient-web-4-1785748124063#/hospitals/20000000-0000-4000-8000-000000000001",
+            "w": 1440,
+            "h": 1000,
+            "rootReady": true,
+            "documentWidth": 1440,
+            "bodyWidth": 1440
+          },
+          {
+            "name": "assessment",
+            "path": "/assessment",
+            "href": "http://127.0.0.1:8095/?theme-auth=patient-web-5-1785748124535#/assessment",
+            "w": 1440,
+            "h": 1000,
+            "rootReady": true,
+            "documentWidth": 1440,
+            "bodyWidth": 1440
+          },
+          {
+            "name": "consult",
+            "path": "/consult",
+            "href": "http://127.0.0.1:8095/?theme-auth=patient-web-6-1785748125009#/consult",
+            "w": 1440,
+            "h": 1000,
+            "rootReady": true,
+            "documentWidth": 1440,
+            "bodyWidth": 1440
+          },
+          {
+            "name": "dashboard",
+            "path": "/dashboard",
+            "href": "http://127.0.0.1:8095/?theme-auth=patient-web-7-1785748125483#/dashboard",
+            "w": 1440,
+            "h": 1000,
+            "rootReady": true,
+            "documentWidth": 1440,
+            "bodyWidth": 1440
+          },
+          {
+            "name": "care",
+            "path": "/care",
+            "href": "http://127.0.0.1:8095/?theme-auth=patient-web-8-1785748125956#/care",
+            "w": 1440,
+            "h": 1000,
+            "rootReady": true,
+            "documentWidth": 1440,
+            "bodyWidth": 1440
+          },
+          {
+            "name": "profile",
+            "path": "/profile",
+            "href": "http://127.0.0.1:8095/?theme-auth=patient-web-9-1785748126431#/profile",
+            "w": 1440,
+            "h": 1000,
+            "rootReady": true,
+            "documentWidth": 1440,
+            "bodyWidth": 1440
+          },
+          {
+            "name": "messages",
+            "path": "/messages/60000000-0000-4000-8000-000000000001",
+            "href": "http://127.0.0.1:8095/?theme-auth=patient-web-10-1785748126906#/messages/60000000-0000-4000-8000-000000000001",
+            "w": 1440,
+            "h": 1000,
+            "rootReady": true,
+            "documentWidth": 1440,
+            "bodyWidth": 1440
+          },
+          {
+            "name": "notifications",
+            "path": "/notifications",
+            "href": "http://127.0.0.1:8095/?theme-auth=patient-web-11-1785748127379#/notifications",
+            "w": 1440,
+            "h": 1000,
+            "rootReady": true,
+            "documentWidth": 1440,
+            "bodyWidth": 1440
+          },
+          {
+            "name": "admin",
+            "path": "/admin",
+            "href": "http://127.0.0.1:8095/?theme-auth=patient-web-12-1785748127839#/admin",
+            "w": 1440,
+            "h": 1000,
+            "rootReady": true,
+            "documentWidth": 1440,
+            "bodyWidth": 1440
+          },
+          {
+            "name": "admin-operations",
+            "path": "/admin/operations",
+            "href": "http://127.0.0.1:8095/?theme-auth=patient-web-13-1785748128313#/admin/operations",
+            "w": 1440,
+            "h": 1000,
+            "rootReady": true,
+            "documentWidth": 1440,
+            "bodyWidth": 1440
+          },
+          {
+            "name": "login",
+            "path": "/login",
+            "href": "http://127.0.0.1:8095/?theme-auth=patient-web-14-1785748128787#/login",
+            "w": 1440,
+            "h": 1000,
+            "rootReady": true,
+            "documentWidth": 1440,
+            "bodyWidth": 1440
+          },
+          {
+            "name": "register",
+            "path": "/register",
+            "href": "http://127.0.0.1:8095/?theme-auth=patient-web-15-1785748129261#/register",
+            "w": 1440,
+            "h": 1000,
+            "rootReady": true,
+            "documentWidth": 1440,
+            "bodyWidth": 1440
+          },
+          {
+            "name": "not-found",
+            "path": "/not-a-real-route",
+            "href": "http://127.0.0.1:8095/?theme-auth=patient-web-16-1785748129734#/not-a-real-route",
+            "w": 1440,
+            "h": 1000,
+            "rootReady": true,
+            "documentWidth": 1440,
+            "bodyWidth": 1440
+          }
+        ]
+      }
+    },
+    "doctor": {
+      "mobile": {
+        "landing": {
+          "href": "http://127.0.0.1:8095/?theme-auth=doctor-mobile-1785748130221#/login",
+          "w": 390,
+          "h": 844,
+          "rootReady": true,
+          "documentWidth": 390,
+          "bodyWidth": 390
+        },
+        "routes": [
+          {
+            "name": "root",
+            "path": "/",
+            "href": "http://127.0.0.1:8095/?theme-auth=doctor-mobile-0-1785748133861#/login",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "home",
+            "path": "/home",
+            "href": "http://127.0.0.1:8095/?theme-auth=doctor-mobile-1-1785748134335#/home",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "hospitals",
+            "path": "/hospitals",
+            "href": "http://127.0.0.1:8095/?theme-auth=doctor-mobile-2-1785748134808#/hospitals",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "hospital-map",
+            "path": "/hospitals/map",
+            "href": "http://127.0.0.1:8095/?theme-auth=doctor-mobile-3-1785748135283#/hospitals/map",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "hospital-detail",
+            "path": "/hospitals/20000000-0000-4000-8000-000000000001",
+            "href": "http://127.0.0.1:8095/?theme-auth=doctor-mobile-4-1785748135757#/hospitals/20000000-0000-4000-8000-000000000001",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "assessment",
+            "path": "/assessment",
+            "href": "http://127.0.0.1:8095/?theme-auth=doctor-mobile-5-1785748136231#/assessment",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "consult",
+            "path": "/consult",
+            "href": "http://127.0.0.1:8095/?theme-auth=doctor-mobile-6-1785748136705#/consult",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "dashboard",
+            "path": "/dashboard",
+            "href": "http://127.0.0.1:8095/?theme-auth=doctor-mobile-7-1785748137179#/dashboard",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "care",
+            "path": "/care",
+            "href": "http://127.0.0.1:8095/?theme-auth=doctor-mobile-8-1785748137784#/care",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "profile",
+            "path": "/profile",
+            "href": "http://127.0.0.1:8095/?theme-auth=doctor-mobile-9-1785748138346#/profile",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "messages",
+            "path": "/messages/60000000-0000-4000-8000-000000000001",
+            "href": "http://127.0.0.1:8095/?theme-auth=doctor-mobile-10-1785748138930#/messages/60000000-0000-4000-8000-000000000001",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "notifications",
+            "path": "/notifications",
+            "href": "http://127.0.0.1:8095/?theme-auth=doctor-mobile-11-1785748139395#/notifications",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "admin",
+            "path": "/admin",
+            "href": "http://127.0.0.1:8095/?theme-auth=doctor-mobile-12-1785748139869#/admin",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "admin-operations",
+            "path": "/admin/operations",
+            "href": "http://127.0.0.1:8095/?theme-auth=doctor-mobile-13-1785748140329#/admin/operations",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "login",
+            "path": "/login",
+            "href": "http://127.0.0.1:8095/?theme-auth=doctor-mobile-14-1785748140803#/login",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "register",
+            "path": "/register",
+            "href": "http://127.0.0.1:8095/?theme-auth=doctor-mobile-15-1785748141276#/register",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "not-found",
+            "path": "/not-a-real-route",
+            "href": "http://127.0.0.1:8095/?theme-auth=doctor-mobile-16-1785748141751#/not-a-real-route",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          }
+        ]
+      },
+      "web": {
+        "landing": {
+          "href": "http://127.0.0.1:8095/?theme-auth=doctor-web-1785748142226#/login",
+          "w": 1440,
+          "h": 1000,
+          "rootReady": true,
+          "documentWidth": 1440,
+          "bodyWidth": 1440
+        },
+        "routes": [
+          {
+            "name": "root",
+            "path": "/",
+            "href": "http://127.0.0.1:8095/?theme-auth=doctor-web-0-1785748145874#/login",
+            "w": 1440,
+            "h": 1000,
+            "rootReady": true,
+            "documentWidth": 1440,
+            "bodyWidth": 1440
+          },
+          {
+            "name": "home",
+            "path": "/home",
+            "href": "http://127.0.0.1:8095/?theme-auth=doctor-web-1-1785748146346#/home",
+            "w": 1440,
+            "h": 1000,
+            "rootReady": true,
+            "documentWidth": 1440,
+            "bodyWidth": 1440
+          },
+          {
+            "name": "hospitals",
+            "path": "/hospitals",
+            "href": "http://127.0.0.1:8095/?theme-auth=doctor-web-2-1785748146820#/hospitals",
+            "w": 1440,
+            "h": 1000,
+            "rootReady": true,
+            "documentWidth": 1440,
+            "bodyWidth": 1440
+          },
+          {
+            "name": "hospital-map",
+            "path": "/hospitals/map",
+            "href": "http://127.0.0.1:8095/?theme-auth=doctor-web-3-1785748147295#/hospitals/map",
+            "w": 1440,
+            "h": 1000,
+            "rootReady": true,
+            "documentWidth": 1440,
+            "bodyWidth": 1440
+          },
+          {
+            "name": "hospital-detail",
+            "path": "/hospitals/20000000-0000-4000-8000-000000000001",
+            "href": "http://127.0.0.1:8095/?theme-auth=doctor-web-4-1785748147769#/hospitals/20000000-0000-4000-8000-000000000001",
+            "w": 1440,
+            "h": 1000,
+            "rootReady": true,
+            "documentWidth": 1440,
+            "bodyWidth": 1440
+          },
+          {
+            "name": "assessment",
+            "path": "/assessment",
+            "href": "http://127.0.0.1:8095/?theme-auth=doctor-web-5-1785748148244#/assessment",
+            "w": 1440,
+            "h": 1000,
+            "rootReady": true,
+            "documentWidth": 1440,
+            "bodyWidth": 1440
+          },
+          {
+            "name": "consult",
+            "path": "/consult",
+            "href": "http://127.0.0.1:8095/?theme-auth=doctor-web-6-1785748148703#/consult",
+            "w": 1440,
+            "h": 1000,
+            "rootReady": true,
+            "documentWidth": 1440,
+            "bodyWidth": 1440
+          },
+          {
+            "name": "dashboard",
+            "path": "/dashboard",
+            "href": "http://127.0.0.1:8095/?theme-auth=doctor-web-7-1785748149177#/dashboard",
+            "w": 1440,
+            "h": 1000,
+            "rootReady": true,
+            "documentWidth": 1440,
+            "bodyWidth": 1440
+          },
+          {
+            "name": "care",
+            "path": "/care",
+            "href": "http://127.0.0.1:8095/?theme-auth=doctor-web-8-1785748149651#/care",
+            "w": 1440,
+            "h": 1000,
+            "rootReady": true,
+            "documentWidth": 1440,
+            "bodyWidth": 1440
+          },
+          {
+            "name": "profile",
+            "path": "/profile",
+            "href": "http://127.0.0.1:8095/?theme-auth=doctor-web-9-1785748150125#/profile",
+            "w": 1440,
+            "h": 1000,
+            "rootReady": true,
+            "documentWidth": 1440,
+            "bodyWidth": 1440
+          },
+          {
+            "name": "messages",
+            "path": "/messages/60000000-0000-4000-8000-000000000001",
+            "href": "http://127.0.0.1:8095/?theme-auth=doctor-web-10-1785748150598#/messages/60000000-0000-4000-8000-000000000001",
+            "w": 1440,
+            "h": 1000,
+            "rootReady": true,
+            "documentWidth": 1440,
+            "bodyWidth": 1440
+          },
+          {
+            "name": "notifications",
+            "path": "/notifications",
+            "href": "http://127.0.0.1:8095/?theme-auth=doctor-web-11-1785748151072#/notifications",
+            "w": 1440,
+            "h": 1000,
+            "rootReady": true,
+            "documentWidth": 1440,
+            "bodyWidth": 1440
+          },
+          {
+            "name": "admin",
+            "path": "/admin",
+            "href": "http://127.0.0.1:8095/?theme-auth=doctor-web-12-1785748151546#/admin",
+            "w": 1440,
+            "h": 1000,
+            "rootReady": true,
+            "documentWidth": 1440,
+            "bodyWidth": 1440
+          },
+          {
+            "name": "admin-operations",
+            "path": "/admin/operations",
+            "href": "http://127.0.0.1:8095/?theme-auth=doctor-web-13-1785748152006#/admin/operations",
+            "w": 1440,
+            "h": 1000,
+            "rootReady": true,
+            "documentWidth": 1440,
+            "bodyWidth": 1440
+          },
+          {
+            "name": "login",
+            "path": "/login",
+            "href": "http://127.0.0.1:8095/?theme-auth=doctor-web-14-1785748152479#/login",
+            "w": 1440,
+            "h": 1000,
+            "rootReady": true,
+            "documentWidth": 1440,
+            "bodyWidth": 1440
+          },
+          {
+            "name": "register",
+            "path": "/register",
+            "href": "http://127.0.0.1:8095/?theme-fast=public-mobile-1785748153252#/home",
+            "w": 390,
+            "h": 844,
+            "rootReady": false,
+            "documentWidth": 390,
+            "bodyWidth": 374
+          },
+          {
+            "name": "not-found",
+            "path": "/not-a-real-route",
+            "href": "http://127.0.0.1:8095/?theme-auth=doctor-web-16-1785748153407#/not-a-real-route",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          }
+        ]
+      }
+    },
+    "super-admin": {
+      "mobile": {
+        "landing": {
+          "href": "http://127.0.0.1:8095/?theme-auth=super-admin-mobile-1785748153884#/home",
+          "w": 390,
+          "h": 844,
+          "rootReady": true,
+          "documentWidth": 390,
+          "bodyWidth": 390
+        },
+        "routes": [
+          {
+            "name": "root",
+            "path": "/",
+            "href": "http://127.0.0.1:8095/?theme-auth=super-admin-mobile-0-1785748157522#/hospitals",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "home",
+            "path": "/home",
+            "href": "http://127.0.0.1:8095/?theme-auth=super-admin-mobile-1-1785748157995#/hospitals/map",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "hospitals",
+            "path": "/hospitals",
+            "href": "http://127.0.0.1:8095/?theme-auth=super-admin-mobile-2-1785748158469#/hospitals",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "hospital-map",
+            "path": "/hospitals/map",
+            "href": "http://127.0.0.1:8095/?theme-auth=super-admin-mobile-3-1785748158944#/hospitals/20000000-0000-4000-8000-000000000001",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "hospital-detail",
+            "path": "/hospitals/20000000-0000-4000-8000-000000000001",
+            "href": "http://127.0.0.1:8095/?theme-auth=super-admin-mobile-4-1785748159418#/assessment",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "assessment",
+            "path": "/assessment",
+            "href": "http://127.0.0.1:8095/?theme-auth=super-admin-mobile-5-1785748159892#/assessment",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "consult",
+            "path": "/consult",
+            "href": "http://127.0.0.1:8095/?theme-auth=super-admin-mobile-6-1785748160365#/consult",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "dashboard",
+            "path": "/dashboard",
+            "href": "http://127.0.0.1:8095/?theme-auth=super-admin-mobile-7-1785748160839#/dashboard",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "care",
+            "path": "/care",
+            "href": "http://127.0.0.1:8095/?theme-auth=super-admin-mobile-8-1785748161299#/login?redirect=/care",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "profile",
+            "path": "/profile",
+            "href": "http://127.0.0.1:8095/?theme-auth=super-admin-mobile-9-1785748161773#/login?redirect=/profile",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "messages",
+            "path": "/messages/60000000-0000-4000-8000-000000000001",
+            "href": "http://127.0.0.1:8095/?theme-auth=super-admin-mobile-10-1785748162245#/messages/60000000-0000-4000-8000-000000000001",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "notifications",
+            "path": "/notifications",
+            "href": "http://127.0.0.1:8095/?theme-auth=super-admin-mobile-11-1785748162704#/notifications",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "admin",
+            "path": "/admin",
+            "href": "http://127.0.0.1:8095/?theme-auth=super-admin-mobile-12-1785748163178#/login?redirect=/admin",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "admin-operations",
+            "path": "/admin/operations",
+            "href": "http://127.0.0.1:8095/?theme-auth=super-admin-mobile-13-1785748163652#/login?redirect=/admin/operations",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "login",
+            "path": "/login",
+            "href": "http://127.0.0.1:8095/?theme-auth=super-admin-mobile-14-1785748164127#/login",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "register",
+            "path": "/register",
+            "href": "http://127.0.0.1:8095/?theme-auth=super-admin-mobile-15-1785748164601#/register",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "not-found",
+            "path": "/not-a-real-route",
+            "href": "http://127.0.0.1:8095/?theme-auth=super-admin-mobile-16-1785748165074#/not-a-real-route",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          }
+        ]
+      },
+      "web": {
+        "landing": {
+          "href": "http://127.0.0.1:8095/?theme-auth=super-admin-web-1785748165549#/login",
+          "w": 390,
+          "h": 844,
+          "rootReady": true,
+          "documentWidth": 390,
+          "bodyWidth": 390
+        },
+        "routes": [
+          {
+            "name": "root",
+            "path": "/",
+            "href": "http://127.0.0.1:8095/?theme-auth=super-admin-web-0-1785748169176#/login",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "home",
+            "path": "/home",
+            "href": "http://127.0.0.1:8095/?theme-auth=super-admin-web-1-1785748169651#/home",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "hospitals",
+            "path": "/hospitals",
+            "href": "http://127.0.0.1:8095/?theme-auth=super-admin-web-2-1785748170111#/hospitals",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "hospital-map",
+            "path": "/hospitals/map",
+            "href": "http://127.0.0.1:8095/?theme-auth=super-admin-web-3-1785748170585#/hospitals/map",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "hospital-detail",
+            "path": "/hospitals/20000000-0000-4000-8000-000000000001",
+            "href": "http://127.0.0.1:8095/?theme-auth=super-admin-web-4-1785748171059#/hospitals/20000000-0000-4000-8000-000000000001",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "assessment",
+            "path": "/assessment",
+            "href": "http://127.0.0.1:8095/?theme-auth=super-admin-web-5-1785748171533#/assessment",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "consult",
+            "path": "/consult",
+            "href": "http://127.0.0.1:8095/?theme-auth=super-admin-web-6-1785748172007#/consult",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "dashboard",
+            "path": "/dashboard",
+            "href": "http://127.0.0.1:8095/?theme-auth=super-admin-web-7-1785748172481#/dashboard",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "care",
+            "path": "/care",
+            "href": "http://127.0.0.1:8095/?theme-auth=super-admin-web-8-1785748172955#/login?redirect=/care",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "profile",
+            "path": "/profile",
+            "href": "http://127.0.0.1:8095/?theme-auth=super-admin-web-9-1785748173428#/login?redirect=/profile",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "messages",
+            "path": "/messages/60000000-0000-4000-8000-000000000001",
+            "href": "http://127.0.0.1:8095/?theme-auth=super-admin-web-10-1785748173903#/messages/60000000-0000-4000-8000-000000000001",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "notifications",
+            "path": "/notifications",
+            "href": "http://127.0.0.1:8095/?theme-auth=super-admin-web-11-1785748174376#/notifications",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "admin",
+            "path": "/admin",
+            "href": "http://127.0.0.1:8095/?theme-auth=super-admin-web-12-1785748174848#/login?redirect=/admin",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "admin-operations",
+            "path": "/admin/operations",
+            "href": "http://127.0.0.1:8095/?theme-auth=super-admin-web-13-1785748206941#/login?redirect=/admin/operations",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "login",
+            "path": "/login",
+            "href": "http://127.0.0.1:8095/?theme-auth=super-admin-web-14-1785748268570#/login",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "register",
+            "path": "/register",
+            "href": "http://127.0.0.1:8095/?theme-auth=super-admin-web-15-1785748269047#/register",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "not-found",
+            "path": "/not-a-real-route",
+            "href": "http://127.0.0.1:8095/?theme-auth=super-admin-web-16-1785748269522#/not-a-real-route",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          }
+        ]
+      }
+    },
+    "hospital-admin": {
+      "mobile": {
+        "landing": {
+          "href": "http://127.0.0.1:8095/?theme-auth=hospital-admin-mobile-1785748270008#/login",
+          "w": 390,
+          "h": 844,
+          "rootReady": true,
+          "documentWidth": 390,
+          "bodyWidth": 390
+        },
+        "routes": [
+          {
+            "name": "root",
+            "path": "/",
+            "href": "http://127.0.0.1:8095/?theme-auth=hospital-admin-mobile-0-1785748273658#/login",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "home",
+            "path": "/home",
+            "href": "http://127.0.0.1:8095/?theme-auth=hospital-admin-mobile-1-1785748274130#/home",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "hospitals",
+            "path": "/hospitals",
+            "href": "http://127.0.0.1:8095/?theme-auth=hospital-admin-mobile-2-1785748274604#/hospitals",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "hospital-map",
+            "path": "/hospitals/map",
+            "href": "http://127.0.0.1:8095/?theme-auth=hospital-admin-mobile-3-1785748275078#/hospitals/map",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "hospital-detail",
+            "path": "/hospitals/20000000-0000-4000-8000-000000000001",
+            "href": "http://127.0.0.1:8095/?theme-auth=hospital-admin-mobile-4-1785748275552#/hospitals/20000000-0000-4000-8000-000000000001",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "assessment",
+            "path": "/assessment",
+            "href": "http://127.0.0.1:8095/?theme-auth=hospital-admin-mobile-5-1785748276025#/assessment",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "consult",
+            "path": "/consult",
+            "href": "http://127.0.0.1:8095/?theme-auth=hospital-admin-mobile-6-1785748276499#/consult",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "dashboard",
+            "path": "/dashboard",
+            "href": "http://127.0.0.1:8095/?theme-auth=hospital-admin-mobile-7-1785748276973#/dashboard",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "care",
+            "path": "/care",
+            "href": "http://127.0.0.1:8095/?theme-auth=hospital-admin-mobile-8-1785748277447#/login?redirect=/care",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "profile",
+            "path": "/profile",
+            "href": "http://127.0.0.1:8095/?theme-auth=hospital-admin-mobile-9-1785748277921#/login?redirect=/profile",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "messages",
+            "path": "/messages/60000000-0000-4000-8000-000000000001",
+            "href": "http://127.0.0.1:8095/?theme-auth=hospital-admin-mobile-10-1785748278396#/messages/60000000-0000-4000-8000-000000000001",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "notifications",
+            "path": "/notifications",
+            "href": "http://127.0.0.1:8095/?theme-auth=hospital-admin-mobile-11-1785748278870#/notifications",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "admin",
+            "path": "/admin",
+            "href": "http://127.0.0.1:8095/?theme-auth=hospital-admin-mobile-12-1785748279343#/login?redirect=/admin",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "admin-operations",
+            "path": "/admin/operations",
+            "href": "http://127.0.0.1:8095/?theme-auth=hospital-admin-mobile-13-1785748279817#/login?redirect=/admin/operations",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "login",
+            "path": "/login",
+            "href": "http://127.0.0.1:8095/?theme-auth=hospital-admin-mobile-14-1785748280289#/login",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "register",
+            "path": "/register",
+            "href": "http://127.0.0.1:8095/?theme-auth=hospital-admin-mobile-15-1785748280762#/register",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "not-found",
+            "path": "/not-a-real-route",
+            "href": "http://127.0.0.1:8095/?theme-auth=hospital-admin-mobile-16-1785748281235#/not-a-real-route",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          }
+        ]
+      },
+      "web": {
+        "landing": {
+          "href": "http://127.0.0.1:8095/?theme-auth=hospital-admin-web-1785748281710#/login",
+          "w": 390,
+          "h": 844,
+          "rootReady": true,
+          "documentWidth": 390,
+          "bodyWidth": 390
+        },
+        "routes": [
+          {
+            "name": "root",
+            "path": "/",
+            "href": "http://127.0.0.1:8095/?theme-auth=hospital-admin-web-0-1785748285338#/login",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "home",
+            "path": "/home",
+            "href": "http://127.0.0.1:8095/?theme-auth=hospital-admin-web-1-1785748285813#/home",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "hospitals",
+            "path": "/hospitals",
+            "href": "http://127.0.0.1:8095/?theme-auth=hospital-admin-web-2-1785748286286#/hospitals",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "hospital-map",
+            "path": "/hospitals/map",
+            "href": "http://127.0.0.1:8095/?theme-auth=hospital-admin-web-3-1785748286760#/hospitals/map",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "hospital-detail",
+            "path": "/hospitals/20000000-0000-4000-8000-000000000001",
+            "href": "http://127.0.0.1:8095/?theme-auth=hospital-admin-web-4-1785748287235#/hospitals/20000000-0000-4000-8000-000000000001",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "assessment",
+            "path": "/assessment",
+            "href": "http://127.0.0.1:8095/?theme-auth=hospital-admin-web-5-1785748287708#/assessment",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "consult",
+            "path": "/consult",
+            "href": "http://127.0.0.1:8095/?theme-auth=hospital-admin-web-6-1785748288167#/consult",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "dashboard",
+            "path": "/dashboard",
+            "href": "http://127.0.0.1:8095/?theme-auth=hospital-admin-web-7-1785748288626#/dashboard",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "care",
+            "path": "/care",
+            "href": "http://127.0.0.1:8095/?theme-auth=hospital-admin-web-8-1785748289100#/login?redirect=/care",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "profile",
+            "path": "/profile",
+            "href": "http://127.0.0.1:8095/?theme-auth=hospital-admin-web-9-1785748289574#/login?redirect=/profile",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "messages",
+            "path": "/messages/60000000-0000-4000-8000-000000000001",
+            "href": "http://127.0.0.1:8095/?theme-auth=hospital-admin-web-10-1785748290048#/messages/60000000-0000-4000-8000-000000000001",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "notifications",
+            "path": "/notifications",
+            "href": "http://127.0.0.1:8095/?theme-auth=hospital-admin-web-11-1785748290522#/notifications",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "admin",
+            "path": "/admin",
+            "href": "http://127.0.0.1:8095/?theme-auth=hospital-admin-web-12-1785748290997#/login?redirect=/admin",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "admin-operations",
+            "path": "/admin/operations",
+            "href": "http://127.0.0.1:8095/?theme-auth=hospital-admin-web-13-1785748343902#/login?redirect=/admin/operations",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "login",
+            "path": "/login",
+            "href": "http://127.0.0.1:8095/?theme-auth=hospital-admin-web-14-1785748360818#/login",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "register",
+            "path": "/register",
+            "href": "http://127.0.0.1:8095/?theme-auth=hospital-admin-web-15-1785748361284#/register",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          },
+          {
+            "name": "not-found",
+            "path": "/not-a-real-route",
+            "href": "http://127.0.0.1:8095/?theme-auth=hospital-admin-web-16-1785748361759#/not-a-real-route",
+            "w": 390,
+            "h": 844,
+            "rootReady": true,
+            "documentWidth": 390,
+            "bodyWidth": 390
+          }
+        ]
+      }
+    }
+  },
+  "errors": [
+    "doctor/web/register",
+    "doctor/web/not-found",
+    "super-admin/web/root",
+    "super-admin/web/home",
+    "super-admin/web/hospitals",
+    "super-admin/web/hospital-map",
+    "super-admin/web/hospital-detail",
+    "super-admin/web/assessment",
+    "super-admin/web/consult",
+    "super-admin/web/dashboard",
+    "super-admin/web/care",
+    "super-admin/web/profile",
+    "super-admin/web/messages",
+    "super-admin/web/notifications",
+    "super-admin/web/admin",
+    "super-admin/web/admin-operations",
+    "super-admin/web/login",
+    "super-admin/web/register",
+    "super-admin/web/not-found",
+    "hospital-admin/web/root",
+    "hospital-admin/web/home",
+    "hospital-admin/web/hospitals",
+    "hospital-admin/web/hospital-map",
+    "hospital-admin/web/hospital-detail",
+    "hospital-admin/web/assessment",
+    "hospital-admin/web/consult",
+    "hospital-admin/web/dashboard",
+    "hospital-admin/web/care",
+    "hospital-admin/web/profile",
+    "hospital-admin/web/messages",
+    "hospital-admin/web/notifications",
+    "hospital-admin/web/admin",
+    "hospital-admin/web/admin-operations",
+    "hospital-admin/web/login",
+    "hospital-admin/web/register",
+    "hospital-admin/web/not-found"
+  ],
+  "consoleErrors": []
+}

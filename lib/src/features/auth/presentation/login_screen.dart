@@ -1,6 +1,8 @@
 import 'package:care_navigator_ph/src/providers/app_providers.dart';
 import 'package:care_navigator_ph/src/routing/role_routes.dart';
-import 'package:care_navigator_ph/src/widgets/brand_mark.dart';
+import 'package:care_navigator_ph/src/theme/app_theme.dart';
+import 'package:care_navigator_ph/src/widgets/app_layout.dart';
+import 'package:care_navigator_ph/src/widgets/auth_page_shell.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -142,148 +144,121 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 'admin_mobile'
             ? adminMobileAccessMessage
             : null);
-    return SafeArea(
-      child: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 460),
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.all(28),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const Align(
-                        alignment: Alignment.centerLeft,
-                        child: BrandMark(),
-                      ),
-                      const SizedBox(height: 28),
-                      Text(
-                        'Welcome back',
-                        style: Theme.of(context).textTheme.headlineLarge,
-                      ),
-                      const SizedBox(height: 7),
-                      const Text(
-                        'Sign in to access your CareNavigator workspace.',
-                      ),
-                      if (displayAccessMessage != null) ...[
-                        const SizedBox(height: 18),
-                        Container(
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFF4D8),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: const Color(0xFFF0D28A)),
-                          ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Icon(Icons.desktop_windows_outlined),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  displayAccessMessage,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 24),
-                      TextFormField(
-                        controller: _emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        autofillHints: const [AutofillHints.email],
-                        decoration: const InputDecoration(
-                          labelText: 'Email address',
-                          prefixIcon: Icon(Icons.email_outlined),
-                        ),
-                        validator: (value) =>
-                            value == null || !value.contains('@')
-                            ? 'Enter a valid email address.'
-                            : null,
-                      ),
-                      const SizedBox(height: 14),
-                      TextFormField(
-                        controller: _passwordController,
-                        obscureText: _obscurePassword,
-                        autofillHints: const [AutofillHints.password],
-                        decoration: InputDecoration(
-                          labelText: 'Password',
-                          prefixIcon: const Icon(Icons.lock_outline_rounded),
-                          suffixIcon: IconButton(
-                            tooltip: _obscurePassword
-                                ? 'Show password'
-                                : 'Hide password',
-                            onPressed: () => setState(
-                              () => _obscurePassword = !_obscurePassword,
-                            ),
-                            icon: Icon(
-                              _obscurePassword
-                                  ? Icons.visibility_outlined
-                                  : Icons.visibility_off_outlined,
-                            ),
-                          ),
-                        ),
-                        validator: (value) => value == null || value.isEmpty
-                            ? 'Enter your password.'
-                            : null,
-                        onFieldSubmitted: (_) => _submitting ? null : _signIn(),
-                      ),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton(
-                          onPressed: _submitting ? null : _resetPassword,
-                          child: const Text('Forgot password?'),
-                        ),
-                      ),
-                      FilledButton(
-                        onPressed: _submitting ? null : _signIn,
-                        child: _submitting
-                            ? const SizedBox(
-                                width: 22,
-                                height: 22,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Text('Sign in'),
-                      ),
-                      const SizedBox(height: 10),
-                      TextButton(
-                        onPressed: _submitting
-                            ? null
-                            : () => context.go('/register'),
-                        child: const Text('Create an account'),
-                      ),
-                      TextButton(
-                        onPressed: _submitting
-                            ? null
-                            : () => context.go('/home'),
-                        child: const Text('Continue as guest'),
-                      ),
-                      const SizedBox(height: 18),
-                      const Text(
-                        'Patient accounts are created or approved by authorized doctors. Hospital administrators create doctor accounts.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF6B7C91),
-                        ),
-                      ),
-                    ],
-                  ),
+    return AuthPageShell(
+      maxWidth: 480,
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Welcome back',
+              style: Theme.of(context).textTheme.displaySmall,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'Pick up your care journey exactly where you left it.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodyLarge?.copyWith(color: AppColors.inkMuted),
+            ),
+            if (displayAccessMessage != null) ...[
+              const SizedBox(height: AppSpacing.lg),
+              AppNotice(
+                title: 'Desktop access required',
+                message: displayAccessMessage,
+                icon: AppIcons.desktopWindowsOutlined,
+                color: AppColors.warning,
+              ),
+            ],
+            const SizedBox(height: AppSpacing.xxl),
+            AppTextField(
+              label: 'Email address',
+              controller: _emailController,
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
+              autofillHints: const [AutofillHints.email],
+              hint: 'you@example.com',
+              prefixIcon: AppIcons.alternateEmailRounded,
+              validator: (value) => value == null || !value.contains('@')
+                  ? 'Enter a valid email address.'
+                  : null,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            AppTextField(
+              label: 'Password',
+              controller: _passwordController,
+              obscureText: _obscurePassword,
+              autofillHints: const [AutofillHints.password],
+              prefixIcon: AppIcons.keyRounded,
+              suffix: IconButton(
+                tooltip: _obscurePassword ? 'Show password' : 'Hide password',
+                onPressed: () =>
+                    setState(() => _obscurePassword = !_obscurePassword),
+                icon: Icon(
+                  _obscurePassword
+                      ? AppIcons.visibilityOutlined
+                      : AppIcons.visibilityOffOutlined,
                 ),
               ),
+              validator: (value) => value == null || value.isEmpty
+                  ? 'Enter your password.'
+                  : null,
+              onSubmitted: (_) {
+                if (!_submitting) _signIn();
+              },
             ),
-          ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: _submitting ? null : _resetPassword,
+                child: const Text('Forgot password?'),
+              ),
+            ),
+            AppButton(
+              label: 'Sign in to my workspace',
+              icon: AppIcons.arrowForwardRounded,
+              onPressed: _submitting ? null : _signIn,
+              loading: _submitting,
+              expand: true,
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            Row(
+              children: [
+                const Expanded(child: Divider()),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm,
+                  ),
+                  child: Text(
+                    'NEW TO CARE NAVIGATOR?',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: AppColors.inkMuted,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: .7,
+                    ),
+                  ),
+                ),
+                const Expanded(child: Divider()),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            AppButton(
+              label: 'Create a visitor account',
+              icon: AppIcons.personAddAlt1Rounded,
+              style: AppButtonStyle.secondary,
+              expand: true,
+              onPressed: _submitting ? null : () => context.go('/register'),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            AppButton(
+              label: 'Explore without signing in',
+              icon: AppIcons.exploreOutlined,
+              style: AppButtonStyle.quiet,
+              expand: true,
+              onPressed: _submitting ? null : () => context.go('/home'),
+            ),
+          ],
         ),
       ),
     );
