@@ -1,293 +1,539 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:typed_data';
 
-typedef JsonMap = Map<String, dynamic>;
+import 'package:supabase/supabase.dart';
 
-class AdminRepository {
-  AdminRepository(this._client);
+abstract interface class AdminRepository {
+  Future<void> approveHospital(String hospitalId);
 
-  final SupabaseClient _client;
-
-  Future<List<JsonMap>> listClassifications() async => _rows(
-    await _client
-        .from('hospital_classifications')
-        .select('id, classification_name, description')
-        .order('classification_name'),
-  );
-
-  Future<List<JsonMap>> listServiceCategories() async => _rows(
-    await _client
-        .from('healthcare_service_categories')
-        .select()
-        .order('display_order')
-        .order('category_name'),
-  );
-
-  Future<List<JsonMap>> listHospitals() async => _rows(
-    await _client
-        .from('hospitals')
-        .select(
-          'id, hospital_name, classification_id, address, city, province, '
-          'contact_number, emergency_contact_number, email, description, '
-          'latitude, longitude, operating_hours, operating_status, verification_status, '
-          'hospital_classifications(classification_name)',
-        )
-        .order('created_at', ascending: false),
-  );
-
-  Future<JsonMap> getHospital(String hospitalId) async => JsonMap.from(
-    await _client
-        .from('hospitals')
-        .select(
-          'id, hospital_name, classification_id, address, city, province, '
-          'contact_number, emergency_contact_number, email, description, '
-          'latitude, longitude, operating_hours, operating_status, verification_status',
-        )
-        .eq('id', hospitalId)
-        .single(),
-  );
-
-  Future<List<JsonMap>> listHospitalAdmins() async => _rows(
-    await _client
-        .from('users')
-        .select(
-          'id, first_name, last_name, email, hospital_id, account_status, '
-          'roles!inner(role_name), hospitals(hospital_name)',
-        )
-        .eq('roles.role_name', 'hospital_admin')
-        .order('created_at', ascending: false),
-  );
-
-  Future<void> createHospital(JsonMap values) async {
-    await _client.from('hospitals').insert({
-      ...values,
-      'created_by': _client.auth.currentUser!.id,
-    });
-  }
-
-  Future<void> updateHospital(String id, JsonMap values) async {
-    await _client.from('hospitals').update(values).eq('id', id);
-  }
-
-  Future<void> deleteHospital(String id) async {
-    await _client.from('hospitals').delete().eq('id', id);
-  }
-
-  Future<void> createHospitalAdmin({
+  Future<void> rejectHospital({
     required String hospitalId,
-    required String email,
-    required String password,
-    required String firstName,
-    required String lastName,
-  }) => _invokeAdmin({
-    'action': 'create_hospital_admin',
-    'hospital_id': hospitalId,
-    'email': email,
-    'password': password,
-    'first_name': firstName,
-    'last_name': lastName,
+    required String reason,
   });
 
-  Future<void> updateUserStatus(String userId, String status) => _invokeAdmin({
-    'action': 'update_user_status',
-    'user_id': userId,
-    'account_status': status,
+  Future<void> updateAccountStatus({
+    required String userId,
+    required String status,
   });
 
-  Future<List<JsonMap>> listDepartments(String hospitalId) async => _rows(
-    await _client
-        .from('hospital_departments')
-        .select()
-        .eq('hospital_id', hospitalId)
-        .order('department_name'),
-  );
+  Future<HospitalAdminContext> loadHospitalAdminContext();
 
-  Future<List<JsonMap>> listServices(String hospitalId) async => _rows(
-    await _client
-        .from('hospital_services')
-        .select(
-          '*, hospital_departments(department_name), '
-          'healthcare_service_categories(category_name, icon_name), '
-          'hospital_service_doctors(doctor_id, is_primary)',
-        )
-        .eq('hospital_id', hospitalId)
-        .order('service_name'),
-  );
-
-  Future<List<JsonMap>> listRooms(String hospitalId) async => _rows(
-    await _client
-        .from('hospital_rooms')
-        .select()
-        .eq('hospital_id', hospitalId)
-        .order('room_type'),
-  );
-
-  Future<List<JsonMap>> listBeds(String hospitalId) async => _rows(
-    await _client
-        .from('hospital_beds')
-        .select('*, hospital_departments(department_name)')
-        .eq('hospital_id', hospitalId)
-        .order('bed_type'),
-  );
-
-  Future<JsonMap?> getEmergencyStatus(String hospitalId) async {
-    final value = await _client
-        .from('emergency_room_status')
-        .select()
-        .eq('hospital_id', hospitalId)
-        .maybeSingle();
-    return value == null ? null : JsonMap.from(value);
-  }
-
-  Future<List<JsonMap>> listFacilities(String hospitalId) async => _rows(
-    await _client
-        .from('hospital_facility_status')
-        .select()
-        .eq('hospital_id', hospitalId)
-        .order('facility_type'),
-  );
-
-  Future<List<JsonMap>> listDoctors(String hospitalId) async => _rows(
-    await _client
-        .from('doctors')
-        .select(
-          'id, user_id, hospital_id, department_id, display_name, specialization, '
-          'license_number, availability_status, consultation_fee, biography, '
-          'hospital_departments(department_name), '
-          'users!doctors_user_id_fkey(account_status, email)',
-        )
-        .eq('hospital_id', hospitalId)
-        .order('display_name'),
-  );
-
-  Future<void> saveDepartment({String? id, required JsonMap values}) =>
-      _save('hospital_departments', id, values);
-
-  Future<void> saveService({
-    String? id,
-    required JsonMap values,
-    List<String> doctorIds = const [],
-    String? primaryDoctorId,
-  }) async {
-    await _client.rpc(
-      'save_hospital_service',
-      params: {
-        'service_payload': {...values, 'id': id},
-        'target_doctor_ids': doctorIds,
-        'target_primary_doctor_id': primaryDoctorId,
-      },
-    );
-  }
-
-  Future<void> saveServiceCategory({String? id, required JsonMap values}) =>
-      _save('healthcare_service_categories', id, values);
-
-  Future<void> saveClassification({String? id, required JsonMap values}) =>
-      _save('hospital_classifications', id, values);
-
-  Future<void> deleteClassification(String id) async {
-    try {
-      await _client.from('hospital_classifications').delete().eq('id', id);
-    } on PostgrestException catch (error) {
-      if (error.code == '23503') {
-        throw Exception(
-          'This classification is assigned to a hospital. Reclassify that hospital before deleting it.',
-        );
-      }
-      rethrow;
-    }
-  }
-
-  Future<void> saveRoom({String? id, required JsonMap values}) =>
-      _save('hospital_rooms', id, values);
-
-  Future<void> saveBed({String? id, required JsonMap values}) =>
-      _save('hospital_beds', id, values);
-
-  Future<void> saveFacility({String? id, required JsonMap values}) =>
-      _save('hospital_facility_status', id, values);
-
-  Future<void> saveEmergencyStatus(JsonMap values) async {
-    await _client
-        .from('emergency_room_status')
-        .upsert(values, onConflict: 'hospital_id');
-  }
-
-  Future<void> deleteRecord(String table, String id) async {
-    const allowed = {
-      'hospital_departments',
-      'hospital_services',
-      'hospital_rooms',
-      'hospital_beds',
-      'hospital_facility_status',
-      'healthcare_service_categories',
-      'doctor_schedules',
-    };
-    if (!allowed.contains(table)) throw ArgumentError('Unsupported table');
-    await _client.from(table).delete().eq('id', id);
-  }
-
-  Future<void> createDoctor({
+  Future<void> createDoctorAccount({
     required String hospitalId,
-    required String email,
-    required String password,
     required String firstName,
     required String lastName,
+    required String email,
+    required String temporaryPassword,
     required String specialization,
     required String licenseNumber,
     String? departmentId,
     double? consultationFee,
     String? biography,
-  }) => _invokeAdmin({
-    'action': 'create_doctor',
-    'hospital_id': hospitalId,
-    'email': email,
-    'password': password,
-    'first_name': firstName,
-    'last_name': lastName,
-    'specialization': specialization,
-    'license_number': licenseNumber,
-    'department_id': departmentId,
-    'consultation_fee': consultationFee,
-    'biography': biography,
+    List<int>? profileImageBytes,
+    String? profileImageFileName,
   });
 
-  Future<void> updateDoctorStatus(String doctorId, String status) =>
-      _invokeAdmin({
-        'action': 'update_doctor_status',
-        'doctor_id': doctorId,
-        'availability_status': status,
-      });
+  Future<void> createHospitalDepartment({
+    required String name,
+    required String description,
+  });
 
-  Future<List<JsonMap>> listDoctorSchedules(String doctorId) async => _rows(
-    await _client
-        .from('doctor_schedules')
-        .select()
-        .eq('doctor_id', doctorId)
-        .order('day_of_week')
-        .order('starts_at'),
-  );
+  Future<void> createHospitalService({
+    required String name,
+    required String description,
+    String? departmentId,
+  });
 
-  Future<void> saveDoctorSchedule({String? id, required JsonMap values}) =>
-      _save('doctor_schedules', id, values);
+  Future<void> createMaintenanceWindow({
+    required String title,
+    required String message,
+    required DateTime startsAt,
+    required DateTime endsAt,
+  });
 
-  Future<void> _save(String table, String? id, JsonMap values) async {
-    if (id == null) {
-      await _client.from(table).insert(values);
-    } else {
-      await _client.from(table).update(values).eq('id', id);
+  Future<void> deleteManagedRecord({
+    required String table,
+    required String recordId,
+  });
+
+  Future<void> updateHospitalAvailability({
+    required String hospitalId,
+    required Map<String, Object?> changes,
+  });
+
+  Future<void> updateOperationalRecord({
+    required String table,
+    required String recordId,
+    required Map<String, Object?> changes,
+  });
+
+  Future<void> updatePermission({
+    required String permissionId,
+    required bool allowed,
+  });
+
+  Future<void> updateSystemSetting({
+    required String key,
+    required Object value,
+  });
+
+  Future<void> setMaintenanceActive({
+    required String maintenanceId,
+    required bool active,
+  });
+}
+
+class HospitalDepartmentOption {
+  const HospitalDepartmentOption({required this.id, required this.name});
+
+  final String id;
+  final String name;
+}
+
+class HospitalAdminContext {
+  const HospitalAdminContext({
+    required this.hospitalId,
+    required this.departments,
+  });
+
+  final String hospitalId;
+  final List<HospitalDepartmentOption> departments;
+}
+
+class SupabaseAdminRepository implements AdminRepository {
+  SupabaseAdminRepository(this._client);
+
+  static const _accountStatuses = {'active', 'inactive', 'suspended'};
+  static const _hospitalOperatingStatuses = {
+    'open',
+    'limited',
+    'temporarily_closed',
+    'closed',
+  };
+  static const _availabilityColumns = {
+    'operating_status',
+    'operating_hours',
+    'contact_number',
+    'emergency_contact_number',
+    'description',
+    'image_url',
+  };
+  static const _operationalColumns = <String, Set<String>>{
+    'hospital_beds': {'total_beds', 'available_beds', 'occupied_beds'},
+    'hospital_rooms': {
+      'total_rooms',
+      'available_rooms',
+      'occupied_rooms',
+      'status',
+    },
+    'emergency_room_status': {
+      'status',
+      'available_beds',
+      'current_patient_count',
+      'maximum_capacity',
+    },
+    'hospital_facility_status': {'status', 'available_units', 'notes'},
+    'hospital_services': {'availability_status'},
+    'hospital_departments': {'availability_status'},
+  };
+  static const _deletableTables = {
+    'hospital_services',
+    'hospital_departments',
+    'maintenance_windows',
+  };
+
+  final SupabaseClient _client;
+
+  @override
+  Future<void> approveHospital(String hospitalId) async {
+    await _client.rpc<void>(
+      'review_hospital_application',
+      params: {
+        'target_hospital_id': hospitalId,
+        'decision': 'verified',
+        'decision_note': 'Verified against the submitted hospital information.',
+      },
+    );
+  }
+
+  @override
+  Future<void> rejectHospital({
+    required String hospitalId,
+    required String reason,
+  }) async {
+    if (reason.trim().isEmpty) {
+      throw ArgumentError.value(
+        reason,
+        'reason',
+        'A rejection reason is required.',
+      );
+    }
+    await _client.rpc<void>(
+      'review_hospital_application',
+      params: {
+        'target_hospital_id': hospitalId,
+        'decision': 'rejected',
+        'decision_note': reason.trim(),
+      },
+    );
+  }
+
+  @override
+  Future<void> updateAccountStatus({
+    required String userId,
+    required String status,
+  }) async {
+    if (!_accountStatuses.contains(status)) {
+      throw ArgumentError.value(
+        status,
+        'status',
+        'Unsupported account status.',
+      );
+    }
+    final response = await _client.functions.invoke(
+      'admin-users',
+      body: {
+        'action': 'update_user_status',
+        'user_id': userId,
+        'account_status': status,
+      },
+    );
+    if (response.status < 200 || response.status >= 300) {
+      final data = response.data;
+      final message = data is Map ? data['error'] : null;
+      throw StateError(
+        message?.toString() ?? 'Could not update account status.',
+      );
     }
   }
 
-  Future<void> _invokeAdmin(JsonMap body) async {
-    final response = await _client.functions.invoke('admin-users', body: body);
+  @override
+  Future<HospitalAdminContext> loadHospitalAdminContext() async {
+    final appUser = await _currentAppUser();
+    final hospitalId = appUser['hospital_id']?.toString();
+    if (hospitalId == null || hospitalId.isEmpty) {
+      throw StateError('An assigned hospital is required.');
+    }
+    final rows = await _client
+        .from('hospital_departments')
+        .select('id,department_name')
+        .eq('hospital_id', hospitalId)
+        .order('department_name');
+    return HospitalAdminContext(
+      hospitalId: hospitalId,
+      departments: rows
+          .map(
+            (row) => HospitalDepartmentOption(
+              id: row['id'].toString(),
+              name: row['department_name'].toString(),
+            ),
+          )
+          .toList(growable: false),
+    );
+  }
+
+  @override
+  Future<void> createDoctorAccount({
+    required String hospitalId,
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String temporaryPassword,
+    required String specialization,
+    required String licenseNumber,
+    String? departmentId,
+    double? consultationFee,
+    String? biography,
+    List<int>? profileImageBytes,
+    String? profileImageFileName,
+  }) async {
+    final requiredValues = [
+      hospitalId,
+      firstName,
+      lastName,
+      email,
+      specialization,
+      licenseNumber,
+    ];
+    if (requiredValues.any((value) => value.trim().isEmpty)) {
+      throw ArgumentError('All required doctor fields must be completed.');
+    }
+    if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email.trim())) {
+      throw ArgumentError('Enter a valid doctor email address.');
+    }
+    if (temporaryPassword.length < 12) {
+      throw ArgumentError(
+        'The temporary password needs at least 12 characters.',
+      );
+    }
+    if (consultationFee != null && consultationFee < 0) {
+      throw ArgumentError('The consultation fee cannot be negative.');
+    }
+    final response = await _client.functions.invoke(
+      'admin-users',
+      body: {
+        'action': 'create_doctor',
+        'hospital_id': hospitalId,
+        'department_id': _nullableText(departmentId),
+        'first_name': firstName.trim(),
+        'last_name': lastName.trim(),
+        'email': email.trim().toLowerCase(),
+        'password': temporaryPassword,
+        'specialization': specialization.trim(),
+        'license_number': licenseNumber.trim(),
+        'consultation_fee': consultationFee,
+        'biography': _nullableText(biography),
+      },
+    );
     if (response.status < 200 || response.status >= 300) {
       final data = response.data;
-      final message = data is Map ? data['error']?.toString() : null;
-      throw Exception(message ?? 'The administrator operation failed.');
+      final message = data is Map ? data['error'] : null;
+      throw StateError(
+        message?.toString() ?? 'Could not create doctor account.',
+      );
     }
+    if (profileImageBytes != null && profileImageBytes.isNotEmpty) {
+      final data = response.data;
+      var createdUserId = data is Map ? data['user_id']?.toString() : null;
+      if (createdUserId == null || createdUserId.isEmpty) {
+        final createdUser = await _client
+            .from('users')
+            .select('id')
+            .eq('email', email.trim().toLowerCase())
+            .maybeSingle();
+        createdUserId = createdUser?['id']?.toString();
+      }
+      if (createdUserId == null || createdUserId.isEmpty) {
+        throw StateError(
+          'Doctor created, but the profile image could not be linked.',
+        );
+      }
+      final extension =
+          (profileImageFileName ?? 'profile.jpg')
+                  .split('.')
+                  .last
+                  .toLowerCase() ==
+              'png'
+          ? 'png'
+          : 'jpg';
+      final path = '$createdUserId/profile.$extension';
+      await _client.storage
+          .from('profile-images')
+          .uploadBinary(
+            path,
+            Uint8List.fromList(profileImageBytes),
+            fileOptions: FileOptions(
+              contentType: extension == 'png' ? 'image/png' : 'image/jpeg',
+              upsert: true,
+            ),
+          );
+      await _client
+          .from('users')
+          .update({
+            'profile_image_url': _client.storage
+                .from('profile-images')
+                .getPublicUrl(path),
+          })
+          .eq('id', createdUserId)
+          .select('id')
+          .single();
+    }
+  }
+
+  @override
+  Future<void> createHospitalDepartment({
+    required String name,
+    required String description,
+  }) async {
+    final normalizedName = name.trim();
+    if (normalizedName.length < 2) {
+      throw ArgumentError('A department name is required.');
+    }
+    final appUser = await _currentAppUser();
+    final hospitalId = appUser['hospital_id']?.toString();
+    if (hospitalId == null || hospitalId.isEmpty) {
+      throw StateError('An assigned hospital is required.');
+    }
+    await _client.from('hospital_departments').insert({
+      'hospital_id': hospitalId,
+      'department_name': normalizedName,
+      'description': description.trim(),
+    });
+  }
+
+  @override
+  Future<void> createHospitalService({
+    required String name,
+    required String description,
+    String? departmentId,
+  }) async {
+    final normalizedName = name.trim();
+    if (normalizedName.length < 2) {
+      throw ArgumentError('A service name is required.');
+    }
+    final appUser = await _currentAppUser();
+    final hospitalId = appUser['hospital_id']?.toString();
+    if (hospitalId == null || hospitalId.isEmpty) {
+      throw StateError('An assigned hospital is required.');
+    }
+    await _client.from('hospital_services').insert({
+      'hospital_id': hospitalId,
+      'department_id': _nullableText(departmentId),
+      'service_name': normalizedName,
+      'description': description.trim(),
+    });
+  }
+
+  @override
+  Future<void> createMaintenanceWindow({
+    required String title,
+    required String message,
+    required DateTime startsAt,
+    required DateTime endsAt,
+  }) async {
+    if (title.trim().length < 3 || message.trim().length < 5) {
+      throw ArgumentError(
+        'A maintenance title and clear message are required.',
+      );
+    }
+    if (!endsAt.isAfter(startsAt)) {
+      throw ArgumentError('Maintenance must end after it starts.');
+    }
+    final appUser = await _currentAppUser();
+    await _client.from('maintenance_windows').insert({
+      'title': title.trim(),
+      'message': message.trim(),
+      'starts_at': startsAt.toUtc().toIso8601String(),
+      'ends_at': endsAt.toUtc().toIso8601String(),
+      'created_by': appUser['id'],
+      'is_active': true,
+    });
+  }
+
+  @override
+  Future<void> deleteManagedRecord({
+    required String table,
+    required String recordId,
+  }) async {
+    if (!_deletableTables.contains(table)) {
+      throw ArgumentError.value(table, 'table', 'Unsupported deletion target.');
+    }
+    await _client.from(table).delete().eq('id', recordId).select('id').single();
+  }
+
+  @override
+  Future<void> updateHospitalAvailability({
+    required String hospitalId,
+    required Map<String, Object?> changes,
+  }) async {
+    if (changes.isEmpty) {
+      throw ArgumentError.value(
+        changes,
+        'changes',
+        'At least one change is required.',
+      );
+    }
+    final unsupported = changes.keys.toSet().difference(_availabilityColumns);
+    if (unsupported.isNotEmpty) {
+      throw ArgumentError(
+        'Unsupported hospital fields: ${unsupported.join(', ')}.',
+      );
+    }
+    final operatingStatus = changes['operating_status'];
+    if (operatingStatus != null &&
+        !_hospitalOperatingStatuses.contains(operatingStatus)) {
+      throw ArgumentError.value(
+        operatingStatus,
+        'operating_status',
+        'Unsupported hospital operating status.',
+      );
+    }
+    await _client
+        .from('hospitals')
+        .update(changes)
+        .eq('id', hospitalId)
+        .select('id')
+        .single();
+  }
+
+  @override
+  Future<void> updateOperationalRecord({
+    required String table,
+    required String recordId,
+    required Map<String, Object?> changes,
+  }) async {
+    final allowed = _operationalColumns[table];
+    if (allowed == null) {
+      throw ArgumentError.value(
+        table,
+        'table',
+        'Unsupported operational table.',
+      );
+    }
+    if (changes.isEmpty || !allowed.containsAll(changes.keys)) {
+      throw ArgumentError(
+        'The operational update contains unsupported fields.',
+      );
+    }
+    await _client
+        .from(table)
+        .update(changes)
+        .eq('id', recordId)
+        .select('id')
+        .single();
+  }
+
+  @override
+  Future<void> updatePermission({
+    required String permissionId,
+    required bool allowed,
+  }) async {
+    await _client
+        .from('role_permissions')
+        .update({'is_allowed': allowed})
+        .eq('id', permissionId)
+        .select('id')
+        .single();
+  }
+
+  @override
+  Future<void> updateSystemSetting({
+    required String key,
+    required Object value,
+  }) async {
+    if (key.trim().isEmpty) throw ArgumentError('A setting key is required.');
+    await _client
+        .from('system_settings')
+        .update({'value': value})
+        .eq('key', key)
+        .select('key')
+        .single();
+  }
+
+  @override
+  Future<void> setMaintenanceActive({
+    required String maintenanceId,
+    required bool active,
+  }) async {
+    await _client
+        .from('maintenance_windows')
+        .update({'is_active': active})
+        .eq('id', maintenanceId)
+        .select('id')
+        .single();
+  }
+
+  Future<Map<String, dynamic>> _currentAppUser() async {
+    final user = _client.auth.currentUser;
+    if (user == null) throw StateError('An authenticated admin is required.');
+    return _client
+        .from('users')
+        .select('id,hospital_id')
+        .eq('auth_user_id', user.id)
+        .single();
   }
 }
 
-List<JsonMap> _rows(dynamic value) => (value as List)
-    .map((row) => JsonMap.from(row as Map))
-    .toList(growable: false);
+String? _nullableText(String? value) {
+  final normalized = value?.trim() ?? '';
+  return normalized.isEmpty ? null : normalized;
+}

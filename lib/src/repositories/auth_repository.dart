@@ -1,77 +1,237 @@
-import 'package:care_navigator_ph/src/models/user_profile.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../models/auth/user_role.dart';
+import 'package:supabase/supabase.dart';
 
-class AuthRepository {
-  AuthRepository(this._client);
+import 'repository_failure.dart';
+
+abstract interface class AuthRepository {
+  Stream<AppIdentity> watchIdentity();
+
+  Future<AppIdentity> signInAnonymously();
+
+  Future<AppIdentity> signInWithPassword({
+    required String email,
+    required String password,
+  });
+
+  Future<void> register({
+    required String email,
+    required String password,
+    required Map<String, Object?> profileInput,
+  });
+
+  Future<void> sendEmailOtp(String email);
+
+  Future<AppIdentity> verifyEmailOtp({
+    required String email,
+    required String token,
+  });
+
+  Future<void> requestPasswordReset(String email);
+
+  Future<void> updatePassword(String password);
+
+  Future<void> signOut();
+}
+
+final class SupabaseAuthRepository implements AuthRepository {
+  SupabaseAuthRepository(this._client);
 
   final SupabaseClient _client;
 
-  Session? get currentSession => _client.auth.currentSession;
+  @override
+  Future<AppIdentity> signInAnonymously() async {
+    try {
+      final response = await _client.auth.signInAnonymously();
+      return _identityForSession(response.session);
+    } on AuthException catch (error) {
+      throw AuthenticationFailure(
+        'Guest access is temporarily unavailable. Please try again later.',
+        cause: error,
+      );
+    } on PostgrestException catch (error) {
+      throw UnexpectedRepositoryFailure(
+        'Guest access could not be started.',
+        cause: error,
+      );
+    }
+  }
 
-  bool get hasVerifiedEmail =>
-      _client.auth.currentSession != null &&
-      (_client.auth.currentUser?.email?.isNotEmpty ?? false);
+  @override
+  Stream<AppIdentity> watchIdentity() async* {
+    yield await _identityForSession(_client.auth.currentSession);
+    await for (final state in _client.auth.onAuthStateChange) {
+      yield await _identityForSession(state.session);
+    }
+  }
 
-  Stream<AuthState> get authChanges => _client.auth.onAuthStateChange;
-
-  Future<void> signInWithPassword({
+  @override
+  Future<AppIdentity> signInWithPassword({
     required String email,
     required String password,
   }) async {
-    await _client.auth.signInWithPassword(
-      email: email.trim(),
-      password: password,
-    );
+    try {
+      final response = await _client.auth.signInWithPassword(
+        email: email.trim().toLowerCase(),
+        password: password,
+      );
+      return _identityForSession(response.session);
+    } on AuthException catch (error) {
+      throw AuthenticationFailure(error.message, cause: error);
+    } on PostgrestException catch (error) {
+      throw UnexpectedRepositoryFailure(
+        'The account profile could not be loaded.',
+        cause: error,
+      );
+    }
   }
 
-  Future<AuthResponse> signUp({
+  @override
+  Future<void> register({
     required String email,
     required String password,
-    required String firstName,
-    required String lastName,
-  }) {
-    return _client.auth.signUp(
-      email: email.trim().toLowerCase(),
-      password: password,
-      data: {'first_name': firstName.trim(), 'last_name': lastName.trim()},
-    );
+    required Map<String, Object?> profileInput,
+  }) async {
+    final firstName = _requiredProfileValue(profileInput, 'first_name');
+    final lastName = _requiredProfileValue(profileInput, 'last_name');
+    final mobileNumber = _requiredProfileValue(profileInput, 'mobile_number');
+    final birthDate = _requiredProfileValue(profileInput, 'birth_date');
+    final sex = _requiredProfileValue(profileInput, 'sex');
+    final address = _requiredProfileValue(profileInput, 'address');
+    try {
+      await _client.auth.signUp(
+        email: email.trim().toLowerCase(),
+        password: password,
+        data: {
+          'first_name': firstName,
+          'last_name': lastName,
+          'mobile_number': mobileNumber,
+          'birth_date': birthDate,
+          'sex': sex,
+          'address': address,
+        },
+      );
+    } on AuthException catch (error) {
+      throw AuthenticationFailure(error.message, cause: error);
+    }
   }
 
+  @override
   Future<void> sendEmailOtp(String email) async {
-    await _client.auth.signInWithOtp(
-      email: email.trim().toLowerCase(),
-      shouldCreateUser: true,
-      data: const {'access_purpose': 'guest_consultation'},
-    );
+    try {
+      await _client.auth.signInWithOtp(
+        email: email.trim().toLowerCase(),
+        shouldCreateUser: false,
+      );
+    } on AuthException catch (error) {
+      throw AuthenticationFailure(error.message, cause: error);
+    }
   }
 
-  Future<void> verifyEmailOtp({
+  @override
+  Future<AppIdentity> verifyEmailOtp({
     required String email,
     required String token,
   }) async {
-    await _client.auth.verifyOTP(
-      email: email.trim().toLowerCase(),
-      token: token.trim(),
-      type: OtpType.email,
-    );
+    try {
+      final response = await _client.auth.verifyOTP(
+        email: email.trim().toLowerCase(),
+        token: token.trim(),
+        type: OtpType.email,
+      );
+      return _identityForSession(response.session);
+    } on AuthException catch (error) {
+      throw AuthenticationFailure(error.message, cause: error);
+    }
   }
 
-  Future<void> sendPasswordReset(String email) async {
-    await _client.auth.resetPasswordForEmail(email.trim());
+  @override
+  Future<void> requestPasswordReset(String email) async {
+    try {
+      await _client.auth.resetPasswordForEmail(email.trim().toLowerCase());
+    } on AuthException catch (error) {
+      throw AuthenticationFailure(error.message, cause: error);
+    }
   }
 
-  Future<void> signOut() => _client.auth.signOut();
+  @override
+  Future<void> updatePassword(String password) async {
+    try {
+      await _client.auth.updateUser(UserAttributes(password: password));
+    } on AuthException catch (error) {
+      throw AuthenticationFailure(error.message, cause: error);
+    }
+  }
 
-  Future<UserProfile?> getProfile() async {
-    final authUser = _client.auth.currentUser;
-    if (authUser == null) return null;
-    final response = await _client
+  @override
+  Future<void> signOut() async {
+    try {
+      await _client.auth.signOut();
+    } on AuthException catch (error) {
+      throw AuthenticationFailure(error.message, cause: error);
+    }
+  }
+
+  Future<AppIdentity> _identityForSession(Session? session) async {
+    final authUser = session?.user;
+    if (authUser == null || authUser.isAnonymous) {
+      return const AppIdentity.guest();
+    }
+
+    final data = await _client
         .from('users')
         .select(
-          'id, first_name, last_name, email, hospital_id, account_status, roles(role_name)',
+          'id, first_name, last_name, account_status, roles!inner(role_name)',
         )
         .eq('auth_user_id', authUser.id)
         .maybeSingle();
-    return response == null ? null : UserProfile.fromJson(response);
+    if (data == null) {
+      throw const ContractUnavailableFailure(
+        'The signed-in account does not have an application profile.',
+      );
+    }
+
+    final roleData = data['roles'];
+    final roleRecord = roleData is List
+        ? (roleData.isEmpty ? null : roleData.first)
+        : roleData;
+    final roleName = roleRecord is Map
+        ? roleRecord['role_name']?.toString()
+        : null;
+    final firstName = data['first_name']?.toString().trim() ?? '';
+    final lastName = data['last_name']?.toString().trim() ?? '';
+    final displayName = [
+      firstName,
+      lastName,
+    ].where((part) => part.isNotEmpty).join(' ');
+
+    return AppIdentity(
+      role: _roleFromDatabase(roleName),
+      status: _statusFromDatabase(data['account_status']?.toString()),
+      userId: data['id']?.toString() ?? authUser.id,
+      displayName: displayName.isEmpty ? authUser.email : displayName,
+    );
   }
+
+  static String _requiredProfileValue(Map<String, Object?> input, String key) {
+    final value = input[key]?.toString().trim() ?? '';
+    if (value.isEmpty) {
+      throw ValidationFailure('$key is required.');
+    }
+    return value;
+  }
+
+  static UserRole _roleFromDatabase(String? value) => switch (value) {
+    'patient' => UserRole.patient,
+    'doctor' => UserRole.doctor,
+    'hospital_admin' => UserRole.hospitalAdministrator,
+    'super_admin' => UserRole.superAdministrator,
+    _ => UserRole.guest,
+  };
+
+  static AccountStatus _statusFromDatabase(String? value) => switch (value) {
+    'pending' => AccountStatus.pending,
+    'inactive' => AccountStatus.inactive,
+    'suspended' => AccountStatus.restricted,
+    _ => AccountStatus.active,
+  };
 }

@@ -1,7 +1,0 @@
-impellerc failure: Could not write file to "build\\flutter_assets\\shaders/ink_sparkle.frag"
-
-
-Oops; flutter has exited unexpectedly: "ShaderCompilerException: Shader compilation of "C:\Users\Neila\devtools\flutter\packages\flutter\lib\src\material\shaders\ink_sparkle.frag" to "build\flutter_assets\shaders/ink_sparkle.frag" failed with exit code 1.
-
-".
-A crash report has been written to E:\Codes\CareNavigatorPH\flutter_01.log

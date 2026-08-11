@@ -1,122 +1,401 @@
-import 'package:care_navigator_ph/src/models/hospital.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../models/hospitals/hospital_models.dart';
+import '../models/shared/page_result.dart';
+import 'package:supabase/supabase.dart';
 
-class HospitalRepository {
-  HospitalRepository(this._client);
+import 'repository_failure.dart';
+
+abstract interface class HospitalRepository {
+  Future<List<HospitalDirectoryEntry>> loadPublicDirectory();
+
+  Future<PageResult<HospitalSummary>> searchHospitals({
+    required HospitalSearchCriteria criteria,
+    required PageRequest page,
+  });
+
+  Future<HospitalSummary> getHospital(String hospitalId);
+
+  Future<List<String>> listDepartments(String hospitalId);
+
+  Future<List<String>> listServices(String hospitalId);
+
+  Stream<HospitalSummary> watchPublicAvailability(String hospitalId);
+}
+
+final class SupabaseHospitalRepository implements HospitalRepository {
+  SupabaseHospitalRepository(this._client);
 
   final SupabaseClient _client;
 
-  static const _directorySelect = '''
-    id,
-    hospital_name,
-    address,
-    city,
-    province,
-    description,
-    contact_number,
-    emergency_contact_number,
-    email,
-    image_url,
-    latitude,
-    longitude,
-    operating_hours,
-    operating_status,
-    verification_status,
-    hospital_classifications(classification_name),
-    emergency_room_status(status, available_beds),
-    hospital_beds(available_beds, total_beds),
-    hospital_rooms(available_rooms, total_rooms)
-    ,hospital_services(service_name, tags, availability_status)
-  ''';
-
-  Future<List<Hospital>> listHospitals({String query = ''}) async {
-    final response = await _client
-        .from('hospitals')
-        .select(_directorySelect)
-        .order('hospital_name');
-    return (response as List)
-        .whereType<Map<String, dynamic>>()
-        .map(Hospital.fromJson)
-        .where((hospital) => hospital.matches(query))
-        .toList();
-  }
-
-  Future<Hospital> getHospital(String id) async {
-    final response = await _client
-        .from('hospitals')
-        .select(_directorySelect)
-        .eq('id', id)
-        .single();
-    return Hospital.fromJson(response);
-  }
-
-  Future<Map<String, dynamic>> getHospitalServices(String id) async {
-    final results = await Future.wait<dynamic>([
-      _client
-          .from('hospital_departments')
-          .select('id, department_name, description, availability_status')
-          .eq('hospital_id', id)
-          .order('department_name'),
-      _client
-          .from('hospital_services')
+  @override
+  Future<List<HospitalDirectoryEntry>> loadPublicDirectory() async {
+    try {
+      final hospitalRows = await _client
+          .from('hospitals')
           .select(
-            'id, department_id, category_id, service_name, service_code, '
-            'description, availability_status, operating_hours, delivery_modes, '
-            'appointment_required, accepts_walk_ins, fee_min, fee_max, fee_notes, '
-            'contact_number, booking_url, preparation_instructions, tags, last_updated, '
-            'hospital_departments(department_name), '
-            'healthcare_service_categories(category_name)',
+            'id,hospital_name,address,city,province,latitude,longitude,contact_number,emergency_contact_number,email,description,image_url,operating_hours,operating_status,updated_at,verification_status,hospital_classifications(classification_name)',
           )
-          .eq('hospital_id', id)
-          .order('service_name'),
-      _client
+          .eq('verification_status', 'verified')
+          .inFilter('operating_status', const ['open', 'limited'])
+          .order('hospital_name');
+      if (hospitalRows.isEmpty) return const [];
+
+      final hospitalIds = hospitalRows
+          .map((row) => row['id'].toString())
+          .toList(growable: false);
+      final departmentRows = await _client
+          .from('hospital_departments')
+          .select('id,hospital_id,department_name,availability_status')
+          .inFilter('hospital_id', hospitalIds)
+          .order('department_name');
+      final serviceRows = await _client
+          .from('hospital_services')
+          .select('hospital_id,service_name,availability_status,delivery_modes')
+          .inFilter('hospital_id', hospitalIds)
+          .order('service_name');
+      final emergencyRows = await _client
+          .from('emergency_room_status')
+          .select(
+            'hospital_id,status,available_beds,current_patient_count,maximum_capacity,last_updated',
+          )
+          .inFilter('hospital_id', hospitalIds);
+      final facilityRows = await _client
+          .from('hospital_facility_status')
+          .select(
+            'hospital_id,facility_type,status,available_units,notes,last_updated',
+          )
+          .inFilter('hospital_id', hospitalIds)
+          .order('facility_type');
+      final bedRows = await _client
+          .from('hospital_beds')
+          .select('hospital_id,bed_type,total_beds,available_beds,last_updated')
+          .inFilter('hospital_id', hospitalIds)
+          .order('bed_type');
+      final doctorRows = await _client
           .from('doctors')
           .select(
-            'id, display_name, specialization, availability_status, consultation_fee, '
-            'doctor_schedules(day_of_week, starts_at, ends_at, consultation_type, slot_minutes)',
+            'id,hospital_id,display_name,specialization,availability_status',
           )
-          .eq('hospital_id', id)
-          .order('display_name'),
-      _client
-          .from('hospital_facility_status')
-          .select('facility_type, status, available_units, notes')
-          .eq('hospital_id', id)
-          .order('facility_type'),
-      _client
-          .from('hospital_service_doctors')
-          .select(
-            'service_id, is_primary, doctors(id, display_name, specialization, '
-            'availability_status, consultation_fee)',
-          )
-          .eq('hospital_id', id),
-      _client
-          .from('hospital_announcements')
-          .select('id, title, message, is_global, published_at, expires_at')
-          .or('hospital_id.eq.$id,is_global.eq.true')
-          .lte('published_at', DateTime.now().toUtc().toIso8601String())
-          .order('published_at', ascending: false)
-          .limit(20),
-    ]);
-    final departments = results[0];
-    final services = (results[1] as List)
-        .whereType<Map<String, dynamic>>()
-        .map((service) {
-          final assignedDoctors = (results[4] as List)
-              .whereType<Map<String, dynamic>>()
-              .where((assignment) => assignment['service_id'] == service['id'])
-              .toList(growable: false);
-          return {...service, 'assigned_doctors': assignedDoctors};
+          .inFilter('hospital_id', hospitalIds)
+          .neq('availability_status', 'unavailable')
+          .order('display_name');
+      final doctorIds = doctorRows
+          .map((row) => row['id'].toString())
+          .toList(growable: false);
+      final scheduleRows = doctorIds.isEmpty
+          ? <Map<String, dynamic>>[]
+          : await _client
+                .from('doctor_schedules')
+                .select(
+                  'doctor_id,day_of_week,starts_at,consultation_type,is_active',
+                )
+                .inFilter('doctor_id', doctorIds)
+                .eq('is_active', true);
+
+      final departments = _groupLabels(
+        departmentRows,
+        labelKey: 'department_name',
+      );
+      final departmentIds = <String, Map<String, String>>{};
+      for (final row in departmentRows) {
+        departmentIds.putIfAbsent(
+          row['hospital_id'].toString(),
+          () => {},
+        )[row['department_name'].toString()] = row['id']
+            .toString();
+      }
+      final services = _groupLabels(serviceRows, labelKey: 'service_name');
+      final emergencyByHospital = <String, Map<String, dynamic>>{
+        for (final row in emergencyRows)
+          row['hospital_id'].toString(): Map<String, dynamic>.from(row),
+      };
+      final facilitiesByHospital =
+          <String, List<HospitalFacilityAvailability>>{};
+      for (final row in facilityRows) {
+        facilitiesByHospital
+            .putIfAbsent(row['hospital_id'].toString(), () => [])
+            .add(
+              HospitalFacilityAvailability(
+                type: row['facility_type']?.toString() ?? 'facility',
+                status: row['status']?.toString() ?? 'unknown',
+                availableUnits: _intValue(row['available_units']),
+                notes: _nullableText(row['notes']),
+                lastUpdated: _dateTimeValue(row['last_updated']),
+              ),
+            );
+      }
+      final bedsByHospital = <String, List<HospitalBedAvailability>>{};
+      for (final row in bedRows) {
+        final totalBeds = _intValue(row['total_beds']);
+        final availableBeds = _intValue(row['available_beds']);
+        if (totalBeds == null || availableBeds == null) continue;
+        bedsByHospital
+            .putIfAbsent(row['hospital_id'].toString(), () => [])
+            .add(
+              HospitalBedAvailability(
+                type: row['bed_type']?.toString() ?? 'Hospital bed',
+                totalBeds: totalBeds,
+                availableBeds: availableBeds,
+                lastUpdated: _dateTimeValue(row['last_updated']),
+              ),
+            );
+      }
+      final schedulesByDoctor = <String, List<Map<String, dynamic>>>{};
+      for (final row in scheduleRows) {
+        schedulesByDoctor
+            .putIfAbsent(row['doctor_id'].toString(), () => [])
+            .add(Map<String, dynamic>.from(row));
+      }
+      final doctorsByHospital = <String, List<DoctorAvailability>>{};
+      final now = DateTime.now();
+      for (final row in doctorRows) {
+        final id = row['id'].toString();
+        final schedules = schedulesByDoctor[id] ?? const [];
+        final nextAvailability = _nextAvailability(schedules, now);
+        if (nextAvailability == null) continue;
+        doctorsByHospital
+            .putIfAbsent(row['hospital_id'].toString(), () => [])
+            .add(
+              DoctorAvailability(
+                id: id,
+                displayLabel: row['display_name']?.toString() ?? 'Doctor',
+                specialtyLabel:
+                    row['specialization']?.toString() ?? 'General care',
+                nextAvailableAt: nextAvailability,
+                offersOnlineCare: schedules.any(
+                  (schedule) => schedule['consultation_type'] == 'online',
+                ),
+                consultationTypes: schedules
+                    .map((schedule) => schedule['consultation_type'].toString())
+                    .toSet()
+                    .toList(growable: false),
+              ),
+            );
+      }
+
+      return hospitalRows
+          .map((row) {
+            final hospitalId = row['id'].toString();
+            final classification = _relationMap(
+              row['hospital_classifications'],
+            );
+            final emergency = emergencyByHospital[hospitalId];
+            final operatingStatus = row['operating_status']?.toString();
+            final erStatus = emergency?['status']?.toString();
+            final latitude = _doubleValue(row['latitude']);
+            final longitude = _doubleValue(row['longitude']);
+            return HospitalDirectoryEntry(
+              id: hospitalId,
+              name: row['hospital_name']?.toString() ?? 'Hospital',
+              city: row['city']?.toString() ?? '',
+              province: row['province']?.toString() ?? '',
+              careLevel:
+                  classification?['classification_name']?.toString() ??
+                  'Hospital',
+              services: services[hospitalId] ?? const [],
+              departments: departments[hospitalId] ?? const [],
+              departmentIds: departmentIds[hospitalId] ?? const {},
+              doctors: doctorsByHospital[hospitalId] ?? const [],
+              isAvailable:
+                  (operatingStatus == 'open' || operatingStatus == 'limited') &&
+                  erStatus != 'full' &&
+                  erStatus != 'temporarily_closed',
+              estimatedWaitMinutes: null,
+              availableBeds: _intValue(emergency?['available_beds']),
+              totalBeds: _intValue(emergency?['maximum_capacity']),
+              latitude: latitude,
+              longitude: longitude,
+              address: _nullableText(row['address']),
+              contactNumber: _nullableText(row['contact_number']),
+              emergencyContactNumber: _nullableText(
+                row['emergency_contact_number'],
+              ),
+              email: _nullableText(row['email']),
+              description: _nullableText(row['description']),
+              imageUrl: _nullableText(row['image_url']),
+              operatingHours: _stringMap(row['operating_hours']),
+              operatingStatus: operatingStatus ?? 'unknown',
+              emergencyStatus: erStatus,
+              currentEmergencyPatients: _intValue(
+                emergency?['current_patient_count'],
+              ),
+              updatedAt: _dateTimeValue(row['updated_at']),
+              emergencyLastUpdated: _dateTimeValue(emergency?['last_updated']),
+              facilities: facilitiesByHospital[hospitalId] ?? const [],
+              bedAvailability: bedsByHospital[hospitalId] ?? const [],
+            );
+          })
+          .toList(growable: false);
+    } on PostgrestException catch (error) {
+      throw UnexpectedRepositoryFailure(
+        'Live hospital information could not be loaded.',
+        cause: error,
+      );
+    }
+  }
+
+  @override
+  Future<PageResult<HospitalSummary>> searchHospitals({
+    required HospitalSearchCriteria criteria,
+    required PageRequest page,
+  }) async {
+    final directory = await loadPublicDirectory();
+    final query = criteria.query.trim().toLowerCase();
+    final filtered = directory
+        .where((hospital) {
+          final searchable = [
+            hospital.name,
+            hospital.city,
+            hospital.province,
+            hospital.careLevel,
+            ...hospital.services,
+          ].join(' ').toLowerCase();
+          return (query.isEmpty || searchable.contains(query)) &&
+              (criteria.province == null ||
+                  hospital.province == criteria.province) &&
+              (criteria.city == null || hospital.city == criteria.city) &&
+              (criteria.careLevel == null ||
+                  hospital.careLevel == criteria.careLevel) &&
+              (criteria.service == null ||
+                  hospital.services.contains(criteria.service)) &&
+              (!criteria.onlyAvailable || hospital.isAvailable);
         })
         .toList(growable: false);
-    final doctors = results[2];
-    final facilities = results[3];
-    final announcements = results[5];
+    final offset = int.tryParse(page.cursor ?? '') ?? 0;
+    final end = (offset + page.limit).clamp(0, filtered.length);
+    final items = offset >= filtered.length
+        ? const <HospitalSummary>[]
+        : filtered.sublist(offset, end).map(_summary).toList(growable: false);
+    return PageResult(
+      items: items,
+      nextCursor: end < filtered.length ? end.toString() : null,
+    );
+  }
+
+  @override
+  Future<HospitalSummary> getHospital(String hospitalId) async {
+    final directory = await loadPublicDirectory();
+    for (final hospital in directory) {
+      if (hospital.id == hospitalId) return _summary(hospital);
+    }
+    throw const ContractUnavailableFailure('Hospital was not found.');
+  }
+
+  @override
+  Future<List<String>> listDepartments(String hospitalId) async {
+    final rows = await _client
+        .from('hospital_departments')
+        .select('department_name')
+        .eq('hospital_id', hospitalId)
+        .order('department_name');
+    return rows
+        .map((row) => row['department_name'].toString())
+        .toList(growable: false);
+  }
+
+  @override
+  Future<List<String>> listServices(String hospitalId) async {
+    final rows = await _client
+        .from('hospital_services')
+        .select('service_name')
+        .eq('hospital_id', hospitalId)
+        .order('service_name');
+    return rows
+        .map((row) => row['service_name'].toString())
+        .toList(growable: false);
+  }
+
+  @override
+  Stream<HospitalSummary> watchPublicAvailability(String hospitalId) => _client
+      .from('hospitals')
+      .stream(primaryKey: ['id'])
+      .eq('id', hospitalId)
+      .asyncMap((_) => getHospital(hospitalId));
+
+  static HospitalSummary _summary(HospitalDirectoryEntry hospital) =>
+      HospitalSummary(
+        id: hospital.id,
+        name: hospital.name,
+        locationLabel: hospital.locationLabel,
+        isVerified: true,
+        imageUrl: hospital.imageUrl,
+        latitude: hospital.latitude,
+        longitude: hospital.longitude,
+      );
+
+  static Map<String, List<String>> _groupLabels(
+    List<Map<String, dynamic>> rows, {
+    required String labelKey,
+  }) {
+    final result = <String, List<String>>{};
+    for (final row in rows) {
+      result
+          .putIfAbsent(row['hospital_id'].toString(), () => [])
+          .add(row[labelKey].toString());
+    }
+    return result;
+  }
+
+  static Map<String, dynamic>? _relationMap(Object? value) {
+    if (value is Map<String, dynamic>) return value;
+    if (value is List && value.isNotEmpty && value.first is Map) {
+      return Map<String, dynamic>.from(value.first as Map);
+    }
+    return null;
+  }
+
+  static int? _intValue(Object? value) =>
+      value is num ? value.toInt() : int.tryParse(value?.toString() ?? '');
+
+  static double? _doubleValue(Object? value) => value is num
+      ? value.toDouble()
+      : double.tryParse(value?.toString() ?? '');
+
+  static String? _nullableText(Object? value) {
+    final text = value?.toString().trim() ?? '';
+    return text.isEmpty ? null : text;
+  }
+
+  static DateTime? _dateTimeValue(Object? value) =>
+      DateTime.tryParse(value?.toString() ?? '');
+
+  static Map<String, String> _stringMap(Object? value) {
+    if (value is! Map) return const {};
     return {
-      'departments': departments,
-      'services': services,
-      'doctors': doctors,
-      'facilities': facilities,
-      'announcements': announcements,
+      for (final entry in value.entries)
+        if (entry.value != null) entry.key.toString(): entry.value.toString(),
     };
+  }
+
+  static DateTime? _nextAvailability(
+    List<Map<String, dynamic>> schedules,
+    DateTime now,
+  ) {
+    DateTime? earliest;
+    for (final schedule in schedules) {
+      final databaseDay = _intValue(schedule['day_of_week']);
+      final time = schedule['starts_at']?.toString().split(':');
+      if (databaseDay == null || time == null || time.length < 2) continue;
+      final weekday = databaseDay == 0 ? DateTime.sunday : databaseDay;
+      final hour = int.tryParse(time[0]);
+      final minute = int.tryParse(time[1]);
+      if (hour == null || minute == null) continue;
+      for (var offset = 0; offset < 14; offset++) {
+        final date = now.add(Duration(days: offset));
+        if (date.weekday != weekday) continue;
+        final candidate = DateTime(
+          date.year,
+          date.month,
+          date.day,
+          hour,
+          minute,
+        );
+        if (!candidate.isAfter(now)) continue;
+        if (earliest == null || candidate.isBefore(earliest)) {
+          earliest = candidate;
+        }
+        break;
+      }
+    }
+    return earliest;
   }
 }

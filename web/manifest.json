@@ -1,12 +1,12 @@
 {
-    "name": "CareNavigator PH",
-    "short_name": "CareNavigator",
+    "name": "care_navigator_ph",
+    "short_name": "care_navigator_ph",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#F5F8FC",
-    "theme_color": "#1565C0",
-    "description": "Healthcare navigation, consultation, and medical records for the Philippines.",
-    "orientation": "any",
+    "background_color": "#0175C2",
+    "theme_color": "#0175C2",
+    "description": "A new Flutter project.",
+    "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
         {

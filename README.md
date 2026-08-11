@@ -1,108 +1,70 @@
 # CareNavigator PH
 
-CareNavigator PH is a Flutter mobile/web healthcare-navigation platform backed by Supabase. Guests can find verified care, receive preliminary AI guidance, and request a first consultation. Patients and doctors use role-protected care workflows, while hospital and platform administrators manage operations without receiving unrestricted access to clinical records.
+CareNavigator PH is a greenfield Flutter application for mobile and web. It combines public hospital and clinician discovery, deterministic emergency triage, guest consultation intake, authenticated patient and doctor care, hospital operations, and platform governance in one role-aware product.
 
-See [docs/SYSTEM_ARCHITECTURE.md](<docs/SYSTEM_ARCHITECTURE.md>) for the system architecture, component boundaries, security model, deployment view, and primary data flows.
+## Architecture
 
-## Implemented modules
+- Flutter with adaptive mobile, tablet, and desktop shells
+- GoRouter for deep links, redirects, account-state handling, and role guards
+- Riverpod for identity, view state, asynchronous data, and Realtime streams
+- Typed Dart repositories as the only Supabase boundary
+- Supabase Auth, PostgreSQL with RLS, Realtime, private Storage, RPCs, Edge Functions, triggers, Cron, and pg_net
+- Groq preliminary analysis behind doctor-review states, opt-in Gmail SMTP notifications, approved Jitsi rooms, and external Google Maps directions
+- Central clinical design tokens plus shared Flutter-native Card, Alert, Badge, Table/List, Dialog, Sheet, loading, empty, and error compositions
 
-- Public hospital directory, classification/search filters, live ER/bed/room/facility availability, departments, services, doctors, schedules, operating hours, announcements, contacts, distance ranking, and external directions
-- Structured Groq symptom assessment with deterministic emergency escalation and hospital recommendations; AI output is explicitly preliminary
-- Email-OTP guest consultation intake, private ID upload, location/department/schedule capture, reference generation, AI pre-assessment, review, temporary patient creation, duplicate review, and compensated official-account conversion
-- Patient booking against published doctor slots, consultation status history, follow-ups, Jitsi video rooms, secure chat, attachment sharing, read receipts, and Realtime updates
-- Doctor patient management, consultation notes/summaries, diagnoses, treatment plans, prescriptions, laboratory requests, private medical documents, and consultation attachments
-- Medical-result upload, image/text extraction, Groq analysis, processing-job tracking, doctor modify/confirm/reject controls, official-record synchronization, and patient notification
-- Patient medical history, confirmed diagnoses, treatment plans, results, prescriptions, authorized signed-file access, selected profile edits, and versioned consent grant/revoke history
-- Hospital-admin profile, department, flexible service-offering CRUD, service-to-doctor assignment, room/bed/ER/facility availability, doctor accounts/status/schedules, announcements, operational patient/appointment monitoring, analytics, and hospital audit logs
-- Super-admin hospital approval, hospital-admin accounts, service categories, global announcements, platform analytics, settings, AI configuration, role permissions, maintenance windows, audit review, and security-log review
-- In-app notifications plus a Gmail SMTP outbox for opt-in email delivery, deduplication, bounded retry/backoff, and appointment reminders
-- Row Level Security, private storage, short-lived signed URLs, active-account enforcement, clinical-integrity triggers, audit/security logging, scoped analytics, and Realtime publication
+The component composition follows the clear, restrained patterns associated with shadcn/ui, translated into the required native Flutter system. React shadcn/ui is deliberately not installed.
 
-## Local setup
+## Live data behavior
 
-1. Install Flutter 3.44 or later.
-2. Copy `.env.example` to `.env` and set the local values. `.env` is ignored and must not be committed.
-3. Run the app from PowerShell:
+With valid public Supabase configuration, public directories and authenticated workspaces use the live CareNavigator project. Public queries explicitly constrain verified, operating hospitals and published clinician schedules. Signed-in identities receive RLS-scoped data and connected actions for booking/rescheduling/cancellation, messaging, notifications, private files, clinical documentation, prescriptions, laboratory workflows, schedules, hospital operations, staff provisioning, governance, and maintenance.
 
-   ```powershell
-   .\tool\run.ps1 -d edge
-   ```
+Without public configuration, data-backed screens show explicit loading, empty, or unavailable states. The app does not substitute identities, facilities, schedules, clinical records, metrics, or mutations that were not returned by the backend.
 
-   If Chrome is installed and configured for Flutter, `-d chrome` also works;
-   the launcher automatically falls back to Edge when Chrome is unavailable.
+## Public configuration
 
-Only the Supabase URL and publishable client key are available to Flutter. They
-also live in `assets/config/public.env` so a plain `flutter run` works; explicit
-`--dart-define` values take precedence for other environments. The Groq key,
-Supabase Management API token/database password, bootstrap token, scheduler
-token, and provider secrets remain server-side and must never be added to that
-asset or supplied through `--dart-define`.
-
-## Supabase deployment
-
-The linked project reference is declared in `supabase/config.toml`. Apply the timestamped files in `supabase/migrations` in order, then deploy the functions in `supabase/functions` with their existing JWT settings:
-
-- `admin-users`: administrative account provisioning and status changes
-- `analyze-symptoms`: JWT-protected structured Groq assessment, including constrained anonymous guest sessions
-- `care-workflows`: guest-to-patient account conversion
-- `analyze-medical-result`: doctor-only result analysis and processing jobs
-- `dispatch-notifications`: scheduler-token-protected reminder/outbox dispatch
-
-Required Edge Function secrets are `GROQ_API_KEY`, `ADMIN_BOOTSTRAP_TOKEN`, and `NOTIFICATION_DISPATCH_TOKEN`. `GROQ_MODEL` and `GROQ_VISION_MODEL` are optional model overrides. Email delivery additionally uses `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `NOTIFICATION_FROM_EMAIL`, and optional `APP_BASE_URL`. External email is opt-in and defaults off.
-
-To enable the Gmail sender, create a Google app password, put the SMTP values from `.env.example` in the ignored local `.env`, and run:
+Only public client values may be compiled into Flutter:
 
 ```powershell
-.\tool\configure-gmail.ps1
+flutter run `
+  --dart-define=NEXT_PUBLIC_SUPABASE_URL=https://PROJECT.supabase.co `
+  --dart-define=NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=PUBLIC_KEY
 ```
 
-The script provisions the Edge Function secrets, connects Supabase Auth to Gmail SMTP, disables phone authentication, and changes the guest verification email to a six-digit code. Use a dedicated mailbox app password, not the mailbox's normal Google password.
+`APP_BASE_URL` is optional. Public operational values such as the emergency number and region are loaded from RLS-readable `system_settings` rows. Never pass the root `env` file through `--dart-define-from-file`: it also contains deployment and server-only variables. Supabase access/database credentials, service-role keys, Groq keys, SMTP credentials, bootstrap tokens, and scheduler tokens must remain outside Flutter.
 
-Migration `20260716205000_automated_notification_dispatch.sql` installs Supabase Cron and `pg_net`, then schedules `dispatch-notifications` every five minutes. Provision the same `NOTIFICATION_DISPATCH_TOKEN` as an Edge Function secret and as a Vault secret named `carenavigator_notification_dispatch_token`. The job safely does nothing until that Vault secret exists. Each run creates due appointment reminders before claiming the delivery outbox. Keep this token in secret storage, never in Flutter or source control.
+## Supabase
 
-## First super administrator
+The intended live project is configured through the local Supabase MCP helper at `tool/supabase_mcp_call.ps1`. It reads `SUPABASE_ACCESS_TOKEN` from the environment and does not embed credentials.
 
-The live project starts with no application users. Create the first Super Admin once from a trusted terminal:
+The live contract was inspected before schema-dependent work. It includes 49 RLS-enabled public tables, private clinical Storage, Realtime publication for 19 tables, the five required active Edge Functions, clinical/operational RPCs, audit and security triggers, and scheduled notification dispatch. Two focused migrations add auditable hospital verification decisions and remove anonymous execution from that privileged RPC:
 
-```powershell
-.\tool\bootstrap-super-admin.ps1 `
-  -Email "admin@example.com" `
-  -Password "a-strong-temporary-password" `
-  -FirstName "CareNavigator" `
-  -LastName "Administrator"
+```text
+supabase/migrations/20260809170000_hospital_verification_decisions.sql
+supabase/migrations/20260809173000_harden_hospital_verification_rpc.sql
 ```
 
-The endpoint refuses further bootstrap requests after the first Super Admin exists. After success, rotate or remove `ADMIN_BOOTSTRAP_TOKEN` from both the Supabase Function secrets and local `.env`.
-
-Super Admins create and approve hospitals and hospital administrators from `/admin`. Hospital administrators then manage their assigned hospital only. They cannot change hospital approval fields through the UI or database API.
-
-## External-service activation
-
-- First-time consultation access uses a six-digit Supabase email OTP. Configure the Magic Link email template to display `{{ .Token }}` and configure custom SMTP for production delivery.
-- Guest symptom assessment uses Supabase anonymous authentication so the Groq function remains JWT-protected. Keep anonymous-user rate limits enabled; production deployments should also configure Auth CAPTCHA/Turnstile protection.
-- Gmail SMTP is the only external notification sender. Supabase Auth and the notification dispatcher share the same server-side SMTP account.
-- Online consultations use Jitsi room URLs generated by the backend.
-- Directions open Google Maps; no map-provider secret is embedded in Flutter.
-- JPEG/PNG medical results can be interpreted by the configured Groq vision model. PDF analysis requires reviewed extracted/OCR text; doctors remain responsible for checking all extracted values.
+See [PRE_BUILD_REPORT.md](PRE_BUILD_REPORT.md) for the architecture/data inventory and [VERIFICATION_REPORT.md](VERIFICATION_REPORT.md) for evidence and limitations.
 
 ## Verification
 
 ```powershell
-dart format --output=none --set-exit-if-changed lib test
 flutter analyze
 flutter test
 flutter build web --release `
-  --dart-define=NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co `
-  --dart-define=NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
+  --dart-define=NEXT_PUBLIC_SUPABASE_URL=... `
+  --dart-define=NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
 flutter build apk --debug `
-  --dart-define=NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co `
-  --dart-define=NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
+  --dart-define=NEXT_PUBLIC_SUPABASE_URL=... `
+  --dart-define=NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
 ```
 
-The SQL regression scripts in `supabase/tests` are transaction-wrapped and roll back their synthetic data. Run them only against the intended project after confirming the project URL.
+On Windows, use the helper to load only the public Supabase values from `env`:
 
-## Medical safety and privacy
+```powershell
+.\tool\run_care_navigator.ps1              # Edge (default)
+.\tool\run_care_navigator.ps1 -Target windows
+```
 
-AI output may suggest possible conditions, urgency, departments, and healthcare actions, but it cannot create an official diagnosis. A licensed doctor must review and confirm clinical findings before they enter the permanent record. Life-threatening warning signs direct users to call 911 and seek the nearest available emergency department instead of waiting for online approval.
+The live anonymous contract test intentionally skips in the ordinary suite and is run separately with task-specific test environment variables. UI tests cover production unavailable states and emergency-safe behavior; live seeded-account workflows require a configured test project.
 
-Patients can access only their own information; doctors are limited to assigned/consultation patients; hospital administrators are limited to their hospital and operational fields; super administrators do not automatically receive clinical-record access. Private files are accessed through short-lived signed URLs.
+Browser-engine verification remains unavailable on this workstation because the in-app browser reported no connected browser. iOS was not built on Windows. These limitations are stated explicitly in the verification report.
