@@ -105,16 +105,28 @@ class AuthCard extends StatelessWidget {
                           : (constraints.maxHeight * .19)
                                 .clamp(140.0, 190.0)
                                 .toDouble();
+                      const bottomGap = 24.0;
                       return SingleChildScrollView(
-                        padding: EdgeInsets.only(top: topGap),
+                        padding: EdgeInsets.only(
+                          top: topGap,
+                          bottom: bottomGap,
+                        ),
                         child: ConstrainedBox(
                           constraints: BoxConstraints(
-                            minHeight: constraints.maxHeight - topGap,
+                            minHeight:
+                                (constraints.maxHeight - topGap - bottomGap)
+                                    .clamp(0.0, double.infinity)
+                                    .toDouble(),
                           ),
-                          child: _buildCard(
-                            theme,
-                            cardPadding,
-                            edgeToEdge: true,
+                          child: Center(
+                            child: SizedBox(
+                              width: double.infinity,
+                              child: _buildCard(
+                                theme,
+                                cardPadding,
+                                edgeToEdge: true,
+                              ),
+                            ),
                           ),
                         ),
                       );

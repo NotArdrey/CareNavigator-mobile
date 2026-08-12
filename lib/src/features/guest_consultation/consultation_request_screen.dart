@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 
 import '../../models/hospitals/hospital_models.dart';
 import '../../models/guest_consultation_models.dart';
-import '../../models/shared/patient_identity.dart';
 import '../../providers/guest_consultation_provider.dart';
 import '../../providers/hospital_directory_provider.dart';
 import '../../providers/core_providers.dart';
@@ -13,7 +12,6 @@ import '../../routing/root_overlay.dart';
 import '../../theme/app_tokens.dart';
 import '../../widgets/app_shell/public_scaffold.dart';
 import '../../widgets/data_display/content_panel.dart';
-import '../../widgets/forms/patient_details_fields.dart';
 import '../../widgets/layout/page_header.dart';
 import '../../widgets/overlays/action_dialogs.dart';
 
@@ -35,16 +33,12 @@ class _ConsultationRequestScreenState
   String? _departmentLabel;
   var _careMode = GuestCareMode.inPerson;
   DateTime? _preferredStart;
+  var _submitting = false;
 
   @override
   void initState() {
     super.initState();
     _hospitalId = widget.initialHospitalId;
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
   }
 
   @override
@@ -54,7 +48,7 @@ class _ConsultationRequestScreenState
     if (intake.status != GuestRequestStatus.drafting) {
       return _ExistingIntakeScreen(status: intake.status);
     }
-    if (ref.watch(consultationRepositoryProvider) == null) {
+    if (ref.watch(careRepositoryProvider) == null) {
       return const _ConsultationUnavailableScreen();
     }
     if (directory.isLoading) {
@@ -263,9 +257,11 @@ class _ConsultationRequestScreenState
         ),
         const SizedBox(height: 18),
         _StepActions(
-          onBack: () => setState(() => _step = 0),
-          onNext: _preferredStart == null ? null : _submitRequest,
-          nextLabel: 'Submit request',
+          onBack: _submitting ? null : () => setState(() => _step = 0),
+          onNext: _preferredStart == null || _submitting
+              ? null
+              : _submitRequest,
+          nextLabel: _submitting ? 'Submitting...' : 'Submit request',
         ),
       ],
     ),
@@ -284,6 +280,8 @@ class _ConsultationRequestScreenState
   }
 
   Future<void> _submitRequest() async {
+    if (_submitting) return;
+    setState(() => _submitting = true);
     try {
       final repository = ref.read(careRepositoryProvider);
       if (repository == null) throw StateError('Care service is unavailable.');
@@ -302,6 +300,8 @@ class _ConsultationRequestScreenState
       if (mounted) {
         showRootMessage('Could not request consultation: $e');
       }
+    } finally {
+      if (mounted) setState(() => _submitting = false);
     }
   }
 }
@@ -449,13 +449,11 @@ class _IntakeProgress extends StatelessWidget {
 
 class _StepActions extends StatelessWidget {
   const _StepActions({
-    this.onCancel,
     this.onBack,
     required this.onNext,
     required this.nextLabel,
   });
 
-  final VoidCallback? onCancel;
   final VoidCallback? onBack;
   final VoidCallback? onNext;
   final String nextLabel;
@@ -466,8 +464,6 @@ class _StepActions extends StatelessWidget {
     spacing: 10,
     runSpacing: 10,
     children: [
-      if (onCancel != null)
-        OutlinedButton(onPressed: onCancel, child: const Text('Cancel')),
       if (onBack != null)
         OutlinedButton(onPressed: onBack, child: const Text('Back')),
       FilledButton(onPressed: onNext, child: Text(nextLabel)),
