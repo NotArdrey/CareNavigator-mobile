@@ -13,6 +13,7 @@ import '../../providers/core_providers.dart';
 import '../../providers/hospital_directory_provider.dart';
 import '../../repositories/admin_repository.dart';
 import '../../repositories/care_repository.dart';
+import '../../repositories/consultation_repository.dart';
 import '../../repositories/workspace_repository.dart';
 import '../../routing/root_overlay.dart';
 import '../../theme/app_tokens.dart';
@@ -978,15 +979,26 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
   Widget? _consultationActions(WorkspaceItem item) {
     final status = item.status?.toLowerCase() ?? '';
     final online = item.subtitle.toLowerCase().contains('online');
+    final appointmentDate = DateTime.tryParse(
+      item.data['appointment_date']?.toString() ?? '',
+    );
+    final joinWindowOpen =
+        appointmentDate != null &&
+        isConsultationJoinWindowOpen(appointmentDate);
     final actions = <Widget>[];
     if (online && {'approved', 'scheduled', 'in_progress'}.contains(status)) {
       actions.add(
-        TextButton.icon(
-          onPressed: _busyItems.contains(item.id)
-              ? null
-              : () => _joinConsultation(item),
-          icon: const Icon(Icons.video_call_outlined, size: 18),
-          label: const Text('Join'),
+        Tooltip(
+          message: joinWindowOpen
+              ? 'Open the secure video room'
+              : 'Available 15 minutes before the appointment',
+          child: TextButton.icon(
+            onPressed: _busyItems.contains(item.id) || !joinWindowOpen
+                ? null
+                : () => _joinConsultation(item),
+            icon: const Icon(Icons.video_call_outlined, size: 18),
+            label: const Text('Join'),
+          ),
         ),
       );
     }
@@ -1379,11 +1391,9 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
       if (repository == null) {
         throw StateError('Consultation service is unavailable.');
       }
-      await repository.transitionConsultation(
+      await repository.rescheduleConsultation(
         consultationId: item.id,
-        status: item.status?.toLowerCase() ?? 'scheduled',
         scheduledFor: selected,
-        notes: 'Rescheduled by the patient.',
       );
       ref.invalidate(workspaceSnapshotProvider(_request));
       showRootMessage('Consultation rescheduled.');

@@ -62,6 +62,11 @@ abstract interface class ConsultationRepository {
 
   Future<void> cancelConsultation(String consultationId);
 
+  Future<void> rescheduleConsultation({
+    required String consultationId,
+    required DateTime scheduledFor,
+  });
+
   Future<void> transitionConsultation({
     required String consultationId,
     required String status,
@@ -216,11 +221,41 @@ final class SupabaseConsultationRepository implements ConsultationRepository {
 
   @override
   Future<void> cancelConsultation(String consultationId) async {
-    await transitionConsultation(
-      consultationId: consultationId,
-      status: 'cancelled',
-      notes: 'Cancelled by the consultation participant.',
-    );
+    try {
+      await _client.rpc<Map<String, dynamic>>(
+        'cancel_consultation',
+        params: {'target_consultation_id': consultationId},
+      );
+    } on PostgrestException catch (error) {
+      throw PermissionFailure(
+        'This consultation can no longer be cancelled.',
+        cause: error,
+      );
+    }
+  }
+
+  @override
+  Future<void> rescheduleConsultation({
+    required String consultationId,
+    required DateTime scheduledFor,
+  }) async {
+    if (!scheduledFor.toUtc().isAfter(DateTime.now().toUtc())) {
+      throw ArgumentError('Choose a future appointment time.');
+    }
+    try {
+      await _client.rpc<Map<String, dynamic>>(
+        'reschedule_consultation',
+        params: {
+          'target_consultation_id': consultationId,
+          'scheduled_for': scheduledFor.toUtc().toIso8601String(),
+        },
+      );
+    } on PostgrestException catch (error) {
+      throw PermissionFailure(
+        'The consultation could not be rescheduled to that time.',
+        cause: error,
+      );
+    }
   }
 
   @override
@@ -302,38 +337,23 @@ final class SupabaseConsultationRepository implements ConsultationRepository {
   @override
   Future<Uri> getApprovedVideoRoom(String consultationId) async {
     try {
-      final consultation = await _client
-          .from('consultations')
-          .select('status,meeting_link')
-          .eq('id', consultationId)
-          .single();
-      final status = consultation['status']?.toString();
-      if (!{'approved', 'scheduled', 'in_progress'}.contains(status)) {
-        throw const PermissionFailure(
-          'The online consultation is not approved for joining.',
-        );
-      }
-      final session = await _client
-          .from('video_sessions')
-          .select('join_url,status,expires_at')
-          .eq('consultation_id', consultationId)
-          .inFilter('status', ['ready', 'active'])
-          .order('created_at', ascending: false)
-          .limit(1)
-          .maybeSingle();
-      final rawUrl =
-          session?['join_url']?.toString() ??
-          consultation['meeting_link']?.toString();
-      final uri = Uri.tryParse(rawUrl ?? '');
-      if (uri == null || !uri.hasScheme || uri.scheme != 'https') {
+      final rawUrl = await _client.rpc<String>(
+        'get_approved_video_room',
+        params: {'target_consultation_id': consultationId},
+      );
+      final uri = Uri.tryParse(rawUrl);
+      if (uri == null ||
+          uri.scheme != 'https' ||
+          uri.host != 'meet.jit.si' ||
+          !uri.path.startsWith('/cnph-')) {
         throw const ContractUnavailableFailure(
-          'The approved video room is not ready yet.',
+          'The approved video room returned an invalid address.',
         );
       }
       return uri;
     } on PostgrestException catch (error) {
-      throw PermissionFailure(
-        'The approved video room is unavailable.',
+      throw ContractUnavailableFailure(
+        'The video room is not ready or is outside its scheduled join window.',
         cause: error,
       );
     }
@@ -343,4 +363,14 @@ final class SupabaseConsultationRepository implements ConsultationRepository {
       '${value.year.toString().padLeft(4, '0')}-'
       '${value.month.toString().padLeft(2, '0')}-'
       '${value.day.toString().padLeft(2, '0')}';
+}
+
+const consultationJoinLeadTime = Duration(minutes: 15);
+const consultationJoinDuration = Duration(hours: 4);
+
+bool isConsultationJoinWindowOpen(DateTime appointmentDate, {DateTime? at}) {
+  final scheduledAt = appointmentDate.toUtc();
+  final checkedAt = (at ?? DateTime.now()).toUtc();
+  return !checkedAt.isBefore(scheduledAt.subtract(consultationJoinLeadTime)) &&
+      checkedAt.isBefore(scheduledAt.add(consultationJoinDuration));
 }

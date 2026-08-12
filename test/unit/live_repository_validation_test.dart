@@ -136,4 +136,37 @@ void main() {
       throwsArgumentError,
     );
   });
+
+  test('consultation join window starts 15 minutes before the appointment', () {
+    final appointment = DateTime.utc(2026, 8, 12, 10);
+
+    expect(
+      isConsultationJoinWindowOpen(
+        appointment,
+        at: DateTime.utc(2026, 8, 12, 9, 44, 59),
+      ),
+      isFalse,
+    );
+    expect(
+      isConsultationJoinWindowOpen(
+        appointment,
+        at: DateTime.utc(2026, 8, 12, 9, 45),
+      ),
+      isTrue,
+    );
+    expect(
+      isConsultationJoinWindowOpen(
+        appointment,
+        at: DateTime.utc(2026, 8, 12, 13, 59, 59),
+      ),
+      isTrue,
+    );
+    expect(
+      isConsultationJoinWindowOpen(
+        appointment,
+        at: DateTime.utc(2026, 8, 12, 14),
+      ),
+      isFalse,
+    );
+  });
 }
