@@ -1,5 +1,6 @@
 import 'package:supabase/supabase.dart';
 
+import '../models/consultation_type.dart';
 import 'repository_failure.dart';
 
 class GuestConsultationDraft {
@@ -95,9 +96,13 @@ final class SupabaseConsultationRepository implements ConsultationRepository {
 
   @override
   Future<void> sendGuestVerificationCode(String email) async {
+    final normalizedEmail = email.trim().toLowerCase();
+    if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(normalizedEmail)) {
+      throw ArgumentError('Enter a valid consultation email address.');
+    }
     try {
       await _client.auth.signInWithOtp(
-        email: email.trim().toLowerCase(),
+        email: normalizedEmail,
         shouldCreateUser: true,
       );
     } on AuthException catch (error) {
@@ -114,13 +119,15 @@ final class SupabaseConsultationRepository implements ConsultationRepository {
     required String chiefComplaint,
   }) async {
     final complaint = chiefComplaint.trim();
-    if (doctorId.trim().isEmpty || hospitalId.trim().isEmpty) {
+    final normalizedDoctorId = doctorId.trim();
+    final normalizedHospitalId = hospitalId.trim();
+    if (normalizedDoctorId.isEmpty || normalizedHospitalId.isEmpty) {
       throw ArgumentError('A published clinician and hospital are required.');
     }
-    if (!{'online', 'in_person'}.contains(consultationType)) {
-      throw ArgumentError('Unsupported consultation type.');
-    }
-    if (appointmentDate.toUtc().isBefore(DateTime.now().toUtc())) {
+    final normalizedConsultationType = ConsultationType.normalize(
+      consultationType,
+    );
+    if (!appointmentDate.toUtc().isAfter(DateTime.now().toUtc())) {
       throw ArgumentError('Choose a future appointment time.');
     }
     if (complaint.length < 5) {
@@ -133,9 +140,9 @@ final class SupabaseConsultationRepository implements ConsultationRepository {
         'book_consultation',
         params: {
           'booking_payload': {
-            'doctor_id': doctorId,
-            'hospital_id': hospitalId,
-            'consultation_type': consultationType,
+            'doctor_id': normalizedDoctorId,
+            'hospital_id': normalizedHospitalId,
+            'consultation_type': normalizedConsultationType,
             'appointment_date': appointmentDate.toUtc().toIso8601String(),
             'chief_complaint': complaint,
           },
@@ -154,6 +161,11 @@ final class SupabaseConsultationRepository implements ConsultationRepository {
     required String email,
     required String otp,
   }) async {
+    if (email.trim().isEmpty || otp.trim().isEmpty) {
+      throw ArgumentError(
+        'An email address and verification code are required.',
+      );
+    }
     try {
       await _client.auth.verifyOTP(
         email: email.trim().toLowerCase(),
@@ -167,9 +179,21 @@ final class SupabaseConsultationRepository implements ConsultationRepository {
 
   @override
   Future<String> createGuestRequest(GuestConsultationDraft draft) async {
+    final normalizedEmail = draft.email.trim().toLowerCase();
+    if (draft.fullName.trim().isEmpty ||
+        !RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(normalizedEmail) ||
+        draft.concern.trim().length < 10 ||
+        draft.symptomDuration.trim().isEmpty ||
+        draft.hospitalId == null ||
+        draft.departmentId == null ||
+        draft.preferredStart == null ||
+        !draft.preferredStart!.toUtc().isAfter(DateTime.now().toUtc())) {
+      throw ArgumentError(
+        'Complete the consultation request before submitting.',
+      );
+    }
     final authUser = _client.auth.currentUser;
-    if (authUser == null ||
-        authUser.email?.toLowerCase() != draft.email.trim().toLowerCase()) {
+    if (authUser == null || authUser.email?.toLowerCase() != normalizedEmail) {
       throw const AuthenticationFailure(
         'Verify the consultation email before submitting the request.',
       );
@@ -185,7 +209,7 @@ final class SupabaseConsultationRepository implements ConsultationRepository {
             'birth_date': _date(draft.birthDate),
             'sex': draft.sex,
             'mobile_number': draft.mobileNumber.trim(),
-            'email': draft.email.trim().toLowerCase(),
+            'email': normalizedEmail,
             'address': draft.address.trim(),
             'symptoms': draft.concern.trim(),
             'symptom_duration': draft.symptomDuration.trim(),
@@ -221,6 +245,11 @@ final class SupabaseConsultationRepository implements ConsultationRepository {
 
   @override
   Future<void> cancelConsultation(String consultationId) async {
+    if (consultationId.trim().isEmpty) {
+      throw ArgumentError(
+        'A consultation is required to cancel an appointment.',
+      );
+    }
     try {
       await _client.rpc<Map<String, dynamic>>(
         'cancel_consultation',
@@ -239,6 +268,11 @@ final class SupabaseConsultationRepository implements ConsultationRepository {
     required String consultationId,
     required DateTime scheduledFor,
   }) async {
+    if (consultationId.trim().isEmpty) {
+      throw ArgumentError(
+        'A consultation is required to reschedule an appointment.',
+      );
+    }
     if (!scheduledFor.toUtc().isAfter(DateTime.now().toUtc())) {
       throw ArgumentError('Choose a future appointment time.');
     }
@@ -266,6 +300,9 @@ final class SupabaseConsultationRepository implements ConsultationRepository {
     DateTime? scheduledFor,
     Map<String, Object?> clinicalPayload = const {},
   }) async {
+    if (consultationId.trim().isEmpty) {
+      throw ArgumentError('A consultation is required for this update.');
+    }
     try {
       await _client.rpc<Map<String, dynamic>>(
         'transition_consultation',
@@ -287,6 +324,9 @@ final class SupabaseConsultationRepository implements ConsultationRepository {
 
   @override
   Future<void> ensureVideoRoom(String consultationId) async {
+    if (consultationId.trim().isEmpty) {
+      throw ArgumentError('A consultation is required to open a video room.');
+    }
     try {
       await _client.rpc<String>(
         'ensure_video_session',
@@ -308,6 +348,9 @@ final class SupabaseConsultationRepository implements ConsultationRepository {
     DateTime? appointmentDate,
     String? notes,
   }) async {
+    if (requestId.trim().isEmpty) {
+      throw ArgumentError('A guest request is required for this review.');
+    }
     if (!{'approved', 'rejected'}.contains(decision)) {
       throw ArgumentError.value(
         decision,
@@ -336,6 +379,9 @@ final class SupabaseConsultationRepository implements ConsultationRepository {
 
   @override
   Future<Uri> getApprovedVideoRoom(String consultationId) async {
+    if (consultationId.trim().isEmpty) {
+      throw ArgumentError('A consultation is required to open a video room.');
+    }
     try {
       final rawUrl = await _client.rpc<String>(
         'get_approved_video_room',

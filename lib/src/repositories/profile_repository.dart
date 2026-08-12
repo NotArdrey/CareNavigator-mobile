@@ -299,7 +299,9 @@ class SupabaseProfileRepository implements ProfileRepository {
     }
     await _client
         .from('notification_preferences')
-        .upsert(update.toJson(authUser.id), onConflict: 'user_id');
+        .upsert(update.toJson(authUser.id), onConflict: 'user_id')
+        .select('user_id')
+        .single();
   }
 }
 

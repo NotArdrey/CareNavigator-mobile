@@ -8,6 +8,7 @@ import '../../models/guest_consultation_models.dart';
 import '../../providers/guest_consultation_provider.dart';
 import '../../providers/hospital_directory_provider.dart';
 import '../../providers/core_providers.dart';
+import '../../repositories/repository_failure.dart';
 import '../../routing/root_overlay.dart';
 import '../../theme/app_tokens.dart';
 import '../../widgets/app_shell/public_scaffold.dart';
@@ -298,7 +299,9 @@ class _ConsultationRequestScreenState
       context.go('/patient/appointments');
     } catch (e) {
       if (mounted) {
-        showRootMessage('Could not request consultation: $e');
+        showRootMessage(
+          'Could not request consultation: ${userFacingRepositoryError(e)}',
+        );
       }
     } finally {
       if (mounted) setState(() => _submitting = false);

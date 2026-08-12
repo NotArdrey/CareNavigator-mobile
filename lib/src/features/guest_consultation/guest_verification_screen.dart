@@ -292,11 +292,15 @@ class _MissingVerificationState extends StatelessWidget {
   const _MissingVerificationState();
 
   @override
-  Widget build(BuildContext context) => const _VerificationState(
+  Widget build(BuildContext context) => _VerificationState(
     icon: Icons.mark_email_unread_outlined,
     title: 'No verification pending',
     message:
         'Complete contact, care selection, and scheduling before email verification.',
+    action: FilledButton(
+      onPressed: () => context.go('/consultation/request'),
+      child: const Text('Start consultation request'),
+    ),
   );
 }
 

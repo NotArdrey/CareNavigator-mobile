@@ -113,7 +113,7 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
     if (spec.table == 'doctor_schedules' && doctorId != null) {
       query = query.eq('doctor_id', doctorId);
     }
-    if (itemId != null && spec.hasId) query = query.eq('id', itemId);
+    if (itemId != null) query = query.eq(spec.idColumn, itemId);
     if (spec.orderColumn != null) {
       query = query.order(spec.orderColumn!, ascending: spec.ascending);
     }
@@ -984,7 +984,7 @@ class _WorkspaceTableSpec {
     required this.title,
     required this.description,
     this.orderColumn,
-    this.hasId = true,
+    this.idColumn = 'id',
   }) : columns = '*',
        ascending = false;
 
@@ -994,7 +994,7 @@ class _WorkspaceTableSpec {
       columns = '*',
       orderColumn = null,
       ascending = false,
-      hasId = true;
+      idColumn = 'id';
 
   final String table;
   final String title;
@@ -1002,7 +1002,7 @@ class _WorkspaceTableSpec {
   final String columns;
   final String? orderColumn;
   final bool ascending;
-  final bool hasId;
+  final String idColumn;
 }
 
 _WorkspaceTableSpec? _specFor(UserRole role, String section) {
@@ -1056,7 +1056,7 @@ _WorkspaceTableSpec? _specFor(UserRole role, String section) {
     title: _humanize(section),
     description: _descriptionFor(role, section),
     orderColumn: _orderColumn(table),
-    hasId: table != 'system_settings',
+    idColumn: table == 'system_settings' ? 'key' : 'id',
   );
 }
 

@@ -1,3 +1,5 @@
+import '../consultation_type.dart';
+
 class HospitalSearchCriteria {
   const HospitalSearchCriteria({
     this.query = '',
@@ -55,7 +57,11 @@ class DoctorAvailability {
 
   List<String> get publishedConsultationTypes => consultationTypes.isNotEmpty
       ? consultationTypes
-      : [offersOnlineCare ? 'online' : 'in_person'];
+      : [
+          offersOnlineCare
+              ? ConsultationType.online
+              : ConsultationType.faceToFace,
+        ];
 }
 
 class DoctorDirectoryEntry {

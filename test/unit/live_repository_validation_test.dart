@@ -40,6 +40,16 @@ void main() {
         ),
         throwsArgumentError,
       );
+      await expectLater(
+        repository.createScheduleSlot(
+          dayOfWeek: 1,
+          startsAt: '12:00',
+          endsAt: '09:00',
+          consultationType: 'online',
+          slotMinutes: 30,
+        ),
+        throwsArgumentError,
+      );
       const relationship = ClinicalRelationship(
         patientId: 'patient',
         patientLabel: 'Patient',
@@ -87,6 +97,14 @@ void main() {
         table: 'hospital_beds',
         recordId: 'record',
         changes: const {'hospital_id': 'other-hospital'},
+      ),
+      throwsArgumentError,
+    );
+    await expectLater(
+      repository.updateOperationalRecord(
+        table: 'emergency_room_status',
+        recordId: 'record',
+        changes: const {'status': 'unavailable'},
       ),
       throwsArgumentError,
     );

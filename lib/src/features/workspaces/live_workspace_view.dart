@@ -8,12 +8,14 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/auth/user_role.dart';
 import '../../models/clinical_checkup.dart';
+import '../../models/consultation_type.dart';
 import '../../models/hospitals/hospital_models.dart';
 import '../../providers/core_providers.dart';
 import '../../providers/hospital_directory_provider.dart';
 import '../../repositories/admin_repository.dart';
 import '../../repositories/care_repository.dart';
 import '../../repositories/consultation_repository.dart';
+import '../../repositories/repository_failure.dart';
 import '../../repositories/workspace_repository.dart';
 import '../../routing/root_overlay.dart';
 import '../../theme/app_tokens.dart';
@@ -685,21 +687,21 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
           runSpacing: AppSpacing.x2,
           children: [
             FilledButton.icon(
-              onPressed: _busyItems.contains('appointment-book')
+              onPressed: _busyItems.contains(item.id)
                   ? null
                   : () => _bookAppointment(item),
               icon: const Icon(Icons.calendar_month_outlined, size: 18),
               label: const Text('Book Appointment'),
             ),
             FilledButton.icon(
-              onPressed: _busyItems.contains('message-send')
+              onPressed: _busyItems.contains(item.id)
                   ? null
                   : () => _messagePatient(item),
               icon: const Icon(Icons.chat_bubble_outline, size: 18),
               label: const Text('Message Patient'),
             ),
             FilledButton.icon(
-              onPressed: _busyItems.contains('record-add')
+              onPressed: _busyItems.contains(item.id)
                   ? null
                   : () => _recordPatientCheckup(item),
               icon: const Icon(Icons.folder_shared_outlined, size: 18),
@@ -1004,6 +1006,18 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
     }
     if (widget.role == UserRole.patient &&
         {'pending', 'approved', 'scheduled'}.contains(status)) {
+      final conversationId = item.data['conversation_id']?.toString();
+      if (conversationId != null && conversationId.isNotEmpty) {
+        actions.add(
+          TextButton.icon(
+            onPressed: () => context.go(
+              '${widget.role.homeLocation}/messages/$conversationId',
+            ),
+            icon: const Icon(Icons.chat_bubble_outline, size: 18),
+            label: const Text('Message doctor'),
+          ),
+        );
+      }
       if ({'approved', 'scheduled'}.contains(status)) {
         actions.add(
           SizedBox(
@@ -1449,22 +1463,22 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
   }
 
   Future<void> _recordPatientCheckup(WorkspaceItem item) async {
-    final patientId = item.data['patient_id']?.toString() ?? '';
-    if (patientId.isEmpty) {
-      throw StateError('The selected patient is missing a clinical link.');
-    }
-    final draft =
-        await showRootDialog<
-          ({
-            ClinicalCheckupDraft checkup,
-            ({List<int> bytes, String name})? attachment,
-          })
-        >(
-          barrierDismissible: false,
-          builder: (context) => _PatientCheckupDialog(patient: item.data),
-        );
-    if (draft == null) return;
     await _runItemAction(item.id, () async {
+      final patientId = item.data['patient_id']?.toString() ?? '';
+      if (patientId.isEmpty) {
+        throw StateError('The selected patient is missing a clinical link.');
+      }
+      final draft =
+          await showRootDialog<
+            ({
+              ClinicalCheckupDraft checkup,
+              ({List<int> bytes, String name})? attachment,
+            })
+          >(
+            barrierDismissible: false,
+            builder: (context) => _PatientCheckupDialog(patient: item.data),
+          );
+      if (draft == null) return;
       final repository = ref.read(careRepositoryProvider);
       if (repository == null) throw StateError('Care service is unavailable.');
       await repository.recordPatientCheckup(
@@ -1478,24 +1492,24 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
   }
 
   Future<void> _bookAppointment(WorkspaceItem item) async {
-    final patientId = item.data['patient_id']?.toString() ?? '';
-    if (patientId.isEmpty) {
-      throw StateError('The selected patient is missing a clinical link.');
-    }
-    final draft =
-        await showRootDialog<
-          ({
-            DateTime date,
-            String type,
-            String complaint,
-            ({List<int> bytes, String name})? attachment,
-          })
-        >(
-          barrierDismissible: false,
-          builder: (context) => _BookAppointmentDialog(patient: item.data),
-        );
-    if (draft == null) return;
     await _runItemAction(item.id, () async {
+      final patientId = item.data['patient_id']?.toString() ?? '';
+      if (patientId.isEmpty) {
+        throw StateError('The selected patient is missing a clinical link.');
+      }
+      final draft =
+          await showRootDialog<
+            ({
+              DateTime date,
+              String type,
+              String complaint,
+              ({List<int> bytes, String name})? attachment,
+            })
+          >(
+            barrierDismissible: false,
+            builder: (context) => _BookAppointmentDialog(patient: item.data),
+          );
+      if (draft == null) return;
       final repository = ref.read(careRepositoryProvider);
       if (repository == null) throw StateError('Care service is unavailable.');
       await repository.bookAppointment(
@@ -1511,21 +1525,23 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
   }
 
   Future<void> _messagePatient(WorkspaceItem item) async {
-    final patientId = item.data['patient_id']?.toString() ?? '';
-    final conversationId = item.data['conversation_id']?.toString();
-    if (patientId.isEmpty || conversationId == null || conversationId.isEmpty) {
-      showRootMessage('Patient has not set up a messaging conversation yet.');
-      return;
-    }
-    final draft =
-        await showRootDialog<
-          ({String message, ({List<int> bytes, String name})? attachment})
-        >(
-          barrierDismissible: false,
-          builder: (context) => _MessagePatientDialog(patient: item.data),
-        );
-    if (draft == null) return;
     await _runItemAction(item.id, () async {
+      final patientId = item.data['patient_id']?.toString() ?? '';
+      final conversationId = item.data['conversation_id']?.toString();
+      if (patientId.isEmpty ||
+          conversationId == null ||
+          conversationId.isEmpty) {
+        showRootMessage('Patient has not set up a messaging conversation yet.');
+        return;
+      }
+      final draft =
+          await showRootDialog<
+            ({String message, ({List<int> bytes, String name})? attachment})
+          >(
+            barrierDismissible: false,
+            builder: (context) => _MessagePatientDialog(patient: item.data),
+          );
+      if (draft == null) return;
       final repository = ref.read(careRepositoryProvider);
       if (repository == null) throw StateError('Care service is unavailable.');
       await repository.sendMessage(
@@ -1937,7 +1953,7 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
         description: draft.description,
       );
       ref.invalidate(workspaceSnapshotProvider(_request));
-      ref.read(hospitalDirectoryProvider.notifier).refresh();
+      await ref.read(hospitalDirectoryProvider.notifier).refresh();
       showRootMessage('Hospital department added.');
     },
   );
@@ -1964,7 +1980,7 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
         departmentId: draft.departmentId,
       );
       ref.invalidate(workspaceSnapshotProvider(_request));
-      ref.read(hospitalDirectoryProvider.notifier).refresh();
+      await ref.read(hospitalDirectoryProvider.notifier).refresh();
       showRootMessage('Hospital service added.');
     },
   );
@@ -2013,7 +2029,7 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
       await repository.deleteManagedRecord(table: item.kind, recordId: item.id);
       ref.invalidate(workspaceSnapshotProvider(_request));
       if ({'hospital_services', 'hospital_departments'}.contains(item.kind)) {
-        ref.read(hospitalDirectoryProvider.notifier).refresh();
+        await ref.read(hospitalDirectoryProvider.notifier).refresh();
       }
       showRootMessage('Managed record deleted.');
     });
@@ -2282,9 +2298,27 @@ class _LiveConversationViewState extends ConsumerState<_LiveConversationView> {
       await ref
           .read(careRepositoryProvider)
           ?.markConversationRead(widget.conversationId);
+      _refreshConversationSnapshots();
     } catch (_) {
       // Reading remains available even if the best-effort receipt update fails.
     }
+  }
+
+  void _refreshConversationSnapshots() {
+    ref.invalidate(
+      workspaceSnapshotProvider((
+        role: widget.role,
+        section: 'messages',
+        itemId: null,
+      )),
+    );
+    ref.invalidate(
+      workspaceSnapshotProvider((
+        role: widget.role,
+        section: 'messages',
+        itemId: widget.conversationId,
+      )),
+    );
   }
 
   Future<void> _send() async {
@@ -2299,6 +2333,7 @@ class _LiveConversationViewState extends ConsumerState<_LiveConversationView> {
         body: body,
       );
       _messageController.clear();
+      _refreshConversationSnapshots();
     } catch (error) {
       showRootMessage(_friendlyError(error));
     } finally {
@@ -4734,7 +4769,7 @@ class _ScheduleDialogState extends State<_ScheduleDialog> {
                 items: const [
                   DropdownMenuItem(value: 'online', child: Text('Online')),
                   DropdownMenuItem(
-                    value: 'in_person',
+                    value: ConsultationType.faceToFace,
                     child: Text('In person'),
                   ),
                 ],
@@ -6234,19 +6269,7 @@ IconData _statusIcon(String status) {
 String _statusLabel(String value) => _humanizeEnum(value);
 
 String _friendlyError(Object error) {
-  final message = error.toString().replaceFirst(
-    RegExp(r'^\w+Exception:\s*'),
-    '',
-  );
-  if (message.contains('JWT') || message.contains('session')) {
-    return 'Your secure session is no longer valid. Sign in again and retry.';
-  }
-  if (message.contains('permission') || message.contains('policy')) {
-    return 'You do not have permission to access this information.';
-  }
-  return message.isEmpty
-      ? 'The workspace could not be loaded. Check your connection and retry.'
-      : message;
+  return userFacingRepositoryError(error);
 }
 
 int _intValue(dynamic value) =>
@@ -6303,7 +6326,7 @@ class _BookAppointmentDialogState extends State<_BookAppointmentDialog> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 DropdownButtonFormField<String>(
-                  value: _type,
+                  initialValue: _type,
                   decoration: const InputDecoration(
                     labelText: 'Consultation type',
                   ),
@@ -6313,7 +6336,7 @@ class _BookAppointmentDialogState extends State<_BookAppointmentDialog> {
                       child: Text('Online consultation'),
                     ),
                     DropdownMenuItem(
-                      value: 'in_person',
+                      value: ConsultationType.faceToFace,
                       child: Text('In-person visit'),
                     ),
                   ],
@@ -6339,13 +6362,12 @@ class _BookAppointmentDialogState extends State<_BookAppointmentDialog> {
                       firstDate: DateTime.now(),
                       lastDate: DateTime.now().add(const Duration(days: 365)),
                     );
-                    if (date == null) return;
-                    if (!mounted) return;
+                    if (date == null || !context.mounted) return;
                     final time = await showTimePicker(
                       context: context,
                       initialTime: TimeOfDay.fromDateTime(_date),
                     );
-                    if (time == null) return;
+                    if (time == null || !mounted) return;
                     setState(() {
                       _date = DateTime(
                         date.year,

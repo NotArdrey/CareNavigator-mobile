@@ -135,6 +135,18 @@ class SupabaseAdminRepository implements AdminRepository {
     'hospital_services': {'availability_status'},
     'hospital_departments': {'availability_status'},
   };
+  static const _operationalStatuses = <String, Set<String>>{
+    'hospital_rooms': {'available', 'limited', 'unavailable'},
+    'emergency_room_status': {
+      'available',
+      'limited',
+      'full',
+      'temporarily_closed',
+    },
+    'hospital_facility_status': {'available', 'limited', 'unavailable'},
+    'hospital_services': {'available', 'limited', 'unavailable'},
+    'hospital_departments': {'available', 'limited', 'unavailable'},
+  };
   static const _deletableTables = {
     'hospital_services',
     'hospital_departments',
@@ -145,6 +157,9 @@ class SupabaseAdminRepository implements AdminRepository {
 
   @override
   Future<void> approveHospital(String hospitalId) async {
+    if (hospitalId.trim().isEmpty) {
+      throw ArgumentError('A hospital is required for approval.');
+    }
     await _client.rpc<void>(
       'review_hospital_application',
       params: {
@@ -160,6 +175,9 @@ class SupabaseAdminRepository implements AdminRepository {
     required String hospitalId,
     required String reason,
   }) async {
+    if (hospitalId.trim().isEmpty) {
+      throw ArgumentError('A hospital is required for rejection.');
+    }
     if (reason.trim().isEmpty) {
       throw ArgumentError.value(
         reason,
@@ -182,6 +200,9 @@ class SupabaseAdminRepository implements AdminRepository {
     required String userId,
     required String status,
   }) async {
+    if (userId.trim().isEmpty) {
+      throw ArgumentError('An account is required for this status update.');
+    }
     if (!_accountStatuses.contains(status)) {
       throw ArgumentError.value(
         status,
@@ -353,11 +374,15 @@ class SupabaseAdminRepository implements AdminRepository {
     if (hospitalId == null || hospitalId.isEmpty) {
       throw StateError('An assigned hospital is required.');
     }
-    await _client.from('hospital_departments').insert({
-      'hospital_id': hospitalId,
-      'department_name': normalizedName,
-      'description': description.trim(),
-    });
+    await _client
+        .from('hospital_departments')
+        .insert({
+          'hospital_id': hospitalId,
+          'department_name': normalizedName,
+          'description': description.trim(),
+        })
+        .select('id')
+        .single();
   }
 
   @override
@@ -375,12 +400,16 @@ class SupabaseAdminRepository implements AdminRepository {
     if (hospitalId == null || hospitalId.isEmpty) {
       throw StateError('An assigned hospital is required.');
     }
-    await _client.from('hospital_services').insert({
-      'hospital_id': hospitalId,
-      'department_id': _nullableText(departmentId),
-      'service_name': normalizedName,
-      'description': description.trim(),
-    });
+    await _client
+        .from('hospital_services')
+        .insert({
+          'hospital_id': hospitalId,
+          'department_id': _nullableText(departmentId),
+          'service_name': normalizedName,
+          'description': description.trim(),
+        })
+        .select('id')
+        .single();
   }
 
   @override
@@ -399,14 +428,18 @@ class SupabaseAdminRepository implements AdminRepository {
       throw ArgumentError('Maintenance must end after it starts.');
     }
     final appUser = await _currentAppUser();
-    await _client.from('maintenance_windows').insert({
-      'title': title.trim(),
-      'message': message.trim(),
-      'starts_at': startsAt.toUtc().toIso8601String(),
-      'ends_at': endsAt.toUtc().toIso8601String(),
-      'created_by': appUser['id'],
-      'is_active': true,
-    });
+    await _client
+        .from('maintenance_windows')
+        .insert({
+          'title': title.trim(),
+          'message': message.trim(),
+          'starts_at': startsAt.toUtc().toIso8601String(),
+          'ends_at': endsAt.toUtc().toIso8601String(),
+          'created_by': appUser['id'],
+          'is_active': true,
+        })
+        .select('id')
+        .single();
   }
 
   @override
@@ -417,6 +450,9 @@ class SupabaseAdminRepository implements AdminRepository {
     if (!_deletableTables.contains(table)) {
       throw ArgumentError.value(table, 'table', 'Unsupported deletion target.');
     }
+    if (recordId.trim().isEmpty) {
+      throw ArgumentError('A managed record is required for deletion.');
+    }
     await _client.from(table).delete().eq('id', recordId).select('id').single();
   }
 
@@ -425,6 +461,9 @@ class SupabaseAdminRepository implements AdminRepository {
     required String hospitalId,
     required Map<String, Object?> changes,
   }) async {
+    if (hospitalId.trim().isEmpty) {
+      throw ArgumentError('A hospital is required for this update.');
+    }
     if (changes.isEmpty) {
       throw ArgumentError.value(
         changes,
@@ -474,6 +513,24 @@ class SupabaseAdminRepository implements AdminRepository {
         'The operational update contains unsupported fields.',
       );
     }
+    if (recordId.trim().isEmpty) {
+      throw ArgumentError('An operational record is required for this update.');
+    }
+    final statusKey =
+        table == 'hospital_services' || table == 'hospital_departments'
+        ? 'availability_status'
+        : 'status';
+    final status = changes[statusKey];
+    final supportedStatuses = _operationalStatuses[table];
+    if (status != null &&
+        supportedStatuses != null &&
+        !supportedStatuses.contains(status)) {
+      throw ArgumentError.value(
+        status,
+        statusKey,
+        'Unsupported operational status.',
+      );
+    }
     await _client
         .from(table)
         .update(changes)
@@ -487,6 +544,9 @@ class SupabaseAdminRepository implements AdminRepository {
     required String permissionId,
     required bool allowed,
   }) async {
+    if (permissionId.trim().isEmpty) {
+      throw ArgumentError('A permission is required for this update.');
+    }
     await _client
         .from('role_permissions')
         .update({'is_allowed': allowed})
@@ -500,11 +560,14 @@ class SupabaseAdminRepository implements AdminRepository {
     required String key,
     required Object value,
   }) async {
-    if (key.trim().isEmpty) throw ArgumentError('A setting key is required.');
+    final normalizedKey = key.trim();
+    if (normalizedKey.isEmpty) {
+      throw ArgumentError('A setting key is required.');
+    }
     await _client
         .from('system_settings')
         .update({'value': value})
-        .eq('key', key)
+        .eq('key', normalizedKey)
         .select('key')
         .single();
   }
@@ -514,6 +577,9 @@ class SupabaseAdminRepository implements AdminRepository {
     required String maintenanceId,
     required bool active,
   }) async {
+    if (maintenanceId.trim().isEmpty) {
+      throw ArgumentError('A maintenance window is required for this update.');
+    }
     await _client
         .from('maintenance_windows')
         .update({'is_active': active})

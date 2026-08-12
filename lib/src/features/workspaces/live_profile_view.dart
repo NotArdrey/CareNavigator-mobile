@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/auth/user_role.dart';
 import '../../providers/core_providers.dart';
 import '../../repositories/profile_repository.dart';
+import '../../repositories/repository_failure.dart';
 import '../../routing/root_overlay.dart';
 import '../../theme/app_tokens.dart';
 import '../../widgets/data_display/content_panel.dart';
@@ -357,7 +358,7 @@ class _LiveProfileViewState extends ConsumerState<LiveProfileView> {
       ref.invalidate(careProfileProvider);
       showRootMessage('Profile and notification preferences saved.');
     } catch (error) {
-      showRootMessage(error.toString());
+      showRootMessage(userFacingRepositoryError(error));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
