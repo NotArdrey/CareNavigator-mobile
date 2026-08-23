@@ -10,6 +10,8 @@ import '../../widgets/data_display/content_panel.dart';
 import '../../widgets/data_display/hospital_image.dart';
 import '../../widgets/layout/page_header.dart';
 
+const homePublishedFacilityLimit = 5;
+
 class PublicHomeScreen extends StatelessWidget {
   const PublicHomeScreen({super.key});
 
@@ -39,9 +41,10 @@ class PatientCareHomeContent extends ConsumerWidget {
           children: [
             const _CareSearchHeader(),
             const SizedBox(height: AppSpacing.x5),
-            const SizedBox(height: AppSpacing.x5),
             _NearbyCarePanel(
-              hospitals: featuredHospitals.take(2).toList(),
+              hospitals: featuredHospitals
+                  .take(homePublishedFacilityLimit)
+                  .toList(),
               isLoading: directory.isLoading,
               errorMessage: directory.errorMessage,
               onRetry: ref.read(hospitalDirectoryProvider.notifier).refresh,
@@ -137,7 +140,7 @@ class _NearbyCareRow extends StatelessWidget {
                   HospitalImage(
                     imageUrl: hospital.imageUrl,
                     width: 76,
-                    height: 64,
+                    height: 88,
                     borderRadius: AppRadius.control,
                     semanticLabel: '${hospital.name} exterior',
                   ),
@@ -192,7 +195,8 @@ class _NearbyCareRow extends StatelessWidget {
                       label:
                           '${hospital.estimatedWaitMinutes} min estimated wait',
                     ),
-                  if (hospital.availableBeds != null)
+                  if (hospital.availableBeds != null &&
+                      hospital.hasCurrentEmergencyCapacity())
                     _CareMetric(
                       icon: Icons.bed_outlined,
                       label: '${hospital.availableBeds} ER beds available',

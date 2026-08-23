@@ -15,6 +15,9 @@ class WorkspaceScreen extends ConsumerWidget {
     this.section,
     this.itemId,
     this.action,
+    this.requestReservation = false,
+    this.initialReservationHospitalId,
+    this.initialReservationDoctorId,
   });
 
   final UserRole role;
@@ -22,10 +25,16 @@ class WorkspaceScreen extends ConsumerWidget {
   final String? section;
   final String? itemId;
   final String? action;
+  final bool requestReservation;
+  final String? initialReservationHospitalId;
+  final String? initialReservationDoctorId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final identity = ref.watch(appIdentityProvider);
+    final unreadMessageCount =
+        ref.watch(unreadMessageCountProvider).asData?.value ?? 0;
+    final unreadNotificationCount = ref.watch(unreadNotificationCountProvider);
     return WorkspaceShell(
       identity: identity,
       location: location,
@@ -35,6 +44,8 @@ class WorkspaceScreen extends ConsumerWidget {
         if (context.mounted) context.go('/');
       },
       onNotifications: () => context.go('${role.homeLocation}/notifications'),
+      unreadMessageCount: unreadMessageCount,
+      unreadNotificationCount: unreadNotificationCount,
       immersiveBody: section == 'messages' && itemId != null,
       showAssistant:
           !(role == UserRole.patient &&
@@ -50,6 +61,9 @@ class WorkspaceScreen extends ConsumerWidget {
         role: role,
         section: section,
         itemId: itemId,
+        requestReservation: requestReservation,
+        initialReservationHospitalId: initialReservationHospitalId,
+        initialReservationDoctorId: initialReservationDoctorId,
         showDetailHeader:
             !(role == UserRole.patient &&
                 itemId != null &&
@@ -75,7 +89,7 @@ String _pageTitle(UserRole role, String? section, String? itemId) {
     }
     return switch (section) {
       'medical-records' || 'records' => 'Medical Overview',
-      'labs' => 'Lab Results',
+      'labs' => 'Diagnostics',
       _ => _humanizeSection(section),
     };
   }

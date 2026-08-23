@@ -5,14 +5,14 @@ alter table public.hospitals
 alter table public.doctors
   add column if not exists profile_image_url text;
 
--- Use verified real-hospital photography when an appropriate reusable source
--- is available. These URLs remain database content rather than UI defaults.
+-- The workflow pilot uses an explicitly synthetic hospital identity. Keep its
+-- image generic so the demo cannot imply affiliation with a real facility.
 update public.hospitals
 set
-  image_url = 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/Lingadjf2.JPG/1280px-Lingadjf2.JPG',
-  image_attribution = 'Ramon FVelasquez · CC BY-SA 3.0',
-  image_source_url = 'https://commons.wikimedia.org/wiki/File:Lingadjf2.JPG'
-where hospital_name ilike '%Jose B.%Lingad%';
+  image_url = 'https://placehold.co/1280x800/0f766e/ffffff/png?text=CareNavigator+Regional+Hospital',
+  image_attribution = 'CareNavigator demonstration placeholder',
+  image_source_url = 'https://placehold.co/'
+where id = '20000000-0000-4000-8000-000000000001'::uuid;
 
 update public.hospitals
 set

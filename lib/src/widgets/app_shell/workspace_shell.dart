@@ -21,6 +21,8 @@ class WorkspaceShell extends StatelessWidget {
     this.immersiveBody = false,
     this.showAssistant = true,
     this.onBack,
+    this.unreadMessageCount = 0,
+    this.unreadNotificationCount = 0,
   });
 
   final AppIdentity identity;
@@ -32,6 +34,8 @@ class WorkspaceShell extends StatelessWidget {
   final bool immersiveBody;
   final bool showAssistant;
   final VoidCallback? onBack;
+  final int unreadMessageCount;
+  final int unreadNotificationCount;
 
   @override
   Widget build(BuildContext context) {
@@ -68,6 +72,8 @@ class WorkspaceShell extends StatelessWidget {
                       identity: identity,
                       onMessages: onMessages,
                       onNotifications: onNotifications,
+                      unreadMessageCount: unreadMessageCount,
+                      unreadNotificationCount: unreadNotificationCount,
                     ),
                     Expanded(child: body),
                   ],
@@ -136,11 +142,13 @@ class WorkspaceShell extends StatelessWidget {
                       tooltip: 'Messages',
                       onPressed: onMessages,
                       icon: Icons.message_outlined,
+                      badgeCount: unreadMessageCount,
                     ),
                   _WorkspaceHeaderAction(
                     tooltip: 'Notifications',
                     onPressed: onNotifications,
                     icon: Icons.notifications_outlined,
+                    badgeCount: unreadNotificationCount,
                   ),
                 ],
               ),
@@ -179,6 +187,14 @@ class WorkspaceShell extends StatelessWidget {
                           icon: _MobileNavigationIcon(item),
                           selectedIcon: _MobileNavigationIcon(item),
                           label: item.label,
+                          // Flutter's destination tooltip uses an
+                          // OverlayPortal. On web, a route change while the
+                          // pointer remains over a destination can leave that
+                          // portal attached to the outgoing layout and trigger
+                          // overlay-size and duplicate-GlobalKey assertions.
+                          // Labels are always visible here, so the tooltip is
+                          // redundant.
+                          tooltip: '',
                         ),
                     ],
                   ),
@@ -622,12 +638,16 @@ class _UtilityBar extends StatelessWidget {
     required this.identity,
     required this.onMessages,
     required this.onNotifications,
+    required this.unreadMessageCount,
+    required this.unreadNotificationCount,
   });
 
   final String title;
   final AppIdentity identity;
   final VoidCallback? onMessages;
   final VoidCallback onNotifications;
+  final int unreadMessageCount;
+  final int unreadNotificationCount;
 
   @override
   Widget build(BuildContext context) {
@@ -640,18 +660,26 @@ class _UtilityBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Text(title, style: Theme.of(context).textTheme.titleLarge),
-          const Spacer(),
+          Expanded(
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+          ),
           if (onMessages != null)
             _WorkspaceHeaderAction(
               tooltip: 'Messages',
               onPressed: onMessages,
               icon: Icons.message_outlined,
+              badgeCount: unreadMessageCount,
             ),
           _WorkspaceHeaderAction(
             tooltip: 'Notifications',
             onPressed: onNotifications,
             icon: Icons.notifications_outlined,
+            badgeCount: unreadNotificationCount,
           ),
           const SizedBox(width: 10),
           const CircleAvatar(
@@ -664,19 +692,26 @@ class _UtilityBar extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                identity.displayName ?? identity.role.label,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              Text(
-                identity.role.label,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 240),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  identity.displayName ?? identity.role.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                Text(
+                  identity.role.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -689,19 +724,64 @@ class _WorkspaceHeaderAction extends StatelessWidget {
     required this.tooltip,
     required this.onPressed,
     required this.icon,
+    this.badgeCount = 0,
   });
 
   final String tooltip;
   final VoidCallback? onPressed;
   final IconData icon;
+  final int badgeCount;
 
   @override
-  Widget build(BuildContext context) => IconButton(
-    tooltip: tooltip,
-    onPressed: onPressed,
-    constraints: const BoxConstraints.tightFor(width: 44, height: 44),
-    padding: EdgeInsets.zero,
-    iconSize: 26,
-    icon: Icon(icon),
-  );
+  Widget build(BuildContext context) {
+    final visibleCount = badgeCount > 99 ? '99+' : '$badgeCount';
+    return IconButton(
+      tooltip: tooltip,
+      onPressed: onPressed,
+      constraints: const BoxConstraints.tightFor(width: 44, height: 44),
+      padding: EdgeInsets.zero,
+      iconSize: 26,
+      icon: SizedBox.square(
+        dimension: 30,
+        child: Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.center,
+          children: [
+            Icon(icon),
+            if (badgeCount > 0)
+              Positioned(
+                top: -5,
+                right: -7,
+                child: Semantics(
+                  label: '$badgeCount unread ${tooltip.toLowerCase()}',
+                  child: Container(
+                    key: Key('${tooltip.toLowerCase()}-unread-badge'),
+                    constraints: const BoxConstraints(
+                      minWidth: 18,
+                      minHeight: 18,
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.destructive,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppColors.surface, width: 1.5),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      visibleCount,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        height: 1,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 }

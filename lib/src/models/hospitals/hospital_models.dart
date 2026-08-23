@@ -45,23 +45,28 @@ class DoctorAvailability {
     required this.specialtyLabel,
     required this.nextAvailableAt,
     required this.offersOnlineCare,
+    this.departmentLabel,
     this.consultationTypes = const [],
   });
 
   final String id;
   final String displayLabel;
   final String specialtyLabel;
+  final String? departmentLabel;
   final DateTime nextAvailableAt;
   final bool offersOnlineCare;
   final List<String> consultationTypes;
 
-  List<String> get publishedConsultationTypes => consultationTypes.isNotEmpty
-      ? consultationTypes
-      : [
-          offersOnlineCare
-              ? ConsultationType.online
-              : ConsultationType.faceToFace,
-        ];
+  List<String> get publishedConsultationTypes {
+    final supportedTypes = consultationTypes
+        .where(ConsultationType.supported.contains)
+        .toList(growable: false);
+    if (supportedTypes.isNotEmpty) return supportedTypes;
+    if (consultationTypes.isNotEmpty) return const [];
+    return [
+      offersOnlineCare ? ConsultationType.online : ConsultationType.faceToFace,
+    ];
+  }
 }
 
 class DoctorDirectoryEntry {
@@ -183,6 +188,10 @@ class HospitalDirectoryEntry {
     this.operatingStatus = 'unknown',
     this.emergencyStatus,
     this.currentEmergencyPatients,
+    this.occupiedEmergencyBeds,
+    this.closedOrUnstaffedEmergencyBeds,
+    this.reservedEmergencyBeds,
+    this.emergencyCapacitySource,
     this.updatedAt,
     this.emergencyLastUpdated,
     this.facilities = const [],
@@ -214,6 +223,10 @@ class HospitalDirectoryEntry {
   final String operatingStatus;
   final String? emergencyStatus;
   final int? currentEmergencyPatients;
+  final int? occupiedEmergencyBeds;
+  final int? closedOrUnstaffedEmergencyBeds;
+  final int? reservedEmergencyBeds;
+  final String? emergencyCapacitySource;
   final DateTime? updatedAt;
   final DateTime? emergencyLastUpdated;
   final List<HospitalFacilityAvailability> facilities;
@@ -230,7 +243,29 @@ class HospitalDirectoryEntry {
   }
 
   DateTime? get statusLastUpdated => emergencyLastUpdated ?? updatedAt;
+
+  EmergencyCapacityFreshness emergencyCapacityFreshness([DateTime? now]) {
+    final updated = emergencyLastUpdated;
+    if (updated == null || availableBeds == null || totalBeds == null) {
+      return EmergencyCapacityFreshness.unpublished;
+    }
+    final age = (now ?? DateTime.now()).difference(updated.toLocal());
+    if (age.isNegative || age <= const Duration(minutes: 5)) {
+      return EmergencyCapacityFreshness.live;
+    }
+    if (age <= const Duration(minutes: 15)) {
+      return EmergencyCapacityFreshness.delayed;
+    }
+    return EmergencyCapacityFreshness.stale;
+  }
+
+  bool hasCurrentEmergencyCapacity([DateTime? now]) => {
+    EmergencyCapacityFreshness.live,
+    EmergencyCapacityFreshness.delayed,
+  }.contains(emergencyCapacityFreshness(now));
 }
+
+enum EmergencyCapacityFreshness { unpublished, live, delayed, stale }
 
 enum HospitalDirectorySort { relevance, distance, availability }
 

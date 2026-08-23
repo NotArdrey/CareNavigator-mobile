@@ -23,10 +23,15 @@ enum CareAssistantStatus {
 enum CareAssistantChatMessageRole { user, assistant }
 
 class CareAssistantMessage {
-  const CareAssistantMessage({required this.role, required this.text});
+  const CareAssistantMessage({
+    required this.role,
+    required this.text,
+    this.images = const [],
+  });
 
   final CareAssistantChatMessageRole role;
   final String text;
+  final List<CareAssistantImage> images;
 }
 
 class CareAssistantRecommendation {
@@ -220,11 +225,20 @@ class CareAssistantController extends Notifier<CareAssistantState> {
   @override
   CareAssistantState build() => _newConversationState();
 
-  Future<void> submit(String rawMessage) async {
+  Future<void> submit(
+    String rawMessage, {
+    List<CareAssistantImage> images = const [],
+  }) async {
     final text = rawMessage.trim();
-    if (text.isEmpty || state.isBusy || state.showEmergencyActions) {
+    if ((text.isEmpty && images.isEmpty) ||
+        state.isBusy ||
+        state.showEmergencyActions) {
       return;
     }
+
+    final messageText = text.isEmpty
+        ? 'Please help me understand the medical concern shown in this image.'
+        : text;
 
     final token = ++_requestToken;
     final directory = ref.read(hospitalDirectoryProvider);
@@ -232,12 +246,13 @@ class CareAssistantController extends Notifier<CareAssistantState> {
         state.intent == CareAssistantIntent.medical &&
         state.status == CareAssistantStatus.followUp;
     final profile = CareAssistantNeedProfile.fromText(
-      text,
+      messageText,
       continueMedicalConversation: continuingMedicalConversation,
     );
     final userMessage = CareAssistantMessage(
       role: CareAssistantChatMessageRole.user,
-      text: text,
+      text: messageText,
+      images: images,
     );
     _publish(
       state.copyWith(
@@ -249,7 +264,7 @@ class CareAssistantController extends Notifier<CareAssistantState> {
         isOffline: false,
       ),
       title: state.messages.length == 1 && !state.conversationTitleEdited
-          ? _titleFrom(text)
+          ? _titleFrom(text.isEmpty ? 'Image health concern' : text)
           : null,
     );
 
@@ -325,6 +340,7 @@ class CareAssistantController extends Notifier<CareAssistantState> {
         facilities: _candidateEntries(directory)
             .map(CareAssistantFacilitySnapshot.fromHospital)
             .toList(growable: false),
+        images: images,
       );
     } on RepositoryFailure catch (error) {
       _fail(token, error.message);

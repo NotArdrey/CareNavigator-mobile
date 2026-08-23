@@ -336,27 +336,40 @@ class _LiveProfileViewState extends ConsumerState<LiveProfileView> {
           existingConditions: _conditions.text,
         ),
       );
+      final incompleteUpdates = <String>[];
       if (_selectedImageBytes != null && _selectedImage != null) {
-        await repository.updateProfileImage(
-          bytes: _selectedImageBytes!,
-          fileName: _selectedImage!.name,
-        );
+        try {
+          await repository.updateProfileImage(
+            bytes: _selectedImageBytes!,
+            fileName: _selectedImage!.name,
+          );
+        } catch (_) {
+          incompleteUpdates.add('profile image');
+        }
       }
-      await repository.updateNotificationPreferences(
-        NotificationPreferenceUpdate(
-          consultationUpdates: _consultations,
-          appointmentReminders: _appointments,
-          medicalResults: _results,
-          prescriptions: _prescriptions,
-          messages: _messages,
-          hospitalAlerts: _hospitalAlerts,
-          emailEnabled: _email,
-          inAppEnabled: _inApp,
-        ),
-      );
+      try {
+        await repository.updateNotificationPreferences(
+          NotificationPreferenceUpdate(
+            consultationUpdates: _consultations,
+            appointmentReminders: _appointments,
+            medicalResults: _results,
+            prescriptions: _prescriptions,
+            messages: _messages,
+            hospitalAlerts: _hospitalAlerts,
+            emailEnabled: _email,
+            inAppEnabled: _inApp,
+          ),
+        );
+      } catch (_) {
+        incompleteUpdates.add('notification preferences');
+      }
       _profile = null;
       ref.invalidate(careProfileProvider);
-      showRootMessage('Profile and notification preferences saved.');
+      showRootMessage(
+        incompleteUpdates.isEmpty
+            ? 'Profile and notification preferences saved.'
+            : 'Profile saved, but ${incompleteUpdates.join(' and ')} could not be saved. Please try again.',
+      );
     } catch (error) {
       showRootMessage(userFacingRepositoryError(error));
     } finally {

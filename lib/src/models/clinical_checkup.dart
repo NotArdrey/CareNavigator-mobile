@@ -41,6 +41,32 @@ class ClinicalCheckupDraft {
   final String? pregnancyStatus;
   final String? doctorNotes;
 
+  factory ClinicalCheckupDraft.fromPayload(
+    Map<dynamic, dynamic> payload,
+  ) => ClinicalCheckupDraft(
+    reasonForVisit: _payloadText(payload['reason_for_visit']),
+    heightCm: _payloadDouble(payload['height_cm']),
+    weightKg: _payloadDouble(payload['weight_kg']),
+    bloodPressureSystolic: _payloadInt(payload['blood_pressure_systolic']),
+    bloodPressureDiastolic: _payloadInt(payload['blood_pressure_diastolic']),
+    bodyTemperatureC: _payloadDouble(payload['body_temperature_c']),
+    heartRateBpm: _payloadInt(payload['heart_rate_bpm']),
+    respiratoryRateBpm: _payloadInt(payload['respiratory_rate_bpm']),
+    oxygenSaturationPercent: _payloadDouble(
+      payload['oxygen_saturation_percent'],
+    ),
+    currentSymptoms: _payloadText(payload['current_symptoms']),
+    knownMedicalConditions: _payloadList(payload['known_medical_conditions']),
+    allergies: _payloadList(payload['allergies']),
+    currentMedications: _payloadList(payload['current_medications']),
+    relevantMedicalHistory: _payloadText(payload['relevant_medical_history']),
+    previousSurgeries: _payloadText(payload['previous_surgeries']),
+    smokingStatus: _payloadText(payload['smoking_status']),
+    alcoholUse: _payloadText(payload['alcohol_use']),
+    pregnancyStatus: _payloadText(payload['pregnancy_status']),
+    doctorNotes: _payloadText(payload['doctor_notes']),
+  );
+
   double? get bmi {
     if (heightCm == null || weightKg == null || heightCm! <= 0) return null;
     final heightInMetres = heightCm! / 100;
@@ -101,4 +127,29 @@ List<String> clinicalListValues(String value) => value
 String? _text(String? value) {
   final normalized = value?.trim() ?? '';
   return normalized.isEmpty ? null : normalized;
+}
+
+String? _payloadText(Object? value) => value is String ? _text(value) : null;
+
+double? _payloadDouble(Object? value) {
+  if (value is num) return value.toDouble();
+  return value is String ? double.tryParse(value.trim()) : null;
+}
+
+int? _payloadInt(Object? value) {
+  if (value is int) return value;
+  if (value is num && value.isFinite && value == value.roundToDouble()) {
+    return value.toInt();
+  }
+  return value is String ? int.tryParse(value.trim()) : null;
+}
+
+List<String> _payloadList(Object? value) {
+  if (value is String) return clinicalListValues(value);
+  if (value is! List) return const [];
+  return value
+      .whereType<String>()
+      .map((item) => item.trim())
+      .where((item) => item.isNotEmpty)
+      .toList(growable: false);
 }

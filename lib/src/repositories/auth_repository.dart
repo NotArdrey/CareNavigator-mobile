@@ -102,6 +102,7 @@ final class SupabaseAuthRepository implements AuthRepository {
         email: email.trim().toLowerCase(),
         password: password,
         data: {
+          'registration_source': 'patient_self_service',
           'first_name': firstName,
           'last_name': lastName,
           'mobile_number': mobileNumber,

@@ -59,6 +59,10 @@ void main() {
 
       await tester.tap(find.text('Care assistant'));
       await tester.pumpAndSettle();
+      expect(
+        find.byKey(const Key('care-assistant-attach-image')),
+        findsOneWidget,
+      );
       await tester.enterText(
         find.byType(TextField).last,
         'I have a persistent headache.',
@@ -197,23 +201,71 @@ void main() {
     );
   });
 
+  test(
+    'multiple image-only submission is queued with medical context',
+    () async {
+      final container = createContainer();
+      addTearDown(container.dispose);
+      const image = CareAssistantImage(
+        bytes: [0xff, 0xd8, 0xff, 0xd9],
+        mimeType: 'image/jpeg',
+        name: 'injury.jpg',
+      );
+      const secondImage = CareAssistantImage(
+        bytes: [0x89, 0x50, 0x4e, 0x47],
+        mimeType: 'image/png',
+        name: 'rash.png',
+      );
+
+      await container
+          .read(careAssistantProvider.notifier)
+          .submit('', images: const [image, secondImage]);
+
+      final state = container.read(careAssistantProvider);
+      final userMessage = state.messages.firstWhere(
+        (message) => message.role == CareAssistantChatMessageRole.user,
+      );
+      expect(userMessage.images, const [image, secondImage]);
+      expect(userMessage.text, contains('medical concern'));
+    },
+  );
+
   testWidgets(
-    'care assistant FAB is hidden for unauthenticated users and visible when logged in',
+    'care assistant FAB is visible and opens for unauthenticated users',
     (tester) async {
       final guestContainer = createContainer(authenticated: false);
       addTearDown(guestContainer.dispose);
       addTearDown(() => tester.binding.setSurfaceSize(null));
       await pumpDirectory(tester, guestContainer);
 
-      expect(find.text('Care assistant'), findsNothing);
-
-      final authContainer = createContainer(authenticated: true);
-      addTearDown(authContainer.dispose);
-      await pumpDirectory(tester, authContainer);
-
       expect(find.text('Care assistant'), findsOneWidget);
+      await tester.tap(find.text('Care assistant'));
+      await tester.pumpAndSettle();
+      expect(find.text('CareNavigator assistant'), findsOneWidget);
+      expect(
+        find.byKey(const Key('care-assistant-attach-image')),
+        findsOneWidget,
+      );
     },
   );
+
+  testWidgets('care assistant FAB is visible on the guest mobile home', (
+    tester,
+  ) async {
+    final container = createContainer(authenticated: false);
+    addTearDown(container.dispose);
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.binding.setSurfaceSize(const Size(536, 1160));
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const CareNavigatorApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('care-assistant-launcher')), findsOneWidget);
+  });
 }
 
 class _TestAuthenticatedIdentityController extends AppIdentityController {

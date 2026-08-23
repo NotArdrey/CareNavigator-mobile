@@ -8,8 +8,6 @@ class PatientSexOption {
 const patientSexOptions = <PatientSexOption>[
   PatientSexOption(value: 'female', label: 'Female'),
   PatientSexOption(value: 'male', label: 'Male'),
-  PatientSexOption(value: 'intersex', label: 'Intersex'),
-  PatientSexOption(value: 'prefer_not_to_say', label: 'Prefer not to say'),
 ];
 
 class PatientIdentity {

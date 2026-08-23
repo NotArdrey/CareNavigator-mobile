@@ -1,6 +1,7 @@
 param(
-  [ValidateSet('edge', 'windows')]
-  [string]$Target = 'edge'
+  [ValidateSet('edge', 'windows', 'web-server')]
+  [string]$Target = 'edge',
+  [switch]$Release
 )
 
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
@@ -28,12 +29,23 @@ if ([string]::IsNullOrWhiteSpace($supabaseUrl) -or
 }
 
 $flutterArguments = @(
-  'run',
+  'run'
+)
+
+if ($Release) {
+  $flutterArguments += '--release'
+}
+
+$flutterArguments += @(
   '-d',
   $Target,
   "--dart-define=NEXT_PUBLIC_SUPABASE_URL=$supabaseUrl",
   "--dart-define=NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$supabaseKey"
 )
+
+if ($Target -eq 'web-server') {
+  $flutterArguments += @('--web-hostname', '127.0.0.1', '--web-port', '7357')
+}
 
 Push-Location $projectRoot
 try {

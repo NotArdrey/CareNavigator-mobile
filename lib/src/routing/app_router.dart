@@ -18,7 +18,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   late final GoRouter router;
   router = GoRouter(
     navigatorKey: rootNavigatorKey,
-    initialLocation: '/',
     redirect: (context, state) => _redirect(ref, state),
     routes: [
       GoRoute(path: '/', builder: (context, state) => const PublicHomeScreen()),
@@ -73,8 +72,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/sign-in',
-        builder: (context, state) =>
-            SignInScreen(redirectTo: state.uri.queryParameters['from']),
+        builder: (context, state) => SignInScreen(
+          redirectTo: state.uri.queryParameters['from'],
+          showAccountCreatedMessage:
+              state.uri.queryParameters['status'] == 'account-created',
+        ),
       ),
       GoRoute(
         path: '/register',
@@ -180,6 +182,12 @@ List<GoRoute> _workspaceRoutes(UserRole role, String path) => [
           role: role,
           location: state.uri.path,
           section: state.pathParameters['section'],
+          requestReservation:
+              role == UserRole.patient &&
+              (state.uri.queryParameters['reserve'] == 'true' ||
+                  state.uri.queryParameters['book'] == 'true'),
+          initialReservationHospitalId: state.uri.queryParameters['hospitalId'],
+          initialReservationDoctorId: state.uri.queryParameters['doctorId'],
         ),
         routes: [
           GoRoute(
@@ -224,19 +232,33 @@ String? _redirect(Ref ref, GoRouterState state) {
   }
 
   if (path.startsWith('/consultation/request')) {
-    if (!identity.isAuthenticated || identity.role == UserRole.guest) {
-      return Uri(
-        path: '/sign-in',
-        queryParameters: {'from': state.uri.toString()},
-      ).toString();
+    // This is the public, email-verified guest intake. Authenticated patients
+    // use the server-authoritative reservation flow in their workspace instead.
+    if (identity.isAuthenticated && identity.role != UserRole.guest) {
+      if (identity.role == UserRole.patient) {
+        return Uri(
+          path: '/patient/appointments',
+          queryParameters: {
+            'reserve': 'true',
+            'hospitalId': ?state.uri.queryParameters['hospitalId'],
+            'doctorId': ?state.uri.queryParameters['doctorId'],
+          },
+        ).toString();
+      }
+      return identity.role.homeLocation;
     }
-    if (identity.role != UserRole.patient) return identity.role.homeLocation;
   }
 
   final protectedRole = _roleForProtectedPath(path);
 
   if (protectedRole == null) {
-    if (path == '/sign-in' && identity.isAuthenticated) {
+    if ({
+          '/sign-in',
+          '/register',
+          '/verify-otp',
+          '/forgot-password',
+        }.contains(path) &&
+        identity.isAuthenticated) {
       final requestedLocation = state.uri.queryParameters['from'];
       if (identity.role == UserRole.patient &&
           requestedLocation != null &&

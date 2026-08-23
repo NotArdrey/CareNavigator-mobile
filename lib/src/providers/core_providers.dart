@@ -113,6 +113,18 @@ final conversationMessagesProvider = StreamProvider.autoDispose
       return repository.watchMessages(conversationId);
     });
 
+final unreadMessageCountProvider = StreamProvider.autoDispose<int>((
+  ref,
+) async* {
+  final repository = ref.watch(careRepositoryProvider);
+  if (repository == null) {
+    yield 0;
+    return;
+  }
+  final profile = await ref.watch(careProfileProvider.future);
+  yield* repository.watchUnreadMessageCount(profile.userId);
+});
+
 final careNotificationsProvider =
     StreamProvider.autoDispose<List<CareNotification>>((ref) {
       final repository = ref.watch(careRepositoryProvider);
@@ -123,6 +135,12 @@ final careNotificationsProvider =
       }
       return repository.watchNotifications();
     });
+
+final unreadNotificationCountProvider = Provider.autoDispose<int>((ref) {
+  final notifications = ref.watch(careNotificationsProvider).asData?.value;
+  return notifications?.where((notification) => !notification.isRead).length ??
+      0;
+});
 
 final authIdentityProvider = StreamProvider<AppIdentity>((ref) {
   final repository = ref.watch(authRepositoryProvider);

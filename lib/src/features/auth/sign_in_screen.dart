@@ -11,9 +11,14 @@ import '../../widgets/auth/auth_card.dart';
 import 'auth_validation.dart';
 
 class SignInScreen extends ConsumerStatefulWidget {
-  const SignInScreen({super.key, this.redirectTo});
+  const SignInScreen({
+    super.key,
+    this.redirectTo,
+    this.showAccountCreatedMessage = false,
+  });
 
   final String? redirectTo;
+  final bool showAccountCreatedMessage;
 
   @override
   ConsumerState<SignInScreen> createState() => _SignInScreenState();
@@ -74,6 +79,12 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (widget.showAccountCreatedMessage) ...[
+                const AuthStatusMessage(
+                  message: 'Account created. Check your email.',
+                ),
+                const SizedBox(height: 20),
+              ],
               if (_errorMessage != null) ...[
                 AuthStatusMessage(message: _errorMessage!, isError: true),
                 const SizedBox(height: 20),

@@ -1,13 +1,17 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:supabase/supabase.dart';
 
 import '../models/clinical_checkup.dart';
+import '../models/consultation_scheduling.dart';
 import '../models/consultation_type.dart';
 import '../models/shared/patient_identity.dart';
 
 abstract interface class CareRepository {
   Stream<List<CareMessage>> watchMessages(String conversationId);
+
+  Stream<int> watchUnreadMessageCount(String currentUserId);
 
   Stream<List<CareNotification>> watchNotifications();
 
@@ -15,18 +19,26 @@ abstract interface class CareRepository {
 
   Future<void> markNotificationRead(String notificationId);
 
+  Future<void> decidePatientConnectionRequest({
+    required String requestId,
+    required bool approve,
+  });
+
+  Future<String> ensurePatientConversation(String patientId);
+
   Future<void> sendMessage({
     required String conversationId,
     required String body,
-    String? patientId,
     ({List<int> bytes, String name})? attachment,
   });
+
+  Future<Uri> createSignedMessageAttachmentUrl(String messageId);
 
   Future<Uri> createSignedFileUrl(String fileId);
 
   Future<String> currentPatientId();
 
-  Future<void> bookAppointment({
+  Future<void> reserveAppointment({
     required String patientId,
     required DateTime appointmentDate,
     required String consultationType,
@@ -37,7 +49,11 @@ abstract interface class CareRepository {
   Future<void> recordPatientCheckup({
     required String patientId,
     required ClinicalCheckupDraft checkup,
-    ({List<int> bytes, String name})? attachment,
+    required List<({List<int> bytes, String name})> attachments,
+  });
+
+  Future<ClinicalCheckupDraft> extractCheckupFromAttachments({
+    required List<({List<int> bytes, String name})> attachments,
   });
 
   Future<void> createPatientAccount({
@@ -51,13 +67,17 @@ abstract interface class CareRepository {
     required String password,
   });
 
-  Future<void> linkExistingPatient(String email);
+  Future<List<ExistingPatientMatch>> searchExistingPatients(String query);
+
+  Future<void> linkExistingPatient(String patientId);
 
   Future<void> requestConsultationAsPatient({
     required String hospitalId,
     required String departmentLabel,
     required String careMode,
     required DateTime preferredStart,
+    String? doctorId,
+    String chiefComplaint = 'Consultation request',
   });
 
   Future<void> analyzeMedicalResult(String resultId);
@@ -90,12 +110,34 @@ abstract interface class CareRepository {
 
   Future<List<ClinicalRelationship>> listClinicalRelationships();
 
+  Future<PrescriberDetails> currentPrescriberDetails();
+
+  Future<PrescriptionScanDraft> extractPrescriptionFromAttachment({
+    required ({List<int> bytes, String name}) attachment,
+  });
+
+  Future<DiagnosticResultScanDraft> extractDiagnosticResultFromAttachment({
+    required ({List<int> bytes, String name}) attachment,
+  });
+
   Future<void> createPrescription({
     required ClinicalRelationship relationship,
     required String medicationName,
     required String dosage,
     required String frequency,
     required String duration,
+    String? diagnosisReason,
+    String? medicationFormStrength,
+    String? route,
+    String? exactDose,
+    String? quantityToDispense,
+    int refills = 0,
+    DateTime? startDate,
+    DateTime? endDate,
+    bool isPrn = false,
+    String? prnReason,
+    String? maximumDailyDose,
+    bool electronicSignatureAccepted = false,
     String? instructions,
     ({List<int> bytes, String name})? attachment,
   });
@@ -116,12 +158,146 @@ abstract interface class CareRepository {
     required List<int> bytes,
     String? referenceId,
     String? referenceType,
+    DiagnosticResultDetails? diagnosticResult,
   });
+
+  Future<void> renameOwnMedicalFile({
+    required String fileId,
+    required String title,
+  });
+
+  Future<void> deleteOwnMedicalFile({required String fileId});
 
   Future<void> deleteCareRecord({
     required String table,
     required String recordId,
   });
+}
+
+class PrescriberDetails {
+  const PrescriberDetails({
+    required this.name,
+    required this.licenseNumber,
+    this.specialization,
+  });
+
+  final String name;
+  final String licenseNumber;
+  final String? specialization;
+}
+
+class PrescriptionScanDraft {
+  const PrescriptionScanDraft({
+    this.diagnosisReason,
+    this.medicationName,
+    this.medicationFormStrength,
+    this.route,
+    this.exactDose,
+    this.frequency,
+    this.duration,
+    this.quantityToDispense,
+    this.refills,
+    this.startDate,
+    this.endDate,
+    this.isPrn = false,
+    this.prnReason,
+    this.maximumDailyDose,
+    this.instructions,
+  });
+
+  final String? diagnosisReason;
+  final String? medicationName;
+  final String? medicationFormStrength;
+  final String? route;
+  final String? exactDose;
+  final String? frequency;
+  final String? duration;
+  final String? quantityToDispense;
+  final int? refills;
+  final DateTime? startDate;
+  final DateTime? endDate;
+  final bool isPrn;
+  final String? prnReason;
+  final String? maximumDailyDose;
+  final String? instructions;
+
+  factory PrescriptionScanDraft.fromPayload(Map<dynamic, dynamic> payload) {
+    String? text(String key) {
+      final value = payload[key]?.toString().trim();
+      return value == null || value.isEmpty ? null : value;
+    }
+
+    final refillsValue = payload['refills'];
+    final parsedRefills = refillsValue is num
+        ? refillsValue.toInt()
+        : int.tryParse(refillsValue?.toString() ?? '');
+    return PrescriptionScanDraft(
+      diagnosisReason: text('diagnosis_reason'),
+      medicationName: text('medication_name'),
+      medicationFormStrength: text('medication_form_strength'),
+      route: text('route'),
+      exactDose: text('exact_dose'),
+      frequency: text('frequency'),
+      duration: text('duration'),
+      quantityToDispense: text('quantity_to_dispense'),
+      refills: parsedRefills,
+      startDate: DateTime.tryParse(text('start_date') ?? ''),
+      endDate: DateTime.tryParse(text('end_date') ?? ''),
+      isPrn: payload['is_prn'] == true,
+      prnReason: text('prn_reason'),
+      maximumDailyDose: text('maximum_daily_dose'),
+      instructions: text('instructions'),
+    );
+  }
+}
+
+class DiagnosticResultScanDraft {
+  const DiagnosticResultScanDraft({
+    this.category,
+    this.testProcedureName,
+    this.performedOrCollectedDate,
+    this.resultDate,
+    this.facility,
+    this.requestingDoctor,
+    this.findingsImpression,
+    this.notes,
+  });
+
+  final String? category;
+  final String? testProcedureName;
+  final DateTime? performedOrCollectedDate;
+  final DateTime? resultDate;
+  final String? facility;
+  final String? requestingDoctor;
+  final String? findingsImpression;
+  final String? notes;
+
+  factory DiagnosticResultScanDraft.fromPayload(Map<dynamic, dynamic> payload) {
+    String? text(String key) {
+      final value = payload[key]?.toString().trim();
+      return value == null || value.isEmpty ? null : value;
+    }
+
+    final parsedCategory = text('result_category');
+    return DiagnosticResultScanDraft(
+      category:
+          parsedCategory != null &&
+              DiagnosticResultDetails.supportedCategories.contains(
+                parsedCategory,
+              )
+          ? parsedCategory
+          : null,
+      testProcedureName: text('test_procedure_name'),
+      performedOrCollectedDate: DateTime.tryParse(
+        text('performed_or_collected_date') ?? '',
+      ),
+      resultDate: DateTime.tryParse(text('result_date') ?? ''),
+      facility: text('facility'),
+      requestingDoctor: text('requesting_doctor'),
+      findingsImpression: text('findings_impression'),
+      notes: text('notes'),
+    );
+  }
 }
 
 class CareMessage {
@@ -132,6 +308,7 @@ class CareMessage {
     required this.message,
     required this.sentAt,
     this.messageType = 'text',
+    this.attachmentPath,
     this.readAt,
   });
 
@@ -141,6 +318,7 @@ class CareMessage {
   final String? message;
   final DateTime sentAt;
   final String messageType;
+  final String? attachmentPath;
   final DateTime? readAt;
 
   factory CareMessage.fromJson(Map<String, dynamic> json) => CareMessage(
@@ -150,6 +328,7 @@ class CareMessage {
     message: json['message'] as String?,
     sentAt: DateTime.parse(json['sent_at'] as String),
     messageType: json['message_type'] as String? ?? 'text',
+    attachmentPath: _nullableText(json['attachment_path']),
     readAt: _optionalDateTime(json['read_at']),
   );
 }
@@ -163,6 +342,8 @@ class CareNotification {
     required this.isRead,
     required this.createdAt,
     this.actionPath,
+    this.referenceId,
+    this.data = const {},
   });
 
   final String id;
@@ -172,6 +353,8 @@ class CareNotification {
   final bool isRead;
   final DateTime createdAt;
   final String? actionPath;
+  final String? referenceId;
+  final Map<String, Object?> data;
 
   factory CareNotification.fromJson(Map<String, dynamic> json) =>
       CareNotification(
@@ -182,6 +365,10 @@ class CareNotification {
         isRead: json['is_read'] as bool? ?? false,
         createdAt: DateTime.parse(json['created_at'] as String),
         actionPath: (json['action_path'] ?? json['action_url']) as String?,
+        referenceId: _nullableText(json['reference_id']),
+        data: json['data'] is Map
+            ? Map<String, Object?>.from(json['data'] as Map)
+            : const {},
       );
 }
 
@@ -191,24 +378,89 @@ class ClinicalRelationship {
     required this.patientLabel,
     required this.consultationId,
     required this.consultationLabel,
+    this.assignmentId,
   });
 
   final String patientId;
   final String patientLabel;
   final String consultationId;
   final String consultationLabel;
+  final String? assignmentId;
+
+  bool get hasConsultation => consultationId.trim().isNotEmpty;
+
+  String? get clinicalReferenceId =>
+      hasConsultation ? consultationId : _nullableText(assignmentId);
+
+  String? get clinicalReferenceType => hasConsultation
+      ? 'consultation'
+      : (_nullableText(assignmentId) == null
+            ? null
+            : 'doctor_patient_assignment');
+}
+
+class DiagnosticResultDetails {
+  const DiagnosticResultDetails({
+    required this.category,
+    required this.testProcedureName,
+    required this.performedOrCollectedDate,
+    required this.resultDate,
+    required this.facility,
+    required this.requestingDoctor,
+    this.findingsImpression,
+    this.notes,
+  });
+
+  static const supportedCategories = {
+    'laboratory',
+    'x_ray',
+    'ct_scan',
+    'mri',
+    'ultrasound',
+    'ecg',
+    'pathology',
+    'other',
+  };
+
+  final String category;
+  final String testProcedureName;
+  final DateTime performedOrCollectedDate;
+  final DateTime resultDate;
+  final String facility;
+  final String requestingDoctor;
+  final String? findingsImpression;
+  final String? notes;
+}
+
+class ExistingPatientMatch {
+  const ExistingPatientMatch({
+    required this.patientId,
+    required this.displayName,
+    required this.email,
+  });
+
+  final String patientId;
+  final String displayName;
+  final String email;
+
+  factory ExistingPatientMatch.fromJson(Map<String, dynamic> json) =>
+      ExistingPatientMatch(
+        patientId: json['patient_id'] as String,
+        displayName: json['display_name'] as String,
+        email: json['email'] as String,
+      );
 }
 
 class SupabaseCareRepository implements CareRepository {
   SupabaseCareRepository(this._client);
 
   static const _medicalBucket = 'medical-documents';
+  static const _consultationAttachmentBucket = 'consultation-attachments';
   static const _maximumMedicalFileSize = 20 * 1024 * 1024;
-  static const _allowedMedicalTypes = <String, String>{
-    'pdf': 'application/pdf',
-    'jpg': 'image/jpeg',
-    'jpeg': 'image/jpeg',
-    'png': 'image/png',
+  static const _aiSummarizedDocumentTypes = {
+    'lab_result',
+    'diagnostic_result',
+    'prescription',
   };
 
   final SupabaseClient _client;
@@ -219,11 +471,26 @@ class SupabaseCareRepository implements CareRepository {
         .from('chat_messages')
         .stream(primaryKey: const ['id'])
         .eq('conversation_id', conversationId)
-        .order('sent_at')
+        .order('sent_at', ascending: false)
         .map(
           (rows) => rows
               .map((row) => CareMessage.fromJson(row))
               .toList(growable: false),
+        );
+  }
+
+  @override
+  Stream<int> watchUnreadMessageCount(String currentUserId) {
+    return _client
+        .from('chat_messages')
+        .stream(primaryKey: const ['id'])
+        .neq('sender_id', currentUserId)
+        .map(
+          (rows) => rows
+              .where(
+                (row) => row['read_at'] == null && row['deleted_at'] == null,
+              )
+              .length,
         );
   }
 
@@ -263,38 +530,119 @@ class SupabaseCareRepository implements CareRepository {
   }
 
   @override
+  Future<void> decidePatientConnectionRequest({
+    required String requestId,
+    required bool approve,
+  }) async {
+    if (requestId.trim().isEmpty) {
+      throw ArgumentError('A connection request is required.');
+    }
+    await _client.rpc<Object?>(
+      'decide_patient_connection_request',
+      params: {'target_request_id': requestId, 'approve_request': approve},
+    );
+  }
+
+  @override
+  Future<String> ensurePatientConversation(String patientId) async {
+    if (patientId.trim().isEmpty) {
+      throw ArgumentError('A patient is required to start a conversation.');
+    }
+    return _client.rpc<String>(
+      'ensure_patient_conversation',
+      params: {'target_patient_id': patientId},
+    );
+  }
+
+  @override
   Future<void> sendMessage({
     required String conversationId,
     required String body,
-    String? patientId,
     ({List<int> bytes, String name})? attachment,
   }) async {
     final normalizedBody = body.trim();
     if (conversationId.trim().isEmpty) {
       throw ArgumentError('A conversation is required to send a message.');
     }
-    if (normalizedBody.isEmpty) {
-      throw ArgumentError.value(body, 'body', 'A message cannot be empty.');
-    }
-    final messageId = await _client.rpc<String>(
-      'send_chat_message',
-      params: {
-        'target_conversation_id': conversationId,
-        'message_body': normalizedBody,
-      },
-    );
-
-    if (attachment != null && patientId != null) {
-      await uploadMedicalFile(
-        patientId: patientId,
-        fileName: attachment.name,
-        title: 'Message Attachment',
-        documentType: 'chat_message',
-        bytes: attachment.bytes,
-        referenceId: messageId,
-        referenceType: 'chat_message',
+    if (normalizedBody.isEmpty && attachment == null) {
+      throw ArgumentError.value(
+        body,
+        'body',
+        'A message or attachment is required.',
       );
     }
+    String? attachmentPath;
+    if (attachment != null) {
+      final mimeType = _medicalMimeType(attachment.name, attachment.bytes);
+      final user = _client.auth.currentUser;
+      if (user == null || user.isAnonymous) {
+        throw StateError(
+          'An authenticated account is required to attach files.',
+        );
+      }
+      final conversation = await _client
+          .from('chat_conversations')
+          .select('consultation_id,patient_id')
+          .eq('id', conversationId)
+          .single();
+      final consultationId = conversation['consultation_id']?.toString() ?? '';
+      final patientId = conversation['patient_id']?.toString() ?? '';
+      if (consultationId.isEmpty && patientId.isEmpty) {
+        throw StateError('The conversation is missing its care relationship.');
+      }
+      final conversationFolder = consultationId.isNotEmpty
+          ? consultationId
+          : 'direct/$patientId/$conversationId';
+      attachmentPath =
+          '$conversationFolder/${user.id}/${DateTime.now().toUtc().microsecondsSinceEpoch}-${_safeFileName(attachment.name)}';
+      await _client.storage
+          .from(_consultationAttachmentBucket)
+          .uploadBinary(
+            attachmentPath,
+            Uint8List.fromList(attachment.bytes),
+            fileOptions: FileOptions(contentType: mimeType, upsert: false),
+          );
+    }
+
+    try {
+      await _client.rpc<String>(
+        'send_chat_message',
+        params: {
+          'target_conversation_id': conversationId,
+          'message_body': normalizedBody.isEmpty ? null : normalizedBody,
+          if (attachmentPath != null) 'attachment_paths': [attachmentPath],
+        },
+      );
+    } catch (_) {
+      if (attachmentPath != null) {
+        try {
+          await _client.storage.from(_consultationAttachmentBucket).remove([
+            attachmentPath,
+          ]);
+        } catch (_) {
+          // Preserve the original send failure; storage cleanup is best effort.
+        }
+      }
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Uri> createSignedMessageAttachmentUrl(String messageId) async {
+    if (messageId.trim().isEmpty) {
+      throw ArgumentError('A message is required to download its attachment.');
+    }
+    final row = await _client
+        .from('chat_message_attachments')
+        .select('storage_path')
+        .eq('message_id', messageId)
+        .order('created_at')
+        .limit(1)
+        .single();
+    final url = await _client.storage
+        .from(_consultationAttachmentBucket)
+        .createSignedUrl(row['storage_path'] as String, 60);
+    return Uri.parse(url);
   }
 
   @override
@@ -302,22 +650,21 @@ class SupabaseCareRepository implements CareRepository {
     if (fileId.trim().isEmpty) {
       throw ArgumentError('A medical document is required to download a file.');
     }
-    final row = await _client
-        .from('medical_documents')
-        .select('storage_bucket,storage_path')
-        .eq('id', fileId)
-        .single();
-    await _client.rpc<int>(
-      'record_clinical_access',
-      params: {
-        'target_resource_type': 'medical_document',
-        'target_resource_id': fileId,
-        'target_action': 'download',
-      },
+    final access = await _client.rpc<Map<String, dynamic>>(
+      'get_authorized_medical_document_download',
+      params: {'target_document_id': fileId},
     );
+    final bucket = access['storage_bucket']?.toString() ?? '';
+    final path = access['storage_path']?.toString() ?? '';
+    final expiresIn = access['expires_in_seconds'] is int
+        ? access['expires_in_seconds'] as int
+        : int.tryParse('${access['expires_in_seconds']}') ?? 60;
+    if (bucket.isEmpty || path.isEmpty) {
+      throw StateError('The authorized document has no secure file location.');
+    }
     final url = await _client.storage
-        .from(row['storage_bucket'] as String)
-        .createSignedUrl(row['storage_path'] as String, 60);
+        .from(bucket)
+        .createSignedUrl(path, expiresIn.clamp(30, 300));
     return Uri.parse(url);
   }
 
@@ -341,7 +688,7 @@ class SupabaseCareRepository implements CareRepository {
   }
 
   @override
-  Future<void> bookAppointment({
+  Future<void> reserveAppointment({
     required String patientId,
     required DateTime appointmentDate,
     required String consultationType,
@@ -354,8 +701,8 @@ class SupabaseCareRepository implements CareRepository {
     if (patientId.trim().isEmpty) {
       throw ArgumentError('A patient is required for an appointment.');
     }
-    if (!appointmentDate.toUtc().isAfter(DateTime.now().toUtc())) {
-      throw ArgumentError('Choose a future appointment time.');
+    if (!meetsReservationLeadTime(appointmentDate)) {
+      throw ArgumentError(reservationLeadTimeMessage);
     }
     final complaint = chiefComplaint.trim();
     if (complaint.length < 5) {
@@ -363,20 +710,15 @@ class SupabaseCareRepository implements CareRepository {
         'Describe the care concern in at least 5 characters.',
       );
     }
-    final doctor = await _currentDoctor();
-    final result = await _client
-        .from('consultations')
-        .insert({
-          'patient_id': patientId,
-          'doctor_id': doctor['id'],
-          'hospital_id': doctor['hospital_id'],
-          'appointment_date': appointmentDate.toIso8601String(),
-          'consultation_type': normalizedConsultationType,
-          'chief_complaint': complaint,
-          'status': 'scheduled',
-        })
-        .select('id')
-        .single();
+    final result = await _client.rpc<String>(
+      'book_doctor_consultation',
+      params: {
+        'target_patient_id': patientId,
+        'target_appointment_date': appointmentDate.toUtc().toIso8601String(),
+        'target_type': normalizedConsultationType,
+        'target_chief_complaint': complaint,
+      },
+    );
 
     if (attachment != null) {
       await uploadMedicalFile(
@@ -385,7 +727,7 @@ class SupabaseCareRepository implements CareRepository {
         title: 'Appointment Attachment',
         documentType: 'appointment',
         bytes: attachment.bytes,
-        referenceId: result['id'].toString(),
+        referenceId: result,
         referenceType: 'consultation',
       );
     }
@@ -395,7 +737,7 @@ class SupabaseCareRepository implements CareRepository {
   Future<void> recordPatientCheckup({
     required String patientId,
     required ClinicalCheckupDraft checkup,
-    ({List<int> bytes, String name})? attachment,
+    required List<({List<int> bytes, String name})> attachments,
   }) async {
     if (patientId.trim().isEmpty) {
       throw ArgumentError('A patient is required for a checkup.');
@@ -412,20 +754,79 @@ class SupabaseCareRepository implements CareRepository {
           'recorded_at': DateTime.now().toUtc().toIso8601String(),
         },
       );
-      if (attachment != null && result['id'] != null) {
-        await uploadMedicalFile(
-          patientId: patientId,
-          fileName: attachment.name,
-          title: 'Checkup Attachment',
-          documentType: 'medical_record',
-          bytes: attachment.bytes,
-          referenceId: result['id'].toString(),
-          referenceType: 'medical_record',
-        );
+      if (result['id'] != null) {
+        for (final attachment in attachments) {
+          await uploadMedicalFile(
+            patientId: patientId,
+            fileName: attachment.name,
+            title: 'Checkup Attachment',
+            documentType: 'medical_record',
+            bytes: attachment.bytes,
+            referenceId: result['id'].toString(),
+            referenceType: 'medical_record',
+          );
+        }
       }
     } on PostgrestException catch (error) {
       throw StateError(error.message);
     }
+  }
+
+  @override
+  Future<ClinicalCheckupDraft> extractCheckupFromAttachments({
+    required List<({List<int> bytes, String name})> attachments,
+  }) async {
+    if (attachments.isEmpty) {
+      throw ArgumentError('Attach at least one medical file to scan.');
+    }
+    if (attachments.length > 5) {
+      throw ArgumentError('Scan up to 5 medical files at a time.');
+    }
+
+    var encodedCharacters = 0;
+    final encodedAttachments = <Map<String, String>>[];
+    for (final attachment in attachments) {
+      final mimeType = _medicalMimeType(attachment.name, attachment.bytes);
+      final encoded = base64Encode(attachment.bytes);
+      encodedCharacters += encoded.length;
+      if (encodedCharacters > 2800000) {
+        throw ArgumentError(
+          'The selected files are too large to scan together. Use fewer files or files under 2 MB total.',
+        );
+      }
+      encodedAttachments.add({
+        'data': encoded,
+        'mime_type': mimeType,
+        'file_name': attachment.name,
+      });
+    }
+
+    late final FunctionResponse response;
+    try {
+      response = await _client.functions.invoke(
+        'care-navigator-chat',
+        body: {'action': 'extract_checkup', 'attachments': encodedAttachments},
+      );
+    } on FunctionException catch (error) {
+      final details = error.details;
+      final message = details is Map ? details['error'] : null;
+      throw StateError(
+        message?.toString() ?? 'The checkup files could not be scanned.',
+      );
+    }
+    if (response.status < 200 || response.status >= 300) {
+      final data = response.data;
+      final message = data is Map ? data['error'] : null;
+      throw StateError(
+        message?.toString() ?? 'The checkup files could not be scanned.',
+      );
+    }
+    final data = response.data;
+    final checkup = data is Map ? data['checkup'] : null;
+    if (checkup is! Map) {
+      throw StateError('The AI scan returned an invalid checkup draft.');
+    }
+    return ClinicalCheckupDraft.fromPayload(checkup);
   }
 
   @override
@@ -484,59 +885,40 @@ class SupabaseCareRepository implements CareRepository {
   }
 
   @override
-  Future<void> linkExistingPatient(String email) async {
-    if (email.trim().isEmpty) {
-      throw ArgumentError('A patient email address is required.');
-    }
-    final user = await _client
-        .from('users')
-        .select('id')
-        .eq('email', email.trim().toLowerCase())
-        .maybeSingle();
-    if (user == null) {
-      throw StateError('No patient account found with that email.');
-    }
-
-    final patient = await _client
-        .from('patients')
-        .select('id')
-        .eq('user_id', user['id'])
-        .maybeSingle();
-    if (patient == null) {
-      throw StateError('The user is not registered as a patient.');
-    }
-
-    final authUser = _client.auth.currentUser;
-    if (authUser == null) throw StateError('Doctor session not found.');
-
-    final doctorUser = await _client
-        .from('users')
-        .select('id')
-        .eq('auth_user_id', authUser.id)
-        .maybeSingle();
-    if (doctorUser == null) throw StateError('Doctor account not found.');
-
-    final doctor = await _client
-        .from('doctors')
-        .select('id')
-        .eq('user_id', doctorUser['id'])
-        .maybeSingle();
-    if (doctor == null) throw StateError('Doctor profile not found.');
-
+  Future<List<ExistingPatientMatch>> searchExistingPatients(
+    String query,
+  ) async {
+    final normalizedQuery = query.trim();
+    if (normalizedQuery.length < 2) return const [];
     try {
-      await _client
-          .from('doctor_patient_assignments')
-          .insert({
-            'doctor_id': doctor['id'],
-            'patient_id': patient['id'],
-            'assigned_by': doctorUser['id'],
-          })
-          .select('id')
-          .single();
+      final response = await _client.rpc<List<dynamic>>(
+        'search_existing_patients',
+        params: {'search_query': normalizedQuery},
+      );
+      return response
+          .map(
+            (row) => ExistingPatientMatch.fromJson(
+              Map<String, dynamic>.from(row as Map),
+            ),
+          )
+          .toList(growable: false);
     } on PostgrestException catch (error) {
-      if (error.code == '23505') {
-        throw StateError('This patient is already linked to your account.');
-      }
+      throw StateError(error.message);
+    }
+  }
+
+  @override
+  Future<void> linkExistingPatient(String patientId) async {
+    final normalizedPatientId = patientId.trim();
+    if (normalizedPatientId.isEmpty) {
+      throw ArgumentError('Select an existing patient account.');
+    }
+    try {
+      await _client.rpc<dynamic>(
+        'link_existing_patient',
+        params: {'target_patient_id': normalizedPatientId},
+      );
+    } on PostgrestException catch (error) {
       throw StateError(error.message);
     }
   }
@@ -547,13 +929,21 @@ class SupabaseCareRepository implements CareRepository {
     required String departmentLabel,
     required String careMode,
     required DateTime preferredStart,
+    String? doctorId,
+    String chiefComplaint = 'Consultation request',
   }) async {
     final normalizedConsultationType = ConsultationType.normalize(careMode);
     if (hospitalId.trim().isEmpty || departmentLabel.trim().isEmpty) {
       throw ArgumentError('A hospital and department are required.');
     }
-    if (!preferredStart.toUtc().isAfter(DateTime.now().toUtc())) {
-      throw ArgumentError('Choose a future preferred schedule.');
+    if (!meetsReservationLeadTime(preferredStart)) {
+      throw ArgumentError(reservationLeadTimeMessage);
+    }
+    final complaint = chiefComplaint.trim();
+    if (complaint.length < 5) {
+      throw ArgumentError(
+        'Describe the care concern in at least 5 characters.',
+      );
     }
     final authUser = _client.auth.currentUser;
     if (authUser == null) throw StateError('User session not found.');
@@ -584,19 +974,40 @@ class SupabaseCareRepository implements CareRepository {
       throw StateError('Department not found in this hospital.');
     }
 
+    final normalizedDoctorId = doctorId?.trim();
+    final doctor = normalizedDoctorId == null || normalizedDoctorId.isEmpty
+        ? await _client
+              .from('doctors')
+              .select('id')
+              .eq('hospital_id', hospitalId)
+              .eq('department_id', department['id'])
+              .neq('availability_status', 'unavailable')
+              .limit(1)
+              .maybeSingle()
+        : await _client
+              .from('doctors')
+              .select('id')
+              .eq('id', normalizedDoctorId)
+              .eq('hospital_id', hospitalId)
+              .eq('department_id', department['id'])
+              .maybeSingle();
+    if (doctor == null) {
+      throw StateError('No published doctor is available for this department.');
+    }
+
     try {
-      await _client
-          .from('consultations')
-          .insert({
+      await _client.rpc<String>(
+        'book_consultation',
+        params: {
+          'booking_payload': {
+            'doctor_id': doctor['id'],
             'hospital_id': hospitalId,
-            'department_id': department['id'],
-            'patient_id': patient['id'],
             'consultation_type': normalizedConsultationType,
-            'appointment_date': preferredStart.toIso8601String(),
-            'status': 'pending',
-          })
-          .select('id')
-          .single();
+            'appointment_date': preferredStart.toUtc().toIso8601String(),
+            'chief_complaint': complaint,
+          },
+        },
+      );
     } on PostgrestException catch (error) {
       throw StateError(error.message);
     }
@@ -745,10 +1156,10 @@ class SupabaseCareRepository implements CareRepository {
         .eq('doctor_id', doctor['id'])
         .neq('status', 'rejected')
         .neq('status', 'cancelled');
-    final booked = consultations.any(
+    final reserved = consultations.any(
       (row) => _appointmentMatchesSchedule(row, schedule),
     );
-    if (booked) {
+    if (reserved) {
       throw StateError(
         'This availability protects an existing appointment and cannot be deleted.',
       );
@@ -801,16 +1212,32 @@ class SupabaseCareRepository implements CareRepository {
   @override
   Future<List<ClinicalRelationship>> listClinicalRelationships() async {
     final doctor = await _currentDoctor();
+    final assignmentRows = await _client
+        .from('doctor_patient_assignments')
+        .select('id,patient_id,consultation_id,assigned_at')
+        .eq('doctor_id', doctor['id'])
+        .eq('assignment_status', 'active')
+        .isFilter('ended_at', null)
+        .order('assigned_at', ascending: false)
+        .limit(100);
     final consultationRows = await _client
         .from('consultations')
         .select('id,patient_id,chief_complaint,status,appointment_date')
         .eq('doctor_id', doctor['id'])
+        // Clinical write grants are active only while the consultation is in
+        // one of these states. Returning historical consultations here made
+        // the UI offer cancelled/completed records that storage and RLS then
+        // correctly rejected during prescription and result uploads.
+        .inFilter('status', const ['approved', 'scheduled', 'in_progress'])
         .order('appointment_date', ascending: false)
         .limit(100);
-    final eligible = consultationRows
+    final eligibleConsultations = consultationRows
         .where((row) => row['patient_id'] != null)
         .toList(growable: false);
-    final patientIds = eligible
+    final eligibleAssignments = assignmentRows
+        .where((row) => row['patient_id'] != null)
+        .toList(growable: false);
+    final patientIds = [...eligibleAssignments, ...eligibleConsultations]
         .map((row) => row['patient_id'].toString())
         .toSet()
         .toList(growable: false);
@@ -826,19 +1253,183 @@ class SupabaseCareRepository implements CareRepository {
             row['patient_number']?.toString() ??
             'Patient ${_shortId(row['id'].toString())}',
     };
-    return eligible
-        .map(
-          (row) => ClinicalRelationship(
-            patientId: row['patient_id'].toString(),
-            patientLabel:
-                patientLabels[row['patient_id'].toString()] ??
-                'Patient ${_shortId(row['patient_id'].toString())}',
-            consultationId: row['id'].toString(),
-            consultationLabel:
-                '${row['chief_complaint'] ?? 'Consultation'} · ${row['status']}',
-          ),
-        )
-        .toList(growable: false);
+    String patientLabel(String patientId) =>
+        patientLabels[patientId] ?? 'Patient ${_shortId(patientId)}';
+    final consultationsById = {
+      for (final row in eligibleConsultations) row['id'].toString(): row,
+    };
+    final relationships = <ClinicalRelationship>[];
+    final representedConsultations = <String>{};
+    for (final assignment in eligibleAssignments) {
+      final patientId = assignment['patient_id'].toString();
+      final linkedConsultationId =
+          _nullableText(assignment['consultation_id']?.toString()) ?? '';
+      final activeConsultation = consultationsById[linkedConsultationId];
+      final consultationId = activeConsultation == null
+          ? ''
+          : linkedConsultationId;
+      if (consultationId.isNotEmpty) {
+        representedConsultations.add(consultationId);
+      }
+      relationships.add(
+        ClinicalRelationship(
+          patientId: patientId,
+          patientLabel: patientLabel(patientId),
+          consultationId: consultationId,
+          consultationLabel: activeConsultation == null
+              ? 'Assigned care relationship'
+              : '${activeConsultation['chief_complaint'] ?? 'Consultation'} · ${activeConsultation['status']}',
+          assignmentId: assignment['id'].toString(),
+        ),
+      );
+    }
+    for (final consultation in eligibleConsultations) {
+      final consultationId = consultation['id'].toString();
+      if (representedConsultations.contains(consultationId)) continue;
+      final patientId = consultation['patient_id'].toString();
+      relationships.add(
+        ClinicalRelationship(
+          patientId: patientId,
+          patientLabel: patientLabel(patientId),
+          consultationId: consultationId,
+          consultationLabel:
+              '${consultation['chief_complaint'] ?? 'Consultation'} · ${consultation['status']}',
+        ),
+      );
+    }
+    return relationships;
+  }
+
+  @override
+  Future<PrescriberDetails> currentPrescriberDetails() async {
+    final doctor = await _currentDoctor();
+    final name = doctor['display_name']?.toString().trim() ?? '';
+    final licenseNumber = doctor['license_number']?.toString().trim() ?? '';
+    if (name.isEmpty || licenseNumber.isEmpty) {
+      throw StateError(
+        'Complete your prescriber name and license number in your profile before issuing a prescription.',
+      );
+    }
+    final specialization = doctor['specialization']?.toString().trim();
+    return PrescriberDetails(
+      name: name,
+      licenseNumber: licenseNumber,
+      specialization: specialization == null || specialization.isEmpty
+          ? null
+          : specialization,
+    );
+  }
+
+  @override
+  Future<PrescriptionScanDraft> extractPrescriptionFromAttachment({
+    required ({List<int> bytes, String name}) attachment,
+  }) async {
+    final mimeType = _medicalMimeType(attachment.name, attachment.bytes);
+    if (!{'application/pdf', 'image/jpeg', 'image/png'}.contains(mimeType)) {
+      throw ArgumentError(
+        'Prescription scanning supports PDF, JPG, and PNG files.',
+      );
+    }
+    final encoded = base64Encode(attachment.bytes);
+    if (encoded.length > 2800000) {
+      throw ArgumentError(
+        'The selected file is too large to scan. Use a file under 2 MB.',
+      );
+    }
+
+    late final FunctionResponse response;
+    try {
+      response = await _client.functions.invoke(
+        'care-navigator-chat',
+        body: {
+          'action': 'extract_prescription',
+          'attachments': [
+            {
+              'data': encoded,
+              'mime_type': mimeType,
+              'file_name': attachment.name,
+            },
+          ],
+        },
+      );
+    } on FunctionException catch (error) {
+      final details = error.details;
+      final message = details is Map ? details['error'] : null;
+      throw StateError(
+        message?.toString() ?? 'The prescription file could not be scanned.',
+      );
+    }
+    if (response.status < 200 || response.status >= 300) {
+      final data = response.data;
+      final message = data is Map ? data['error'] : null;
+      throw StateError(
+        message?.toString() ?? 'The prescription file could not be scanned.',
+      );
+    }
+    final data = response.data;
+    final prescription = data is Map ? data['prescription'] : null;
+    if (prescription is! Map) {
+      throw StateError('The AI scan returned an invalid prescription draft.');
+    }
+    return PrescriptionScanDraft.fromPayload(prescription);
+  }
+
+  @override
+  Future<DiagnosticResultScanDraft> extractDiagnosticResultFromAttachment({
+    required ({List<int> bytes, String name}) attachment,
+  }) async {
+    final mimeType = _medicalMimeType(attachment.name, attachment.bytes);
+    if (!{'application/pdf', 'image/jpeg', 'image/png'}.contains(mimeType)) {
+      throw ArgumentError(
+        'Diagnostic result scanning supports PDF, JPG, and PNG files.',
+      );
+    }
+    final encoded = base64Encode(attachment.bytes);
+    if (encoded.length > 2800000) {
+      throw ArgumentError(
+        'The selected file is too large to scan. Use a file under 2 MB.',
+      );
+    }
+
+    late final FunctionResponse response;
+    try {
+      response = await _client.functions.invoke(
+        'care-navigator-chat',
+        body: {
+          'action': 'extract_diagnostic_result',
+          'attachments': [
+            {
+              'data': encoded,
+              'mime_type': mimeType,
+              'file_name': attachment.name,
+            },
+          ],
+        },
+      );
+    } on FunctionException catch (error) {
+      final details = error.details;
+      final message = details is Map ? details['error'] : null;
+      throw StateError(
+        message?.toString() ??
+            'The diagnostic result file could not be scanned.',
+      );
+    }
+    if (response.status < 200 || response.status >= 300) {
+      final data = response.data;
+      final message = data is Map ? data['error'] : null;
+      throw StateError(
+        message?.toString() ??
+            'The diagnostic result file could not be scanned.',
+      );
+    }
+    final data = response.data;
+    final diagnosticResult = data is Map ? data['diagnostic_result'] : null;
+    if (diagnosticResult is! Map) {
+      throw StateError(
+        'The AI scan returned an invalid diagnostic result draft.',
+      );
+    }
+    return DiagnosticResultScanDraft.fromPayload(diagnosticResult);
   }
 
   @override
@@ -848,31 +1439,108 @@ class SupabaseCareRepository implements CareRepository {
     required String dosage,
     required String frequency,
     required String duration,
+    String? diagnosisReason,
+    String? medicationFormStrength,
+    String? route,
+    String? exactDose,
+    String? quantityToDispense,
+    int refills = 0,
+    DateTime? startDate,
+    DateTime? endDate,
+    bool isPrn = false,
+    String? prnReason,
+    String? maximumDailyDose,
+    bool electronicSignatureAccepted = false,
     String? instructions,
     ({List<int> bytes, String name})? attachment,
   }) async {
     final values = [medicationName, dosage, frequency, duration];
     if (relationship.patientId.trim().isEmpty ||
-        relationship.consultationId.trim().isEmpty) {
-      throw ArgumentError('A patient consultation is required to prescribe.');
+        relationship.clinicalReferenceId == null) {
+      throw ArgumentError(
+        'An active doctor-patient relationship is required to prescribe.',
+      );
     }
     if (values.any((value) => value.trim().isEmpty)) {
       throw ArgumentError(
         'Medication, dosage, frequency, and duration are required.',
       );
     }
+    final clinicalValues = {
+      'diagnosis or reason': diagnosisReason,
+      'medication form and strength': medicationFormStrength,
+      'route': route,
+      'exact dose': exactDose,
+      'quantity to dispense': quantityToDispense,
+    };
+    final missingClinicalValue = clinicalValues.entries
+        .where((entry) => entry.value == null || entry.value!.trim().isEmpty)
+        .map((entry) => entry.key)
+        .firstOrNull;
+    if (missingClinicalValue != null) {
+      throw ArgumentError('A $missingClinicalValue is required.');
+    }
+    if (refills < 0 || refills > 99) {
+      throw ArgumentError('Refills must be between 0 and 99.');
+    }
+    if (startDate == null) {
+      throw ArgumentError('A prescription start date is required.');
+    }
+    if (endDate != null && endDate.isBefore(startDate)) {
+      throw ArgumentError('The end date cannot be before the start date.');
+    }
+    if (isPrn &&
+        ((prnReason?.trim().isEmpty ?? true) ||
+            (maximumDailyDose?.trim().isEmpty ?? true))) {
+      throw ArgumentError(
+        'PRN prescriptions require a reason and maximum daily dose.',
+      );
+    }
+    if (!electronicSignatureAccepted) {
+      throw ArgumentError('Electronic signature confirmation is required.');
+    }
     final doctor = await _currentDoctor();
+    final prescriberName = doctor['display_name']?.toString().trim() ?? '';
+    final prescriberLicense = doctor['license_number']?.toString().trim() ?? '';
+    if (prescriberName.isEmpty || prescriberLicense.isEmpty) {
+      throw StateError(
+        'Complete your prescriber name and license number in your profile before issuing a prescription.',
+      );
+    }
+    final signedAt = DateTime.now().toUtc();
     final result = await _client
         .from('prescriptions')
         .insert({
           'patient_id': relationship.patientId,
           'doctor_id': doctor['id'],
-          'consultation_id': relationship.consultationId,
+          'consultation_id': relationship.hasConsultation
+              ? relationship.consultationId
+              : null,
+          'assignment_id': relationship.assignmentId,
           'hospital_id': doctor['hospital_id'],
           'medication_name': medicationName.trim(),
           'dosage': dosage.trim(),
           'frequency': frequency.trim(),
           'duration': duration.trim(),
+          'diagnosis_reason': diagnosisReason!.trim(),
+          'medication_form_strength': medicationFormStrength!.trim(),
+          'route': route!.trim(),
+          'exact_dose': exactDose!.trim(),
+          'quantity_to_dispense': quantityToDispense!.trim(),
+          'refills': refills,
+          'start_date': _dateOnly(startDate),
+          'end_date': endDate == null ? null : _dateOnly(endDate),
+          'is_prn': isPrn,
+          'prn_reason': isPrn ? _nullableText(prnReason) : null,
+          'maximum_daily_dose': isPrn ? _nullableText(maximumDailyDose) : null,
+          'prescriber_name': prescriberName,
+          'prescriber_license_number': prescriberLicense,
+          'prescriber_specialization': _nullableText(
+            doctor['specialization']?.toString(),
+          ),
+          'electronically_signed_at': signedAt.toIso8601String(),
+          'electronically_signed_by': doctor['user_id'],
+          'signature_method': 'authenticated_account_attestation',
           'instructions': _nullableText(instructions),
         })
         .select('id')
@@ -949,6 +1617,7 @@ class SupabaseCareRepository implements CareRepository {
     required List<int> bytes,
     String? referenceId,
     String? referenceType,
+    DiagnosticResultDetails? diagnosticResult,
   }) async {
     if (patientId.trim().isEmpty) {
       throw ArgumentError('A patient is required to upload a medical file.');
@@ -960,19 +1629,40 @@ class SupabaseCareRepository implements CareRepository {
     if (bytes.isEmpty || bytes.length > _maximumMedicalFileSize) {
       throw ArgumentError('Medical files must be between 1 byte and 20 MB.');
     }
-    final extension = fileName.contains('.')
-        ? fileName.split('.').last.toLowerCase()
-        : '';
-    final mimeType = _allowedMedicalTypes[extension];
-    if (mimeType == null) {
-      throw ArgumentError(
-        'Only PDF, JPEG, and PNG medical files are supported.',
-      );
-    }
+    final mimeType = _medicalMimeType(fileName, bytes);
     final normalizedTitle = title.trim();
     final normalizedType = documentType.trim();
     if (normalizedTitle.isEmpty || normalizedType.isEmpty) {
       throw ArgumentError('A title and document type are required.');
+    }
+    if (normalizedType == 'diagnostic_result') {
+      if (diagnosticResult == null) {
+        throw ArgumentError('Diagnostic result details are required.');
+      }
+      if (!DiagnosticResultDetails.supportedCategories.contains(
+        diagnosticResult.category,
+      )) {
+        throw ArgumentError('Unsupported diagnostic result category.');
+      }
+      if (diagnosticResult.testProcedureName.trim().isEmpty ||
+          diagnosticResult.facility.trim().isEmpty ||
+          diagnosticResult.requestingDoctor.trim().isEmpty) {
+        throw ArgumentError(
+          'A test or procedure, facility, and requesting doctor are required.',
+        );
+      }
+      if (_dateOnly(
+            diagnosticResult.resultDate,
+          ).compareTo(_dateOnly(diagnosticResult.performedOrCollectedDate)) <
+          0) {
+        throw ArgumentError(
+          'The result date cannot be before the performed or collected date.',
+        );
+      }
+    } else if (diagnosticResult != null) {
+      throw ArgumentError(
+        'Diagnostic result details require a diagnostic result document type.',
+      );
     }
 
     final appUser = await _client
@@ -992,7 +1682,7 @@ class SupabaseCareRepository implements CareRepository {
           fileOptions: FileOptions(contentType: mimeType, upsert: false),
         );
     try {
-      await _client
+      final document = await _client
           .from('medical_documents')
           .insert({
             'patient_id': patientId,
@@ -1005,13 +1695,87 @@ class SupabaseCareRepository implements CareRepository {
             'size_bytes': bytes.length,
             'reference_id': ?referenceId,
             'reference_type': ?referenceType,
+            if (diagnosticResult != null) ...{
+              'result_category': diagnosticResult.category,
+              'test_procedure_name': diagnosticResult.testProcedureName.trim(),
+              'performed_or_collected_date': _dateOnly(
+                diagnosticResult.performedOrCollectedDate,
+              ),
+              'result_date': _dateOnly(diagnosticResult.resultDate),
+              'facility': diagnosticResult.facility.trim(),
+              'requesting_doctor': diagnosticResult.requestingDoctor.trim(),
+              'findings_impression': _nullableText(
+                diagnosticResult.findingsImpression,
+              ),
+              'notes': _nullableText(diagnosticResult.notes),
+            },
           })
           .select('id')
           .single();
+      if (_aiSummarizedDocumentTypes.contains(normalizedType)) {
+        await _requestMedicalDocumentSummary(document['id'].toString());
+      }
     } catch (_) {
       await _client.storage.from(_medicalBucket).remove([storagePath]);
       rethrow;
     }
+  }
+
+  Future<void> _requestMedicalDocumentSummary(String documentId) async {
+    try {
+      await _client.functions.invoke(
+        'care-navigator-chat',
+        body: {
+          'action': 'summarize_medical_document',
+          'medical_document_id': documentId,
+        },
+      );
+    } catch (_) {
+      // The document is the clinical source of truth and must remain available
+      // even when the optional preliminary AI summary is temporarily offline.
+    }
+  }
+
+  @override
+  Future<void> renameOwnMedicalFile({
+    required String fileId,
+    required String title,
+  }) async {
+    final normalizedId = fileId.trim();
+    final normalizedTitle = title.trim();
+    if (normalizedId.isEmpty) {
+      throw ArgumentError('A medical document is required for editing.');
+    }
+    if (normalizedTitle.isEmpty || normalizedTitle.length > 180) {
+      throw ArgumentError(
+        'The medical document title must be between 1 and 180 characters.',
+      );
+    }
+    await _client.rpc<void>(
+      'rename_own_medical_document',
+      params: {
+        'target_document_id': normalizedId,
+        'target_title': normalizedTitle,
+      },
+    );
+  }
+
+  @override
+  Future<void> deleteOwnMedicalFile({required String fileId}) async {
+    final normalizedId = fileId.trim();
+    if (normalizedId.isEmpty) {
+      throw ArgumentError('A medical document is required for deletion.');
+    }
+    final deleted = await _client.rpc<Map<String, dynamic>>(
+      'delete_own_medical_document',
+      params: {'target_document_id': normalizedId},
+    );
+    final bucket = deleted['storage_bucket']?.toString();
+    final path = deleted['storage_path']?.toString();
+    if (bucket == null || bucket.isEmpty || path == null || path.isEmpty) {
+      throw StateError('The deleted medical document had no storage location.');
+    }
+    await _client.storage.from(bucket).remove([path]);
   }
 
   @override
@@ -1019,19 +1783,27 @@ class SupabaseCareRepository implements CareRepository {
     required String table,
     required String recordId,
   }) async {
-    final validTables = {
-      'prescriptions',
-      'laboratory_results',
-      'medical_records',
-      'laboratory_requests',
-    };
+    // Clinical orders and their attachments are retained for auditability.
+    // The live schema exposes the cancelled lifecycle state for this action.
+    const validTables = {'laboratory_requests'};
     if (!validTables.contains(table)) {
       throw ArgumentError('Invalid table for care record deletion.');
     }
     if (recordId.trim().isEmpty) {
       throw ArgumentError('A care record is required for deletion.');
     }
-    await _client.from(table).delete().eq('id', recordId).select('id').single();
+    final updated = await _client
+        .from(table)
+        .update({'status': 'cancelled'})
+        .eq('id', recordId)
+        .inFilter('status', const ['requested', 'scheduled'])
+        .select('id')
+        .maybeSingle();
+    if (updated == null) {
+      throw StateError(
+        'Only a requested or scheduled laboratory order can be cancelled.',
+      );
+    }
   }
 
   Future<Map<String, dynamic>> _currentDoctor() async {
@@ -1044,10 +1816,17 @@ class SupabaseCareRepository implements CareRepository {
         .single();
     return _client
         .from('doctors')
-        .select('id,hospital_id')
+        .select(
+          'id,hospital_id,user_id,display_name,specialization,license_number',
+        )
         .eq('user_id', appUser['id'])
         .single();
   }
+}
+
+String _dateOnly(DateTime value) {
+  final local = value.toLocal();
+  return '${local.year.toString().padLeft(4, '0')}-${local.month.toString().padLeft(2, '0')}-${local.day.toString().padLeft(2, '0')}';
 }
 
 DateTime? _optionalDateTime(Object? value) {
@@ -1059,6 +1838,71 @@ String _safeFileName(String fileName) {
   final leaf = fileName.replaceAll('\\', '/').split('/').last;
   final safe = leaf.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
   return safe.isEmpty ? 'medical-document' : safe;
+}
+
+String _medicalMimeType(String fileName, List<int> bytes) {
+  if (bytes.isEmpty || bytes.length > 20 * 1024 * 1024) {
+    throw ArgumentError('Medical files must be between 1 byte and 20 MB.');
+  }
+  final extension = fileName.contains('.')
+      ? fileName.split('.').last.toLowerCase()
+      : '';
+  final mimeType = const <String, String>{
+    'pdf': 'application/pdf',
+    'jpg': 'image/jpeg',
+    'jpeg': 'image/jpeg',
+    'png': 'image/png',
+    'doc': 'application/msword',
+    'docx':
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  }[extension];
+  final matchesSignature = switch (extension) {
+    'pdf' =>
+      bytes.length >= 5 &&
+          bytes[0] == 0x25 &&
+          bytes[1] == 0x50 &&
+          bytes[2] == 0x44 &&
+          bytes[3] == 0x46 &&
+          bytes[4] == 0x2D,
+    'jpg' || 'jpeg' =>
+      bytes.length >= 3 &&
+          bytes[0] == 0xFF &&
+          bytes[1] == 0xD8 &&
+          bytes[2] == 0xFF,
+    'png' =>
+      bytes.length >= 8 &&
+          bytes[0] == 0x89 &&
+          bytes[1] == 0x50 &&
+          bytes[2] == 0x4E &&
+          bytes[3] == 0x47 &&
+          bytes[4] == 0x0D &&
+          bytes[5] == 0x0A &&
+          bytes[6] == 0x1A &&
+          bytes[7] == 0x0A,
+    'doc' =>
+      bytes.length >= 8 &&
+          bytes[0] == 0xD0 &&
+          bytes[1] == 0xCF &&
+          bytes[2] == 0x11 &&
+          bytes[3] == 0xE0 &&
+          bytes[4] == 0xA1 &&
+          bytes[5] == 0xB1 &&
+          bytes[6] == 0x1A &&
+          bytes[7] == 0xE1,
+    'docx' =>
+      bytes.length >= 4 &&
+          bytes[0] == 0x50 &&
+          bytes[1] == 0x4B &&
+          (bytes[2] == 0x03 || bytes[2] == 0x05 || bytes[2] == 0x07) &&
+          (bytes[3] == 0x04 || bytes[3] == 0x06 || bytes[3] == 0x08),
+    _ => false,
+  };
+  if (mimeType == null || !matchesSignature) {
+    throw ArgumentError(
+      'Only valid PDF, JPEG, PNG, DOC, and DOCX files are supported.',
+    );
+  }
+  return mimeType;
 }
 
 String _shortId(String value) =>

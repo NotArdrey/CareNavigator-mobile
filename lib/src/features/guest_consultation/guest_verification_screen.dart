@@ -13,6 +13,18 @@ import '../../widgets/data_display/content_panel.dart';
 import '../../widgets/feedback/async_action_button.dart';
 import '../../widgets/layout/page_header.dart';
 
+final _guestRequestTrackingProvider = FutureProvider.autoDispose
+    .family<Map<String, dynamic>, String>((ref, requestId) async {
+      final client = ref.watch(supabaseClientProvider);
+      if (client == null) {
+        throw StateError('Consultation tracking is unavailable.');
+      }
+      return client.rpc<Map<String, dynamic>>(
+        'get_guest_consultation_request_tracking',
+        params: {'target_reference': requestId},
+      );
+    });
+
 class GuestVerificationScreen extends ConsumerStatefulWidget {
   const GuestVerificationScreen({super.key});
 
@@ -190,6 +202,10 @@ class GuestConfirmationScreen extends ConsumerWidget {
     final resolved =
         intake.requestId == requestId &&
         intake.status == GuestRequestStatus.submitted;
+    final client = ref.watch(supabaseClientProvider);
+    final tracking = client == null
+        ? null
+        : ref.watch(_guestRequestTrackingProvider(requestId));
     return PublicScaffold(
       currentLocation: '/consultation/confirmation/$requestId',
       body: Center(
@@ -197,11 +213,114 @@ class GuestConfirmationScreen extends ConsumerWidget {
           padding: const EdgeInsets.all(24),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 620),
-            child: resolved
-                ? _ResolvedConfirmation(intake: intake)
-                : _UnresolvedConfirmation(requestId: requestId),
+            child:
+                tracking?.when(
+                  data: (data) => _TrackedConfirmation(
+                    requestId: requestId,
+                    data: data,
+                    onRefresh: () => ref.invalidate(
+                      _guestRequestTrackingProvider(requestId),
+                    ),
+                  ),
+                  loading: () => const ContentPanel(
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                  error: (_, _) => resolved
+                      ? _ResolvedConfirmation(intake: intake)
+                      : _UnresolvedConfirmation(requestId: requestId),
+                ) ??
+                (resolved
+                    ? _ResolvedConfirmation(intake: intake)
+                    : _UnresolvedConfirmation(requestId: requestId)),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _TrackedConfirmation extends StatelessWidget {
+  const _TrackedConfirmation({
+    required this.requestId,
+    required this.data,
+    required this.onRefresh,
+  });
+
+  final String requestId;
+  final Map<String, dynamic> data;
+  final VoidCallback onRefresh;
+
+  @override
+  Widget build(BuildContext context) {
+    String value(String key, [String fallback = 'Not yet assigned']) {
+      final resolved = data[key]?.toString().trim();
+      return resolved == null || resolved.isEmpty ? fallback : resolved;
+    }
+
+    final schedule = DateTime.tryParse(
+      value('confirmed_schedule', value('preferred_schedule', '')),
+    );
+    final status = value('status', 'submitted').replaceAll('_', ' ');
+    return ContentPanel(
+      child: Column(
+        children: [
+          const Icon(
+            Icons.fact_check_outlined,
+            size: 48,
+            color: AppColors.primary,
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Consultation request tracking',
+            style: Theme.of(context).textTheme.headlineMedium,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Current status: ${status.toUpperCase()}',
+            textAlign: TextAlign.center,
+          ),
+          const Divider(height: 28),
+          _ConfirmationLine(
+            label: 'Reference',
+            value: value('reference_number', requestId),
+          ),
+          _ConfirmationLine(label: 'Request ID', value: requestId),
+          if (schedule != null)
+            _ConfirmationLine(
+              label: data['confirmed_schedule'] == null
+                  ? 'Preferred schedule'
+                  : 'Confirmed schedule',
+              value: DateFormat('MMM d, y • h:mm a').format(schedule.toLocal()),
+            ),
+          if (data['review_notes']?.toString().trim().isNotEmpty ?? false)
+            _ConfirmationLine(
+              label: 'Review note',
+              value: value('review_notes'),
+            ),
+          if (data['rejection_reason']?.toString().trim().isNotEmpty ?? false)
+            _ConfirmationLine(
+              label: 'Decision reason',
+              value: value('rejection_reason'),
+            ),
+          const SizedBox(height: 18),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            alignment: WrapAlignment.center,
+            children: [
+              OutlinedButton.icon(
+                onPressed: onRefresh,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Refresh status'),
+              ),
+              FilledButton(
+                onPressed: () => context.go('/hospitals'),
+                child: const Text('Return to care directory'),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

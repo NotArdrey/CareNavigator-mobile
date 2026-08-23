@@ -32,6 +32,8 @@ class _AuthFlowScreenState extends ConsumerState<AuthFlowScreen> {
   final _addressController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmationController = TextEditingController();
+  final _passwordFocusNode = FocusNode();
+  final _confirmationFocusNode = FocusNode();
   final _otpController = TextEditingController();
   DateTime? _birthDate;
   String? _sex;
@@ -51,6 +53,8 @@ class _AuthFlowScreenState extends ConsumerState<AuthFlowScreen> {
     _addressController.dispose();
     _passwordController.dispose();
     _confirmationController.dispose();
+    _passwordFocusNode.dispose();
+    _confirmationFocusNode.dispose();
     _otpController.dispose();
     super.dispose();
   }
@@ -110,7 +114,9 @@ class _AuthFlowScreenState extends ConsumerState<AuthFlowScreen> {
       const SizedBox(height: 16),
       TextFormField(
         controller: _confirmationController,
+        focusNode: _confirmationFocusNode,
         obscureText: _obscureConfirmation,
+        textInputAction: TextInputAction.done,
         autofillHints: const [AutofillHints.newPassword],
         decoration: InputDecoration(
           labelText: 'Confirm password',
@@ -156,7 +162,9 @@ class _AuthFlowScreenState extends ConsumerState<AuthFlowScreen> {
       const SizedBox(height: 16),
       TextFormField(
         controller: _confirmationController,
+        focusNode: _confirmationFocusNode,
         obscureText: _obscureConfirmation,
+        textInputAction: TextInputAction.done,
         autofillHints: const [AutofillHints.newPassword],
         decoration: InputDecoration(
           labelText: 'Confirm new password',
@@ -213,7 +221,10 @@ class _AuthFlowScreenState extends ConsumerState<AuthFlowScreen> {
 
   Widget _passwordField() => TextFormField(
     controller: _passwordController,
+    focusNode: _passwordFocusNode,
     obscureText: _obscurePassword,
+    textInputAction: TextInputAction.next,
+    onFieldSubmitted: (_) => _confirmationFocusNode.requestFocus(),
     autofillHints: const [AutofillHints.newPassword],
     decoration: InputDecoration(
       labelText: widget.kind == AuthFlowKind.resetPassword
@@ -252,7 +263,7 @@ class _AuthFlowScreenState extends ConsumerState<AuthFlowScreen> {
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 6),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Checkbox(
                 value: _privacyAccepted,
@@ -262,26 +273,23 @@ class _AuthFlowScreenState extends ConsumerState<AuthFlowScreen> {
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 11),
-                  child: Wrap(
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      Text('I agree to the ', style: secondaryStyle),
-                      _PolicyLink(
-                        label: 'Terms and Conditions',
-                        style: linkStyle,
-                        onTap: () => _showPolicyDocument(LegalDocument.terms),
-                      ),
-                      Text(' and ', style: secondaryStyle),
-                      _PolicyLink(
-                        label: 'Privacy Policy',
-                        style: linkStyle,
-                        onTap: () => _showPolicyDocument(LegalDocument.privacy),
-                      ),
-                      Text('.', style: secondaryStyle),
-                    ],
-                  ),
+                child: Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text('I agree to the ', style: secondaryStyle),
+                    _PolicyLink(
+                      label: 'Terms and Conditions',
+                      style: linkStyle,
+                      onTap: () => _showPolicyDocument(LegalDocument.terms),
+                    ),
+                    Text(' and ', style: secondaryStyle),
+                    _PolicyLink(
+                      label: 'Privacy Policy',
+                      style: linkStyle,
+                      onTap: () => _showPolicyDocument(LegalDocument.privacy),
+                    ),
+                    Text('.', style: secondaryStyle),
+                  ],
                 ),
               ),
             ],
@@ -372,9 +380,17 @@ class _AuthFlowScreenState extends ConsumerState<AuthFlowScreen> {
         case AuthFlowKind.resetPassword:
           await repository.updatePassword(_passwordController.text);
       }
-      if (mounted) setState(() => _submitted = true);
+      if (mounted) {
+        if (widget.kind == AuthFlowKind.register) {
+          context.go('/sign-in?status=account-created');
+        } else {
+          setState(() => _submitted = true);
+        }
+      }
     } on RepositoryFailure catch (error) {
-      if (mounted) setState(() => _errorMessage = error.message);
+      if (mounted) {
+        setState(() => _errorMessage = userFacingRepositoryError(error));
+      }
     } catch (_) {
       if (mounted) {
         setState(
@@ -420,8 +436,7 @@ class _AuthFlowScreenState extends ConsumerState<AuthFlowScreen> {
   };
 
   String get _successMessage => switch (widget.kind) {
-    AuthFlowKind.register =>
-      'Account created. Check your email if confirmation is required, then sign in.',
+    AuthFlowKind.register => 'Account created. Check your email.',
     AuthFlowKind.verifyOtp => 'Email verified successfully.',
     AuthFlowKind.forgotPassword =>
       'If the account exists, a recovery email has been sent.',

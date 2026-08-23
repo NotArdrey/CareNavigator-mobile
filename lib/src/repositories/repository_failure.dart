@@ -36,6 +36,9 @@ String userFacingRepositoryError(Object error) {
     if (cause is PostgrestException) {
       return userFacingRepositoryError(cause);
     }
+    if (cause is AuthException) {
+      return _mapAuthException(cause);
+    }
     return error.message;
   }
   if (error is PostgrestException) {
@@ -56,7 +59,7 @@ String userFacingRepositoryError(Object error) {
       _ => _mapRepositoryMessage(error.message),
     };
   }
-  if (error is AuthException) return error.message;
+  if (error is AuthException) return _mapAuthException(error);
   if (error is ArgumentError) {
     return error.message?.toString() ?? 'The submitted information is invalid.';
   }
@@ -70,6 +73,13 @@ String userFacingRepositoryError(Object error) {
         )
         .trim(),
   );
+}
+
+String _mapAuthException(AuthException error) {
+  if (error.code == 'over_email_send_rate_limit') {
+    return 'Too many account emails were requested. Please wait before trying again.';
+  }
+  return error.message;
 }
 
 String _mapRepositoryMessage(String message) {

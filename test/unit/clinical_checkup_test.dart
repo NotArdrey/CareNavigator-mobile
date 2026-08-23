@@ -28,4 +28,18 @@ void main() {
       'Migraine',
     ]);
   });
+
+  test('AI payload values are normalized into an editable checkup draft', () {
+    final checkup = ClinicalCheckupDraft.fromPayload({
+      'height_cm': '168.5',
+      'heart_rate_bpm': 72.0,
+      'known_medical_conditions': [' Hypertension ', '', 14],
+      'doctor_notes': 'Notes: Follow-up form\n\nObservations: BP was flagged.',
+    });
+
+    expect(checkup.heightCm, 168.5);
+    expect(checkup.heartRateBpm, 72);
+    expect(checkup.knownMedicalConditions, ['Hypertension']);
+    expect(checkup.doctorNotes, contains('Observations:'));
+  });
 }

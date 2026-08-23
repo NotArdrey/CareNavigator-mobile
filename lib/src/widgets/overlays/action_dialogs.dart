@@ -53,14 +53,22 @@ Future<String?> requestDecisionNote({
   ),
 );
 
-Future<DateTime?> requestRootDateTime({required DateTime initial}) async {
+Future<DateTime?> requestRootDateTime({
+  required DateTime initial,
+  DateTime? minimum,
+}) async {
   final context = rootNavigatorKey.currentContext;
   if (context == null) return null;
   final today = DateUtils.dateOnly(DateTime.now());
+  final minimumDate = minimum == null ? today : DateUtils.dateOnly(minimum);
+  final firstDate = minimumDate.isAfter(today) ? minimumDate : today;
   final lastDate = today.add(const Duration(days: 365));
-  final requestedDate = DateUtils.dateOnly(initial);
-  final initialDate = requestedDate.isBefore(today)
-      ? today
+  final effectiveInitial = minimum != null && initial.isBefore(minimum)
+      ? minimum.add(const Duration(minutes: 1))
+      : initial;
+  final requestedDate = DateUtils.dateOnly(effectiveInitial);
+  final initialDate = requestedDate.isBefore(firstDate)
+      ? firstDate
       : requestedDate.isAfter(lastDate)
       ? lastDate
       : requestedDate;
@@ -68,7 +76,7 @@ Future<DateTime?> requestRootDateTime({required DateTime initial}) async {
     context: context,
     useRootNavigator: true,
     initialDate: initialDate,
-    firstDate: today,
+    firstDate: firstDate,
     lastDate: lastDate,
     helpText: 'Select appointment date',
   );
@@ -76,11 +84,26 @@ Future<DateTime?> requestRootDateTime({required DateTime initial}) async {
   final time = await showTimePicker(
     context: context,
     useRootNavigator: true,
-    initialTime: TimeOfDay.fromDateTime(initial),
+    initialTime: TimeOfDay.fromDateTime(effectiveInitial),
     helpText: 'Select appointment time',
   );
-  if (time == null) return null;
-  return DateTime(date.year, date.month, date.day, time.hour, time.minute);
+  if (time == null || !context.mounted) return null;
+  final selected = DateTime(
+    date.year,
+    date.month,
+    date.day,
+    time.hour,
+    time.minute,
+  );
+  if (minimum != null && selected.isBefore(minimum)) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Choose a reservation time at least 24 hours from now.'),
+      ),
+    );
+    return null;
+  }
+  return selected;
 }
 
 class _DecisionNoteDialog extends StatefulWidget {

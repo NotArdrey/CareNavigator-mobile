@@ -7,6 +7,7 @@ abstract interface class WorkspaceRepository {
     required UserRole role,
     String? section,
     String? itemId,
+    int limit = 100,
   });
 }
 
@@ -16,6 +17,7 @@ class WorkspaceSnapshot {
     required this.description,
     required this.items,
     this.metrics = const [],
+    this.hasMore = false,
     this.loadedAt,
   });
 
@@ -23,6 +25,7 @@ class WorkspaceSnapshot {
   final String description;
   final List<WorkspaceMetric> metrics;
   final List<WorkspaceItem> items;
+  final bool hasMore;
   final DateTime? loadedAt;
 }
 
@@ -80,11 +83,23 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
 
   final SupabaseClient _client;
 
+  static const _hospitalScopedTables = <String>{
+    'consultations',
+    'hospital_beds',
+    'hospital_rooms',
+    'hospital_facility_status',
+    'emergency_room_status',
+    'hospital_services',
+    'hospital_departments',
+    'users',
+  };
+
   @override
   Future<WorkspaceSnapshot> load({
     required UserRole role,
     String? section,
     String? itemId,
+    int limit = 100,
   }) async {
     if (role == UserRole.guest) {
       throw StateError('A guest does not have an authenticated workspace.');
@@ -109,15 +124,22 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
       );
     }
     final doctorId = role == UserRole.doctor ? await _currentDoctorId() : null;
+    final hospitalId = role == UserRole.hospitalAdministrator
+        ? await _currentHospitalId()
+        : null;
     dynamic query = _client.from(spec.table).select(spec.columns);
     if (spec.table == 'doctor_schedules' && doctorId != null) {
       query = query.eq('doctor_id', doctorId);
+    }
+    if (hospitalId != null && _hospitalScopedTables.contains(spec.table)) {
+      query = query.eq('hospital_id', hospitalId);
     }
     if (itemId != null) query = query.eq(spec.idColumn, itemId);
     if (spec.orderColumn != null) {
       query = query.order(spec.orderColumn!, ascending: spec.ascending);
     }
-    final response = await query.limit(itemId == null ? 100 : 1);
+    final fetchLimit = itemId == null ? limit + 1 : 1;
+    final response = await query.limit(fetchLimit);
     var rows = (response as List)
         .cast<Map<String, dynamic>>()
         .map((row) => _mapRow(spec.table, row))
@@ -134,25 +156,75 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
       rows = await _attachConversationDetails(rows, role);
     }
     if (spec.table == 'doctor_schedules' && doctorId != null) {
-      final bookingRows = await _loadDoctorAppointments(doctorId);
-      rows = _annotateSchedules(rows, bookingRows);
+      final reservationRows = await _loadDoctorAppointments(doctorId);
+      rows = _annotateSchedules(rows, reservationRows);
     }
     if (spec.table == 'doctor_patient_assignments') {
-      rows = await _attachPatientDetails(rows, assignment: true);
+      if (role == UserRole.doctor && itemId != null) {
+        rows = await _attachAuthorizedPatientContexts(rows, assignment: true);
+        rows = await _attachPatientCheckupHistory(rows);
+        rows = await _attachPatientClinicalHistory(rows);
+      } else {
+        rows = await _attachPatientDetails(
+          rows,
+          assignment: true,
+          includeCheckupHistory: true,
+        );
+      }
+      if (doctorId != null) {
+        rows = await _attachPatientConversationIds(rows, doctorId: doctorId);
+      }
     } else if (spec.table == 'consultations' && role == UserRole.doctor) {
-      rows = await _attachPatientDetails(rows, assignment: false);
+      rows = itemId != null
+          ? await _attachAuthorizedPatientContexts(rows, assignment: false)
+          : await _attachPatientDetails(rows, assignment: false);
     } else if (spec.table == 'medical_records') {
       rows = await _attachMedicalRecordDoctors(rows);
     }
     if (spec.table == 'consultations') {
       rows = await _attachConsultationDetails(rows);
     }
-    if (role == UserRole.patient &&
-        {'labs', 'prescriptions'}.contains(section)) {
+    if (itemId == null &&
+        spec.table == 'consultations' &&
+        {'appointments', 'consultations'}.contains(section)) {
+      dynamic onlineQuery = _client
+          .from('online_consultation_requests')
+          .select(
+            'id,reference_number,patient_id,profile_first_name,profile_last_name,phone_number_snapshot,hospital_id,requested_department_id,requested_doctor_id,assigned_doctor_id,medical_concern,symptom_duration,preferred_schedule,proposed_schedule,confirmed_schedule,consultation_channel,request_status,official_consultation_id,additional_information_request,rejection_reason,cancellation_reason,created_at,updated_at',
+          );
+      if (hospitalId != null) {
+        onlineQuery = onlineQuery.eq('hospital_id', hospitalId);
+      }
+      final onlineRows = await onlineQuery
+          .order('created_at', ascending: false)
+          .limit(fetchLimit);
+      rows.addAll(
+        (onlineRows as List).cast<Map<String, dynamic>>().map<WorkspaceItem>(
+          (row) => _mapRow('online_consultation_requests', row),
+        ),
+      );
+      rows.sort(
+        (left, right) => (right.timestamp ?? DateTime(1970)).compareTo(
+          left.timestamp ?? DateTime(1970),
+        ),
+      );
+    }
+    final patientDocumentSection =
+        role == UserRole.patient && {'labs', 'prescriptions'}.contains(section);
+    final doctorLaboratoryDocuments =
+        role == UserRole.doctor && section == 'results-review';
+    if (patientDocumentSection || doctorLaboratoryDocuments) {
+      final currentUserId = patientDocumentSection
+          ? await _currentApplicationUserId()
+          : null;
       rows.addAll(
         await _loadPatientCategoryDocuments(
-          documentType: section == 'labs' ? 'lab_result' : 'prescription',
+          documentTypes: section == 'prescriptions'
+              ? const ['prescription']
+              : const ['lab_result', 'diagnostic_result'],
           itemId: itemId,
+          currentUserId: currentUserId,
+          limit: limit,
         ),
       );
       rows.sort(
@@ -164,15 +236,21 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
     if (itemId == null &&
         section == 'appointments' &&
         {UserRole.doctor, UserRole.hospitalAdministrator}.contains(role)) {
-      final guestRows = await _client
+      dynamic guestQuery = _client
           .from('guest_consultation_requests')
           .select(
-            'id,reference_number,first_name,last_name,full_name,birth_date,sex,mobile_number,email,address,symptoms,symptom_duration,consultation_reason,request_status,identity_review_status,assigned_doctor_id,preferred_schedule,created_at',
-          )
+            'id,reference_number,first_name,last_name,full_name,birth_date,sex,mobile_number,email,address,symptoms,symptom_duration,consultation_reason,preferred_hospital_id,preferred_department_id,request_status,identity_review_status,assigned_doctor_id,preferred_consultation_type,preferred_schedule,created_at',
+          );
+      if (hospitalId != null) {
+        guestQuery = guestQuery.eq('preferred_hospital_id', hospitalId);
+      }
+      final guestRows = await guestQuery
           .order('created_at', ascending: false)
-          .limit(100);
+          .limit(fetchLimit);
       rows.addAll(
-        guestRows.map((row) => _mapRow('guest_consultation_requests', row)),
+        (guestRows as List).cast<Map<String, dynamic>>().map<WorkspaceItem>(
+          (row) => _mapRow('guest_consultation_requests', row),
+        ),
       );
       rows.sort(
         (left, right) => (right.timestamp ?? DateTime(1970)).compareTo(
@@ -180,41 +258,318 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
         ),
       );
     }
+    final hasMore = itemId == null && rows.length > limit;
+    if (hasMore) rows = rows.take(limit).toList(growable: false);
     return WorkspaceSnapshot(
       title: spec.title,
       description: spec.description,
       metrics: [
         WorkspaceMetric(
           label: _metricLabel(spec.table),
-          value: _boundedCount(rows.length),
+          value: _boundedCount(rows.length + (hasMore ? 1 : 0)),
         ),
       ],
       items: rows,
+      hasMore: hasMore,
       loadedAt: DateTime.now(),
     );
   }
 
   Future<List<WorkspaceItem>> _loadPatientCategoryDocuments({
-    required String documentType,
+    required List<String> documentTypes,
     String? itemId,
+    String? currentUserId,
+    int limit = 100,
   }) async {
     dynamic query = _client
         .from('medical_documents')
         .select()
-        .eq('document_type', documentType);
+        .inFilter('document_type', documentTypes);
     if (itemId != null) query = query.eq('id', itemId);
     final response = await query
         .order('created_at', ascending: false)
-        .limit(itemId == null ? 100 : 1);
+        .limit(itemId == null ? limit + 1 : 1);
     return (response as List)
         .cast<Map<String, dynamic>>()
-        .map((row) => _mapRow('medical_documents', row))
+        .map((row) {
+          final annotated = <String, dynamic>{
+            ...row,
+            'is_current_user_upload':
+                currentUserId != null &&
+                row['uploaded_by']?.toString() == currentUserId,
+          };
+          return _mapRow('medical_documents', annotated);
+        })
         .toList(growable: false);
+  }
+
+  Future<List<WorkspaceItem>> _attachAuthorizedPatientContexts(
+    List<WorkspaceItem> items, {
+    required bool assignment,
+  }) async {
+    return Future.wait(
+      items.map((item) async {
+        final consultationId = assignment
+            ? item.data['consultation_id']?.toString()
+            : item.id;
+        if (consultationId == null || consultationId.isEmpty) {
+          return item.copyWith(
+            data: {
+              ...item.data,
+              'patient_context_unavailable':
+                  'No active consultation is linked to this assignment.',
+            },
+          );
+        }
+        try {
+          final context = await _client.rpc<Map<String, dynamic>>(
+            'get_consultation_patient_context',
+            params: {'target_consultation_id': consultationId},
+          );
+          final rawDemographics = context['demographics'];
+          final demographics = rawDemographics is Map
+              ? Map<String, dynamic>.from(rawDemographics)
+              : const <String, dynamic>{};
+          final patientName = [
+            demographics['first_name']?.toString(),
+            demographics['last_name']?.toString(),
+          ].whereType<String>().where((value) => value.isNotEmpty).join(' ');
+          return item.copyWith(
+            title: patientName.isEmpty ? item.title : patientName,
+            data: {
+              ...item.data,
+              ...demographics,
+              if (patientName.isNotEmpty) 'patient_name': patientName,
+              'patient_context': context,
+            },
+          );
+        } on PostgrestException catch (error) {
+          return item.copyWith(
+            data: {...item.data, 'patient_context_unavailable': error.message},
+          );
+        }
+      }),
+    );
+  }
+
+  Future<List<WorkspaceItem>> _attachPatientCheckupHistory(
+    List<WorkspaceItem> items,
+  ) async {
+    final patientIds = items
+        .map((item) => item.data['patient_id']?.toString() ?? '')
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    if (patientIds.isEmpty) return items;
+
+    final medicalRows =
+        (await _client
+                .from('medical_records')
+                .select(
+                  'id,patient_id,doctor_id,consultation_id,record_type,title,description,record_date,reason_for_visit,confirmed_diagnosis,treatment_plan,height_cm,weight_kg,bmi,blood_pressure_systolic,blood_pressure_diastolic,body_temperature_c,heart_rate_bpm,respiratory_rate_bpm,oxygen_saturation_percent,vitals_recorded_at,current_symptoms,known_medical_conditions,allergies,current_medications,relevant_medical_history,previous_surgeries,smoking_status,alcohol_use,pregnancy_status,doctor_notes,created_at,updated_at',
+                )
+                .inFilter('patient_id', patientIds)
+                .inFilter('record_type', const [
+                  'checkup',
+                  'consultation_checkup',
+                ]))
+            .cast<Map<String, dynamic>>();
+    final doctorIds = medicalRows
+        .map((row) => row['doctor_id']?.toString() ?? '')
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    final doctorRows = doctorIds.isEmpty
+        ? const <Map<String, dynamic>>[]
+        : (await _client
+                  .from('doctors')
+                  .select('id,display_name')
+                  .inFilter('id', doctorIds))
+              .cast<Map<String, dynamic>>();
+    final doctorsById = <String, String>{
+      for (final row in doctorRows)
+        row['id'].toString(): row['display_name']?.toString() ?? '',
+    };
+    final checkupsByPatient = <String, List<Map<String, Object?>>>{};
+    for (final row in medicalRows) {
+      final patientId = row['patient_id']?.toString() ?? '';
+      if (patientId.isEmpty) continue;
+      checkupsByPatient.putIfAbsent(patientId, () => []).add({
+        ...row,
+        'doctor_display_name': doctorsById[row['doctor_id']?.toString()],
+      });
+    }
+    for (final checkups in checkupsByPatient.values) {
+      checkups.sort(
+        (left, right) => _recordDate(
+          Map<String, dynamic>.from(right),
+        ).compareTo(_recordDate(Map<String, dynamic>.from(left))),
+      );
+    }
+
+    return [
+      for (final item in items)
+        item.copyWith(
+          data: {
+            ...item.data,
+            'checkup_history':
+                checkupsByPatient[item.data['patient_id']?.toString()] ??
+                const <Map<String, Object?>>[],
+          },
+        ),
+    ];
+  }
+
+  Future<List<WorkspaceItem>> _attachPatientClinicalHistory(
+    List<WorkspaceItem> items,
+  ) async {
+    final patientIds = items
+        .map((item) => item.data['patient_id']?.toString() ?? '')
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    if (patientIds.isEmpty) return items;
+
+    final responses = await Future.wait<dynamic>([
+      _client
+          .from('prescriptions')
+          .select()
+          .inFilter('patient_id', patientIds)
+          .order('created_at', ascending: false),
+      _client
+          .from('laboratory_results')
+          .select()
+          .inFilter('patient_id', patientIds)
+          .order('uploaded_at', ascending: false),
+      _client
+          .from('medical_documents')
+          .select()
+          .inFilter('patient_id', patientIds)
+          .inFilter('document_type', const [
+            'prescription',
+            'diagnostic_result',
+            'lab_result',
+          ])
+          .order('created_at', ascending: false),
+    ]);
+    final prescriptionRows = (responses[0] as List)
+        .cast<Map<String, dynamic>>();
+    final laboratoryRows = (responses[1] as List).cast<Map<String, dynamic>>();
+    final documentRows = (responses[2] as List).cast<Map<String, dynamic>>();
+    final prescriptionsByPatient = <String, List<Map<String, Object?>>>{};
+    final diagnosticsByPatient = <String, List<Map<String, Object?>>>{};
+
+    for (final row in prescriptionRows) {
+      final patientId = row['patient_id']?.toString() ?? '';
+      if (patientId.isEmpty) continue;
+      prescriptionsByPatient.putIfAbsent(patientId, () => []).add({
+        ...row,
+        'history_source': 'prescriptions',
+      });
+    }
+    for (final row in laboratoryRows) {
+      final patientId = row['patient_id']?.toString() ?? '';
+      if (patientId.isEmpty) continue;
+      diagnosticsByPatient.putIfAbsent(patientId, () => []).add({
+        ...row,
+        'history_source': 'laboratory_results',
+      });
+    }
+    for (final row in documentRows) {
+      final patientId = row['patient_id']?.toString() ?? '';
+      if (patientId.isEmpty) continue;
+      final target = row['document_type'] == 'prescription'
+          ? prescriptionsByPatient
+          : diagnosticsByPatient;
+      target.putIfAbsent(patientId, () => []).add({
+        ...row,
+        'history_source': 'medical_documents',
+      });
+    }
+    for (final records in [
+      ...prescriptionsByPatient.values,
+      ...diagnosticsByPatient.values,
+    ]) {
+      records.sort(
+        (left, right) =>
+            _clinicalHistoryDate(right).compareTo(_clinicalHistoryDate(left)),
+      );
+    }
+
+    return [
+      for (final item in items)
+        item.copyWith(
+          data: {
+            ...item.data,
+            'prescription_history':
+                prescriptionsByPatient[item.data['patient_id']?.toString()] ??
+                const <Map<String, Object?>>[],
+            'diagnostic_result_history':
+                diagnosticsByPatient[item.data['patient_id']?.toString()] ??
+                const <Map<String, Object?>>[],
+          },
+        ),
+    ];
+  }
+
+  Future<List<WorkspaceItem>> _attachPatientConversationIds(
+    List<WorkspaceItem> items, {
+    required String doctorId,
+  }) async {
+    if (items.isEmpty) return items;
+    final patientIds = items
+        .map((item) => item.data['patient_id']?.toString() ?? '')
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    if (patientIds.isEmpty) return items;
+
+    final conversationRows =
+        (await _client
+                .from('chat_conversations')
+                .select('id,consultation_id,doctor_id,patient_id,updated_at')
+                .eq('doctor_id', doctorId)
+                .inFilter('patient_id', patientIds)
+                .order('updated_at', ascending: false))
+            .cast<Map<String, dynamic>>();
+    final conversationByPatient = <String, String>{};
+    for (final row in conversationRows) {
+      final patientId = row['patient_id']?.toString() ?? '';
+      final conversationId = row['id']?.toString() ?? '';
+      if (patientId.isEmpty || conversationId.isEmpty) continue;
+      conversationByPatient.putIfAbsent(patientId, () => conversationId);
+    }
+
+    return [
+      for (final item in items)
+        () {
+          final patientId = item.data['patient_id']?.toString() ?? '';
+          final conversationId = conversationByPatient[patientId];
+          if (conversationId == null) return item;
+          return item.copyWith(
+            data: {...item.data, 'conversation_id': conversationId},
+          );
+        }(),
+    ];
+  }
+
+  Future<String> _currentApplicationUserId() async {
+    final authUser = _client.auth.currentUser;
+    if (authUser == null || authUser.isAnonymous) {
+      throw StateError('An authenticated account is required.');
+    }
+    final appUser = await _client
+        .from('users')
+        .select('id')
+        .eq('auth_user_id', authUser.id)
+        .single();
+    return appUser['id'].toString();
   }
 
   Future<List<WorkspaceItem>> _attachPatientDetails(
     List<WorkspaceItem> items, {
     required bool assignment,
+    bool includeCheckupHistory = false,
   }) async {
     final patientIds = items
         .map((item) => item.data['patient_id']?.toString() ?? '')
@@ -266,12 +621,13 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
       for (final row in guestRows) row['id'].toString(): row,
     };
 
+    final medicalColumns = includeCheckupHistory
+        ? 'id,patient_id,doctor_id,consultation_id,record_type,title,description,record_date,reason_for_visit,confirmed_diagnosis,treatment_plan,height_cm,weight_kg,bmi,blood_pressure_systolic,blood_pressure_diastolic,body_temperature_c,heart_rate_bpm,respiratory_rate_bpm,oxygen_saturation_percent,vitals_recorded_at,current_symptoms,known_medical_conditions,allergies,current_medications,relevant_medical_history,previous_surgeries,smoking_status,alcohol_use,pregnancy_status,doctor_notes,created_at,updated_at'
+        : 'patient_id,doctor_id,height_cm,weight_kg,bmi,blood_pressure_systolic,blood_pressure_diastolic,body_temperature_c,heart_rate_bpm,respiratory_rate_bpm,oxygen_saturation_percent,vitals_recorded_at,created_at';
     final medicalRows =
         (await _client
                 .from('medical_records')
-                .select(
-                  'patient_id,doctor_id,height_cm,weight_kg,bmi,blood_pressure_systolic,blood_pressure_diastolic,body_temperature_c,heart_rate_bpm,respiratory_rate_bpm,oxygen_saturation_percent,vitals_recorded_at,created_at',
-                )
+                .select(medicalColumns)
                 .inFilter('patient_id', patientIds))
             .cast<Map<String, dynamic>>();
     final latestByPatient = <String, Map<String, dynamic>>{};
@@ -284,22 +640,44 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
         latestByPatient[patientId] = row;
       }
     }
-    final latestDoctorIds = latestByPatient.values
+    final recordDoctorIds = medicalRows
         .map((row) => row['doctor_id']?.toString() ?? '')
         .where((id) => id.isNotEmpty)
         .toSet()
         .toList(growable: false);
-    final latestDoctorRows = latestDoctorIds.isEmpty
+    final recordDoctorRows = recordDoctorIds.isEmpty
         ? const <Map<String, dynamic>>[]
         : (await _client
                   .from('doctors')
                   .select('id,display_name')
-                  .inFilter('id', latestDoctorIds))
+                  .inFilter('id', recordDoctorIds))
               .cast<Map<String, dynamic>>();
-    final latestDoctorsById = <String, String>{
-      for (final row in latestDoctorRows)
+    final recordDoctorsById = <String, String>{
+      for (final row in recordDoctorRows)
         row['id'].toString(): row['display_name']?.toString() ?? '',
     };
+    final checkupsByPatient = <String, List<Map<String, Object?>>>{};
+    if (includeCheckupHistory) {
+      for (final row in medicalRows) {
+        if (!{'checkup', 'consultation_checkup'}.contains(row['record_type'])) {
+          continue;
+        }
+        final patientId = row['patient_id']?.toString() ?? '';
+        if (patientId.isEmpty) continue;
+        checkupsByPatient.putIfAbsent(patientId, () => []).add({
+          ...row,
+          'doctor_display_name':
+              recordDoctorsById[row['doctor_id']?.toString()],
+        });
+      }
+      for (final checkups in checkupsByPatient.values) {
+        checkups.sort(
+          (left, right) => _recordDate(
+            Map<String, dynamic>.from(right),
+          ).compareTo(_recordDate(Map<String, dynamic>.from(left))),
+        );
+      }
+    }
 
     return [
       for (final item in items)
@@ -343,10 +721,15 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
             }
             data['latest_vitals_recorded_at'] = latest['vitals_recorded_at'];
             data['latest_recorded_by'] =
-                latestDoctorsById[latest['doctor_id']?.toString()];
+                recordDoctorsById[latest['doctor_id']?.toString()];
             data['latest_vitals_summary'] = _vitalsSummary(latest);
           }
           if (assignment) {
+            if (includeCheckupHistory) {
+              data['checkup_history'] =
+                  checkupsByPatient[patientId] ??
+                  const <Map<String, Object?>>[];
+            }
             return item.copyWith(
               title: patientName.isEmpty ? item.title : patientName,
               subtitle: _join([
@@ -404,7 +787,7 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
         (await _client
                 .from('doctors')
                 .select(
-                  'user_id,department_id,display_name,specialization,license_number,license_verification_status,availability_status,consultation_fee,biography',
+                  'user_id,department_id,display_name,specialization,license_number,availability_status,consultation_fee,biography',
                 )
                 .inFilter('user_id', userIds))
             .cast<Map<String, dynamic>>();
@@ -607,11 +990,14 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
       for (final row in consultationRows) row['id'].toString(): row,
     };
 
-    final doctorIds = consultationRows
-        .map((row) => row['doctor_id']?.toString() ?? '')
-        .where((id) => id.isNotEmpty)
-        .toSet()
-        .toList(growable: false);
+    final doctorIds = <String>{
+      ...consultationRows
+          .map((row) => row['doctor_id']?.toString() ?? '')
+          .where((id) => id.isNotEmpty),
+      ...conversations
+          .map((item) => item.data['doctor_id']?.toString() ?? '')
+          .where((id) => id.isNotEmpty),
+    }.toList(growable: false);
     final doctorRows = doctorIds.isEmpty
         ? const <Map<String, dynamic>>[]
         : (await _client
@@ -623,11 +1009,14 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
       for (final row in doctorRows) row['id'].toString(): row,
     };
 
-    final patientIds = consultationRows
-        .map((row) => row['patient_id']?.toString() ?? '')
-        .where((id) => id.isNotEmpty)
-        .toSet()
-        .toList(growable: false);
+    final patientIds = <String>{
+      ...consultationRows
+          .map((row) => row['patient_id']?.toString() ?? '')
+          .where((id) => id.isNotEmpty),
+      ...conversations
+          .map((item) => item.data['patient_id']?.toString() ?? '')
+          .where((id) => id.isNotEmpty),
+    }.toList(growable: false);
     final patientRows = patientIds.isEmpty
         ? const <Map<String, dynamic>>[]
         : (await _client
@@ -695,9 +1084,13 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
           final consultation =
               consultationsById[item.data['consultation_id']?.toString()];
           final doctor =
-              doctorsById[consultation?['doctor_id']?.toString() ?? ''];
+              doctorsById[consultation?['doctor_id']?.toString() ??
+                  item.data['doctor_id']?.toString() ??
+                  ''];
           final patient =
-              patientsById[consultation?['patient_id']?.toString() ?? ''];
+              patientsById[consultation?['patient_id']?.toString() ??
+                  item.data['patient_id']?.toString() ??
+                  ''];
           final patientUser = usersById[patient?['user_id']?.toString() ?? ''];
           final patientName = _join([
             patientUser?['first_name']?.toString() ?? '',
@@ -758,15 +1151,30 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
         ? const <Map<String, dynamic>>[]
         : (await _client
                   .from('doctors')
-                  .select('id,display_name,profile_image_url')
+                  .select('id,department_id,display_name,profile_image_url')
                   .inFilter('id', doctorIds))
               .cast<Map<String, dynamic>>();
     final hospitalRows = hospitalIds.isEmpty
         ? const <Map<String, dynamic>>[]
         : (await _client
                   .from('hospitals')
-                  .select('id,hospital_name,image_url')
+                  .select('id,hospital_name,address,city,province,image_url')
                   .inFilter('id', hospitalIds))
+              .cast<Map<String, dynamic>>();
+    final departmentIds = <String>{
+      ...consultations
+          .map((item) => item.data['department_id']?.toString() ?? '')
+          .where((id) => id.isNotEmpty),
+      ...doctorRows
+          .map((row) => row['department_id']?.toString() ?? '')
+          .where((id) => id.isNotEmpty),
+    }.toList(growable: false);
+    final departmentRows = departmentIds.isEmpty
+        ? const <Map<String, dynamic>>[]
+        : (await _client
+                  .from('hospital_departments')
+                  .select('id,department_name')
+                  .inFilter('id', departmentIds))
               .cast<Map<String, dynamic>>();
     final doctorNames = <String, String>{
       for (final row in doctorRows)
@@ -776,6 +1184,10 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
       for (final row in doctorRows)
         row['id'].toString(): row['profile_image_url']?.toString(),
     };
+    final doctorDepartments = <String, String?>{
+      for (final row in doctorRows)
+        row['id'].toString(): row['department_id']?.toString(),
+    };
     final hospitalNames = <String, String>{
       for (final row in hospitalRows)
         row['id'].toString(): row['hospital_name']?.toString() ?? '',
@@ -783,6 +1195,20 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
     final hospitalImages = <String, String?>{
       for (final row in hospitalRows)
         row['id'].toString(): row['image_url']?.toString(),
+    };
+    final hospitalLocations = <String, String>{
+      for (final row in hospitalRows)
+        row['id'].toString(): _join([
+          row['address']?.toString() ?? '',
+          if ((row['address']?.toString().trim() ?? '').isEmpty)
+            row['city']?.toString() ?? '',
+          if ((row['address']?.toString().trim() ?? '').isEmpty)
+            row['province']?.toString() ?? '',
+        ]),
+    };
+    final departmentNames = <String, String>{
+      for (final row in departmentRows)
+        row['id'].toString(): row['department_name']?.toString() ?? '',
     };
 
     return [
@@ -798,6 +1224,11 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
                 hospitalNames[item.data['hospital_id']?.toString()],
             'hospital_image_url':
                 hospitalImages[item.data['hospital_id']?.toString()],
+            'hospital_location':
+                hospitalLocations[item.data['hospital_id']?.toString()],
+            'department_name':
+                departmentNames[item.data['department_id']?.toString() ??
+                    doctorDepartments[item.data['doctor_id']?.toString()]],
           },
         ),
     ];
@@ -821,6 +1252,23 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
     return doctor['id'].toString();
   }
 
+  Future<String> _currentHospitalId() async {
+    final user = _client.auth.currentUser;
+    if (user == null || user.isAnonymous) {
+      throw StateError('An authenticated hospital administrator is required.');
+    }
+    final appUser = await _client
+        .from('users')
+        .select('hospital_id')
+        .eq('auth_user_id', user.id)
+        .single();
+    final hospitalId = appUser['hospital_id']?.toString();
+    if (hospitalId == null || hospitalId.isEmpty) {
+      throw StateError('This administrator is not assigned to a hospital.');
+    }
+    return hospitalId;
+  }
+
   Future<List<Map<String, dynamic>>> _loadDoctorAppointments(
     String doctorId,
   ) async =>
@@ -838,12 +1286,12 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
   ) => [
     for (final schedule in schedules)
       schedule.copyWith(
-        status: _bookedCount(schedule.data, appointments) > 0
-            ? 'booked / protected'
+        status: _reservedCount(schedule.data, appointments) > 0
+            ? 'reserved / protected'
             : schedule.status,
         data: {
           ...schedule.data,
-          'booked_consultation_count': _bookedCount(
+          'reserved_consultation_count': _reservedCount(
             schedule.data,
             appointments,
           ),
@@ -851,7 +1299,7 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
       ),
   ];
 
-  int _bookedCount(
+  int _reservedCount(
     Map<String, Object?> schedule,
     List<Map<String, dynamic>> appointments,
   ) => appointments
@@ -889,11 +1337,17 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
       UserRole.guest => const <_WorkspaceTableSpec>[],
     };
     final doctorId = role == UserRole.doctor ? await _currentDoctorId() : null;
+    final hospitalId = role == UserRole.hospitalAdministrator
+        ? await _currentHospitalId()
+        : null;
     final responses = await Future.wait(
       specs.map((spec) async {
         dynamic query = _client.from(spec.table).select(spec.columns);
         if (spec.table == 'doctor_schedules' && doctorId != null) {
           query = query.eq('doctor_id', doctorId);
+        }
+        if (hospitalId != null && _hospitalScopedTables.contains(spec.table)) {
+          query = query.eq('hospital_id', hospitalId);
         }
         if (spec.orderColumn != null) {
           query = query.order(spec.orderColumn!, ascending: false);
@@ -1053,7 +1507,9 @@ _WorkspaceTableSpec? _specFor(UserRole role, String section) {
   if (table == null) return null;
   return _WorkspaceTableSpec(
     table: table,
-    title: _humanize(section),
+    title: role == UserRole.patient && section == 'labs'
+        ? 'Diagnostics'
+        : _humanize(section),
     description: _descriptionFor(role, section),
     orderColumn: _orderColumn(table),
     idColumn: table == 'system_settings' ? 'key' : 'id',
@@ -1097,6 +1553,9 @@ WorkspaceItem _mapRow(String table, Map<String, dynamic> row) {
     'vitals_recorded_at',
     'created_at',
     'updated_at',
+    'confirmed_schedule',
+    'proposed_schedule',
+    'preferred_schedule',
     'last_updated',
     'requested_at',
     'uploaded_at',
@@ -1172,7 +1631,34 @@ WorkspaceItem _mapRow(String table, Map<String, dynamic> row) {
       subtitle: _join([
         _humanizeWorkspaceValue(value('document_type')),
         _fileSize(row['size_bytes']),
+        value('ai_summary', switch (value('ai_analysis_status')) {
+          'pending' || 'processing' => 'Groq AI summary is being prepared.',
+          'failed' => value(
+            'ai_analysis_error',
+            'AI summary unavailable. Please use the original document.',
+          ),
+          _ => '',
+        }),
       ]),
+      status: switch (value('ai_analysis_status')) {
+        '' || 'not_requested' || 'completed' => null,
+        final status => status,
+      },
+      timestamp: timestamp,
+      data: row,
+    ),
+    'online_consultation_requests' => WorkspaceItem(
+      id: id,
+      kind: table,
+      title: _join([
+        value('reference_number', 'Online request'),
+        _join([value('profile_first_name'), value('profile_last_name')]),
+      ]),
+      subtitle: _join([
+        value('medical_concern'),
+        value('confirmed_schedule', value('preferred_schedule')),
+      ]),
+      status: value('request_status'),
       timestamp: timestamp,
       data: row,
     ),
@@ -1194,7 +1680,9 @@ WorkspaceItem _mapRow(String table, Map<String, dynamic> row) {
       id: id,
       kind: table,
       title: 'Care conversation',
-      subtitle: 'Consultation ${_shortId(value('consultation_id'))}',
+      subtitle: value('consultation_id').isEmpty
+          ? 'Direct care conversation'
+          : 'Consultation ${_shortId(value('consultation_id'))}',
       status: value('status'),
       timestamp: timestamp,
       data: row,
@@ -1433,7 +1921,7 @@ String _metricLabel(String table) => switch (table) {
   'consultations' => 'Visible consultations',
   'notifications' => 'Notifications',
   'prescriptions' => 'Prescriptions',
-  'laboratory_results' => 'Laboratory results',
+  'laboratory_results' => 'Diagnostic results',
   'doctor_patient_assignments' => 'Assigned patients',
   'doctor_schedules' => 'Schedule slots',
   'hospital_beds' => 'Bed types',
@@ -1472,6 +1960,20 @@ bool _hasVitalValue(Map<String, dynamic> row) =>
 DateTime _recordDate(Map<String, dynamic> row) =>
     _firstDate(row, const ['vitals_recorded_at', 'created_at']) ??
     DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+
+DateTime _clinicalHistoryDate(Map<String, Object?> row) {
+  for (final key in const [
+    'electronically_signed_at',
+    'result_date',
+    'uploaded_at',
+    'created_at',
+    'start_date',
+  ]) {
+    final parsed = DateTime.tryParse(row[key]?.toString() ?? '');
+    if (parsed != null) return parsed;
+  }
+  return DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+}
 
 String _vitalsSummary(Map<String, dynamic> row) => _join([
   if (row['blood_pressure_systolic'] != null &&

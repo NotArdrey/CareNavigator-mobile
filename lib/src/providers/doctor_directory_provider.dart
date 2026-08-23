@@ -26,6 +26,7 @@ class DoctorDirectoryState {
       final searchable = [
         entry.doctor.displayLabel,
         entry.doctor.specialtyLabel,
+        entry.doctor.departmentLabel ?? '',
         entry.hospitalName,
         entry.city,
         entry.province,

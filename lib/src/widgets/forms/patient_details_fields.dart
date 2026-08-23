@@ -138,63 +138,67 @@ class PatientDetailsFields extends StatelessWidget {
     );
   }
 
-  Widget _nameFields() => LayoutBuilder(
-    builder: (context, constraints) {
-      final firstName = TextFormField(
-        controller: firstNameController,
-        textCapitalization: TextCapitalization.words,
-        autofillHints: const [AutofillHints.givenName],
-        textInputAction: TextInputAction.next,
-        decoration: const InputDecoration(
-          labelText: 'First name',
-          hintText: 'Enter your first name',
-          prefixIcon: Icon(Icons.person_outline),
-        ),
-        validator: (value) {
-          if (!requiredNameFields && (value?.trim().isEmpty ?? true)) {
-            return null;
-          }
-          return validatePatientName(value, label: 'first name');
-        },
-      );
-      final lastName = TextFormField(
-        controller: lastNameController,
-        textCapitalization: TextCapitalization.words,
-        autofillHints: const [AutofillHints.familyName],
-        textInputAction: TextInputAction.next,
-        decoration: const InputDecoration(
-          labelText: 'Last name',
-          hintText: 'Enter your last name',
-          prefixIcon: Icon(Icons.person_outline),
-        ),
-        validator: (value) {
-          if (!requiredNameFields && (value?.trim().isEmpty ?? true)) {
-            return null;
-          }
-          return validatePatientName(value, label: 'last name');
-        },
-      );
+  Widget _nameFields() {
+    final firstName = TextFormField(
+      controller: firstNameController,
+      textCapitalization: TextCapitalization.words,
+      autofillHints: const [AutofillHints.givenName],
+      textInputAction: TextInputAction.next,
+      decoration: const InputDecoration(
+        labelText: 'First name',
+        hintText: 'Enter your first name',
+        prefixIcon: Icon(Icons.person_outline),
+      ),
+      validator: (value) {
+        if (!requiredNameFields && (value?.trim().isEmpty ?? true)) {
+          return null;
+        }
+        return validatePatientName(value, label: 'first name');
+      },
+    );
+    final lastName = TextFormField(
+      controller: lastNameController,
+      textCapitalization: TextCapitalization.words,
+      autofillHints: const [AutofillHints.familyName],
+      textInputAction: TextInputAction.next,
+      decoration: const InputDecoration(
+        labelText: 'Last name',
+        hintText: 'Enter your last name',
+        prefixIcon: Icon(Icons.person_outline),
+      ),
+      validator: (value) {
+        if (!requiredNameFields && (value?.trim().isEmpty ?? true)) {
+          return null;
+        }
+        return validatePatientName(value, label: 'last name');
+      },
+    );
 
-      if (stackNameFields || constraints.maxWidth < 400) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+    Widget stackedFields() => Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        firstName,
+        SizedBox(height: fieldSpacing),
+        lastName,
+      ],
+    );
+
+    if (stackNameFields) return stackedFields();
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 400) return stackedFields();
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            firstName,
-            SizedBox(height: fieldSpacing),
-            lastName,
+            Expanded(child: firstName),
+            SizedBox(width: fieldSpacing),
+            Expanded(child: lastName),
           ],
         );
-      }
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(child: firstName),
-          SizedBox(width: fieldSpacing),
-          Expanded(child: lastName),
-        ],
-      );
-    },
-  );
+      },
+    );
+  }
 
   Widget _birthDateField(BuildContext context) => consistentDateField
       ? _consistentBirthDateField(context)

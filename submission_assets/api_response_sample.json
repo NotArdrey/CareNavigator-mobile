@@ -1,0 +1,26 @@
+[
+  {
+    "id": "20000000-0000-4000-8000-000000000007",
+    "hospital_name": "Aurora Memorial Hospital",
+    "city": "Baler",
+    "province": "Aurora",
+    "verification_status": "verified",
+    "operating_status": "open"
+  },
+  {
+    "id": "20000000-0000-4000-8000-000000000002",
+    "hospital_name": "Bataan General Hospital and Medical Center",
+    "city": "Balanga City",
+    "province": "Bataan",
+    "verification_status": "verified",
+    "operating_status": "open"
+  },
+  {
+    "id": "20000000-0000-4000-8000-000000000003",
+    "hospital_name": "Bulacan Medical Center",
+    "city": "Malolos City",
+    "province": "Bulacan",
+    "verification_status": "verified",
+    "operating_status": "open"
+  }
+]

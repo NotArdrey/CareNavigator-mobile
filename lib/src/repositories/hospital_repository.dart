@@ -1,4 +1,5 @@
 import '../models/hospitals/hospital_models.dart';
+import '../models/consultation_type.dart';
 import '../models/shared/page_result.dart';
 import 'package:supabase/supabase.dart';
 
@@ -6,6 +7,8 @@ import 'repository_failure.dart';
 
 abstract interface class HospitalRepository {
   Future<List<HospitalDirectoryEntry>> loadPublicDirectory();
+
+  Stream<void> watchDirectoryUpdates();
 
   Future<PageResult<HospitalSummary>> searchHospitals({
     required HospitalSearchCriteria criteria,
@@ -25,6 +28,12 @@ final class SupabaseHospitalRepository implements HospitalRepository {
   SupabaseHospitalRepository(this._client);
 
   final SupabaseClient _client;
+
+  @override
+  Stream<void> watchDirectoryUpdates() => _client
+      .from('emergency_room_status')
+      .stream(primaryKey: ['id'])
+      .map<void>((_) {});
 
   @override
   Future<List<HospitalDirectoryEntry>> loadPublicDirectory() async {
@@ -55,7 +64,7 @@ final class SupabaseHospitalRepository implements HospitalRepository {
       final emergencyRows = await _client
           .from('emergency_room_status')
           .select(
-            'hospital_id,status,available_beds,current_patient_count,maximum_capacity,last_updated',
+            'hospital_id,status,available_beds,current_patient_count,maximum_capacity,occupied_beds,closed_or_unstaffed_beds,reserved_beds,capacity_source,last_updated',
           )
           .inFilter('hospital_id', hospitalIds);
       final facilityRows = await _client
@@ -73,7 +82,7 @@ final class SupabaseHospitalRepository implements HospitalRepository {
       final doctorRows = await _client
           .from('doctors')
           .select(
-            'id,hospital_id,display_name,specialization,availability_status',
+            'id,hospital_id,department_id,display_name,specialization,availability_status',
           )
           .inFilter('hospital_id', hospitalIds)
           .neq('availability_status', 'unavailable')
@@ -96,7 +105,10 @@ final class SupabaseHospitalRepository implements HospitalRepository {
         labelKey: 'department_name',
       );
       final departmentIds = <String, Map<String, String>>{};
+      final departmentNames = <String, String>{};
       for (final row in departmentRows) {
+        departmentNames[row['id'].toString()] =
+            row['department_name']?.toString() ?? '';
         departmentIds.putIfAbsent(
           row['hospital_id'].toString(),
           () => {},
@@ -150,7 +162,18 @@ final class SupabaseHospitalRepository implements HospitalRepository {
       for (final row in doctorRows) {
         final id = row['id'].toString();
         final schedules = schedulesByDoctor[id] ?? const [];
-        final nextAvailability = _nextAvailability(schedules, now);
+        // The public patient directory only advertises reservation modes
+        // accepted by the legacy patient booking RPC. Emergency and guest-only
+        // schedules are operational workflows, not patient self-reservation
+        // options.
+        final patientSchedules = schedules
+            .where(
+              (schedule) => ConsultationType.supported.contains(
+                schedule['consultation_type']?.toString(),
+              ),
+            )
+            .toList(growable: false);
+        final nextAvailability = _nextAvailability(patientSchedules, now);
         if (nextAvailability == null) continue;
         doctorsByHospital
             .putIfAbsent(row['hospital_id'].toString(), () => [])
@@ -160,11 +183,13 @@ final class SupabaseHospitalRepository implements HospitalRepository {
                 displayLabel: row['display_name']?.toString() ?? 'Doctor',
                 specialtyLabel:
                     row['specialization']?.toString() ?? 'General care',
+                departmentLabel:
+                    departmentNames[row['department_id']?.toString()],
                 nextAvailableAt: nextAvailability,
-                offersOnlineCare: schedules.any(
+                offersOnlineCare: patientSchedules.any(
                   (schedule) => schedule['consultation_type'] == 'online',
                 ),
-                consultationTypes: schedules
+                consultationTypes: patientSchedules
                     .map((schedule) => schedule['consultation_type'].toString())
                     .toSet()
                     .toList(growable: false),
@@ -217,6 +242,14 @@ final class SupabaseHospitalRepository implements HospitalRepository {
               emergencyStatus: erStatus,
               currentEmergencyPatients: _intValue(
                 emergency?['current_patient_count'],
+              ),
+              occupiedEmergencyBeds: _intValue(emergency?['occupied_beds']),
+              closedOrUnstaffedEmergencyBeds: _intValue(
+                emergency?['closed_or_unstaffed_beds'],
+              ),
+              reservedEmergencyBeds: _intValue(emergency?['reserved_beds']),
+              emergencyCapacitySource: _nullableText(
+                emergency?['capacity_source'],
               ),
               updatedAt: _dateTimeValue(row['updated_at']),
               emergencyLastUpdated: _dateTimeValue(emergency?['last_updated']),

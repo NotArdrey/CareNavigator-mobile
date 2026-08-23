@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -6,6 +7,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -642,7 +644,8 @@ class _HospitalListTile extends StatelessWidget {
                   icon: Icons.schedule_outlined,
                   color: AppColors.information,
                 ),
-              if (hospital.availableBeds != null)
+              if (hospital.availableBeds != null &&
+                  hospital.hasCurrentEmergencyCapacity())
                 StatusTag(
                   label: '${hospital.availableBeds} beds available',
                   icon: Icons.bed_outlined,
@@ -719,7 +722,8 @@ class _HospitalListTile extends StatelessWidget {
                   icon: Icons.account_balance_outlined,
                   color: _careLevelColor(hospital.careLevel),
                 ),
-                if (hospital.availableBeds != null)
+                if (hospital.availableBeds != null &&
+                    hospital.hasCurrentEmergencyCapacity())
                   _CompactStatusTag(
                     label: '${hospital.availableBeds} beds',
                     icon: Icons.bed_outlined,
@@ -769,14 +773,14 @@ class _HospitalListTile extends StatelessWidget {
                 if (hospital.hasCoordinates) ...[
                   const SizedBox(width: 2),
                   IconButton(
-                    tooltip: 'Directions',
+                    tooltip: 'View on hospital map',
                     onPressed: () => context.go(
                       Uri(
                         path: '/hospitals/map',
                         queryParameters: {'hospitalId': hospital.id},
                       ).toString(),
                     ),
-                    icon: const Icon(Icons.directions_outlined),
+                    icon: const Icon(Icons.map_outlined),
                     visualDensity: VisualDensity.compact,
                   ),
                 ],
@@ -865,6 +869,10 @@ class _HospitalDetails extends StatelessWidget {
         .firstOrNull;
     final isEmergencyAlwaysOpen =
         emergencyHours?.toLowerCase().contains('24/7') ?? false;
+    final capacityFreshness = hospital.emergencyCapacityFreshness();
+    final hasStaleCapacity =
+        capacityFreshness == EmergencyCapacityFreshness.stale;
+    final hasCurrentCapacity = hospital.hasCurrentEmergencyCapacity();
     final capabilities = <String>{
       ...hospital.departments,
       ...hospital.services,
@@ -884,11 +892,19 @@ class _HospitalDetails extends StatelessWidget {
           runSpacing: 8,
           children: [
             StatusTag(
-              label: hospital.isAvailable ? 'Available' : 'Unavailable',
-              icon: hospital.isAvailable
+              label: hasStaleCapacity
+                  ? 'ER capacity stale'
+                  : hospital.isAvailable
+                  ? 'Available'
+                  : 'Unavailable',
+              icon: hasStaleCapacity
+                  ? Icons.history_outlined
+                  : hospital.isAvailable
                   ? Icons.check_circle_outline
                   : Icons.block_outlined,
-              color: hospital.isAvailable
+              color: hasStaleCapacity
+                  ? AppColors.warning
+                  : hospital.isAvailable
                   ? AppColors.success
                   : AppColors.warning,
             ),
@@ -925,8 +941,8 @@ class _HospitalDetails extends StatelessWidget {
                     queryParameters: {'hospitalId': hospital.id},
                   ).toString(),
                 ),
-                icon: const Icon(Icons.directions_outlined, size: 18),
-                label: const Text('Get directions'),
+                icon: const Icon(Icons.map_outlined, size: 18),
+                label: const Text('View on map'),
                 style: _compactOutlinedActionStyle(),
               ),
             if (hospital.contactNumber != null)
@@ -962,11 +978,17 @@ class _HospitalDetails extends StatelessWidget {
               label: 'Emergency room',
               value: hospital.emergencyStatus == null
                   ? 'Not published'
+                  : hasStaleCapacity
+                  ? 'Status unconfirmed'
                   : _displayIdentifier(hospital.emergencyStatus!),
-              detail: isEmergencyAlwaysOpen
+              detail: hasStaleCapacity && hospital.emergencyStatus != null
+                  ? 'Last reported ${_displayIdentifier(hospital.emergencyStatus!).toLowerCase()}'
+                  : isEmergencyAlwaysOpen
                   ? 'Open 24 hours'
                   : emergencyHours ?? 'Hours not published',
-              color: _availabilityColor(hospital.emergencyStatus),
+              color: hasStaleCapacity
+                  ? AppColors.warning
+                  : _availabilityColor(hospital.emergencyStatus),
             ),
             _StatusMetric(
               label: 'Estimated ER wait',
@@ -981,25 +1003,60 @@ class _HospitalDetails extends StatelessWidget {
               value: hospital.availableBeds == null
                   ? 'Not published'
                   : hospital.totalBeds == null
-                  ? '${hospital.availableBeds} available'
+                  ? hasStaleCapacity
+                        ? '${hospital.availableBeds} last reported'
+                        : '${hospital.availableBeds} available'
+                  : hasStaleCapacity
+                  ? '${hospital.availableBeds} / ${hospital.totalBeds} last reported'
                   : '${hospital.availableBeds} / ${hospital.totalBeds} available',
               detail: hospital.currentEmergencyPatients == null
-                  ? 'ER capacity'
+                  ? hasStaleCapacity
+                        ? 'Capacity confirmation expired'
+                        : 'ER capacity'
+                  : hasStaleCapacity
+                  ? '${hospital.currentEmergencyPatients} patients last reported'
                   : '${hospital.currentEmergencyPatients} current patients',
-              color: AppColors.primary,
+              color: hasStaleCapacity ? AppColors.warning : AppColors.primary,
             ),
             _StatusMetric(
               label: 'Last status update',
-              value: _formatFreshness(hospital.statusLastUpdated),
+              value: switch (capacityFreshness) {
+                EmergencyCapacityFreshness.live => 'Live',
+                EmergencyCapacityFreshness.delayed => 'Update due soon',
+                EmergencyCapacityFreshness.stale => 'Stale information',
+                EmergencyCapacityFreshness.unpublished => _formatFreshness(
+                  hospital.statusLastUpdated,
+                ),
+              },
               detail: hospital.statusLastUpdated == null
                   ? 'No timestamp published'
                   : DateFormat(
                       'MMM d, y · h:mm a',
                     ).format(hospital.statusLastUpdated!.toLocal()),
-              color: AppColors.textSecondary,
+              color: hasStaleCapacity
+                  ? AppColors.warning
+                  : capacityFreshness == EmergencyCapacityFreshness.live
+                  ? AppColors.success
+                  : AppColors.textSecondary,
             ),
           ],
         ),
+        if (hasStaleCapacity) ...[
+          const SizedBox(height: 12),
+          _PublishedDataNotice(
+            icon: Icons.warning_amber_outlined,
+            message:
+                'Emergency capacity has not been confirmed in the last 15 minutes. Call ${hospital.name} before relying on the last reported bed count.',
+          ),
+        ] else if (hasCurrentCapacity &&
+            capacityFreshness == EmergencyCapacityFreshness.delayed) ...[
+          const SizedBox(height: 12),
+          const _PublishedDataNotice(
+            icon: Icons.schedule_outlined,
+            message:
+                'This capacity confirmation is more than 5 minutes old and is due for refresh.',
+          ),
+        ],
         if (hospital.bedAvailability.isNotEmpty) ...[
           const SizedBox(height: 12),
           _LabelWrap(
@@ -1155,8 +1212,12 @@ class _WhyThisHospital extends StatelessWidget {
             hospital.isAvailable
                 ? 'The directory currently reports this facility as available.'
                 : 'The directory does not currently report this facility as available.',
-            if (hospital.availableBeds != null)
+            if (hospital.availableBeds != null &&
+                hospital.hasCurrentEmergencyCapacity())
               '${hospital.availableBeds} emergency beds are currently reported available.',
+            if (hospital.availableBeds != null &&
+                !hospital.hasCurrentEmergencyCapacity())
+              'The published emergency bed count is stale; confirm capacity directly with the hospital.',
           ];
 
     return DecoratedBox(
@@ -1588,7 +1649,12 @@ class _HospitalMapState extends State<_HospitalMap> {
   late final MapController _mapController;
   StreamSubscription<Position>? _positionSubscription;
   LatLng? _liveLocation;
+  List<LatLng> _routePoints = const [];
+  String? _routeHospitalId;
+  double? _routeDistanceMeters;
+  double? _routeDurationSeconds;
   bool _isLocating = false;
+  bool _isRouting = false;
   bool _followLiveLocation = false;
 
   @override
@@ -1714,6 +1780,93 @@ class _HospitalMapState extends State<_HospitalMap> {
     _mapController.move(location, currentZoom < 14 ? 14 : currentZoom);
   }
 
+  Future<void> _navigateTo(HospitalDirectoryEntry hospital) async {
+    if (_isRouting || !hospital.hasCoordinates) return;
+
+    if (_liveLocation == null) {
+      await _showLiveLocation();
+    }
+    final origin = _liveLocation;
+    if (!mounted || origin == null) return;
+
+    setState(() {
+      _isRouting = true;
+      _followLiveLocation = false;
+    });
+    try {
+      final destination = LatLng(hospital.latitude!, hospital.longitude!);
+      final uri = Uri.https(
+        'router.project-osrm.org',
+        '/route/v1/driving/'
+            '${origin.longitude},${origin.latitude};'
+            '${destination.longitude},${destination.latitude}',
+        const {'overview': 'full', 'geometries': 'geojson', 'steps': 'false'},
+      );
+      final response = await http.get(uri).timeout(const Duration(seconds: 30));
+      if (response.statusCode != 200) {
+        throw const FormatException('Routing service returned an error.');
+      }
+
+      final payload = jsonDecode(response.body) as Map<String, dynamic>;
+      final routes = payload['routes'] as List<dynamic>?;
+      if (payload['code'] != 'Ok' || routes == null || routes.isEmpty) {
+        throw const FormatException('No driving route was found.');
+      }
+      final route = routes.first as Map<String, dynamic>;
+      final geometry = route['geometry'] as Map<String, dynamic>?;
+      final coordinates = geometry?['coordinates'] as List<dynamic>?;
+      if (coordinates == null || coordinates.length < 2) {
+        throw const FormatException('The route geometry is unavailable.');
+      }
+      final points = coordinates
+          .map((coordinate) {
+            final pair = coordinate as List<dynamic>;
+            return LatLng(
+              (pair[1] as num).toDouble(),
+              (pair[0] as num).toDouble(),
+            );
+          })
+          .toList(growable: false);
+
+      if (!mounted) return;
+      setState(() {
+        _routePoints = points;
+        _routeHospitalId = hospital.id;
+        _routeDistanceMeters = (route['distance'] as num?)?.toDouble();
+        _routeDurationSeconds = (route['duration'] as num?)?.toDouble();
+      });
+      _mapController.fitCamera(
+        CameraFit.bounds(
+          bounds: LatLngBounds.fromPoints(points),
+          padding: const EdgeInsets.all(48),
+          minZoom: 7.25,
+          maxZoom: 16,
+        ),
+      );
+    } on TimeoutException {
+      showRootMessage(
+        'The routing service took too long to respond. Try again.',
+      );
+    } on FormatException catch (error) {
+      showRootMessage(error.message);
+    } catch (_) {
+      showRootMessage(
+        'A driving route could not be loaded. Check your connection and try again.',
+      );
+    } finally {
+      if (mounted) setState(() => _isRouting = false);
+    }
+  }
+
+  void _clearRoute() {
+    setState(() {
+      _routePoints = const [];
+      _routeHospitalId = null;
+      _routeDistanceMeters = null;
+      _routeDurationSeconds = null;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     HospitalDirectoryEntry? selectedHospital;
@@ -1795,6 +1948,18 @@ class _HospitalMapState extends State<_HospitalMap> {
                             tileBounds: _philippinesMapBounds,
                             userAgentPackageName: 'care_navigator_ph',
                           ),
+                          if (_routePoints.isNotEmpty)
+                            PolylineLayer(
+                              polylines: [
+                                Polyline(
+                                  points: _routePoints,
+                                  color: AppColors.information,
+                                  strokeWidth: 6,
+                                  borderColor: Colors.white,
+                                  borderStrokeWidth: 2,
+                                ),
+                              ],
+                            ),
                           MarkerLayer(
                             markers: [
                               for (final hospital in widget.points)
@@ -1971,6 +2136,22 @@ class _HospitalMapState extends State<_HospitalMap> {
               );
             },
           ),
+          if (selectedHospital != null) ...[
+            const SizedBox(height: 12),
+            _MapRouteControls(
+              hospitalName: selectedHospital.name,
+              isLoading: _isRouting,
+              hasRoute: _routeHospitalId == selectedHospital.id,
+              routeSummary: _routeHospitalId == selectedHospital.id
+                  ? _formatRouteSummary(
+                      _routeDistanceMeters,
+                      _routeDurationSeconds,
+                    )
+                  : null,
+              onNavigate: () => _navigateTo(selectedHospital!),
+              onClear: _clearRoute,
+            ),
+          ],
           const SizedBox(height: 14),
           for (final hospital in widget.points)
             ListTile(
@@ -1989,6 +2170,87 @@ class _HospitalMapState extends State<_HospitalMap> {
       ),
     );
   }
+}
+
+class _MapRouteControls extends StatelessWidget {
+  const _MapRouteControls({
+    required this.hospitalName,
+    required this.isLoading,
+    required this.hasRoute,
+    required this.routeSummary,
+    required this.onNavigate,
+    required this.onClear,
+  });
+
+  final String hospitalName;
+  final bool isLoading;
+  final bool hasRoute;
+  final String? routeSummary;
+  final VoidCallback onNavigate;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: AppColors.selected,
+      borderRadius: BorderRadius.circular(AppRadius.control),
+      border: Border.all(color: AppColors.border),
+    ),
+    child: Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        FilledButton.icon(
+          onPressed: isLoading ? null : onNavigate,
+          icon: isLoading
+              ? const SizedBox.square(
+                  dimension: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.navigation_outlined, size: 18),
+          label: Text(
+            isLoading
+                ? 'Finding route'
+                : hasRoute
+                ? 'Refresh route'
+                : 'Navigate',
+          ),
+        ),
+        if (hasRoute)
+          OutlinedButton.icon(
+            onPressed: onClear,
+            icon: const Icon(Icons.close, size: 18),
+            label: const Text('Clear route'),
+          ),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: Text(
+            hasRoute && routeSummary != null
+                ? 'Driving route to $hospitalName \u00B7 $routeSummary'
+                : 'Use your live location to show a driving route to $hospitalName.',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+String? _formatRouteSummary(double? distanceMeters, double? durationSeconds) {
+  if (distanceMeters == null || durationSeconds == null) return null;
+  final distance = distanceMeters < 1000
+      ? '${distanceMeters.round()} m'
+      : '${(distanceMeters / 1000).toStringAsFixed(1)} km';
+  final totalMinutes = (durationSeconds / 60).ceil();
+  final duration = totalMinutes < 60
+      ? '$totalMinutes min'
+      : '${totalMinutes ~/ 60} hr ${totalMinutes % 60} min';
+  return '$distance \u00B7 about $duration';
 }
 
 class _HospitalLevelLegend extends StatelessWidget {

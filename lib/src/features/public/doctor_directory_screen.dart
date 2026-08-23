@@ -312,6 +312,11 @@ class _DoctorDirectoryRow extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(entry.doctor.specialtyLabel),
+                if (entry.doctor.departmentLabel?.trim().isNotEmpty ??
+                    false) ...[
+                  const SizedBox(height: 3),
+                  Text('Department: ${entry.doctor.departmentLabel}'),
+                ],
                 const SizedBox(height: 5),
                 Text(
                   '${entry.hospitalName} • ${entry.locationLabel}',
@@ -378,7 +383,13 @@ class _DoctorDirectoryRow extends StatelessWidget {
               FilledButton(
                 onPressed: entry.hospitalIsAvailable
                     ? () => context.go(
-                        '/consultation/request?hospitalId=${entry.hospitalId}',
+                        Uri(
+                          path: '/consultation/request',
+                          queryParameters: {
+                            'hospitalId': entry.hospitalId,
+                            'doctorId': entry.doctor.id,
+                          },
+                        ).toString(),
                       )
                     : null,
                 child: const Text('Request care'),

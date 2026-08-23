@@ -2,6 +2,16 @@ import 'dart:typed_data';
 
 import 'package:supabase/supabase.dart';
 
+class AdminMutationPartialSuccess implements Exception {
+  const AdminMutationPartialSuccess(this.message, [this.cause]);
+
+  final String message;
+  final Object? cause;
+
+  @override
+  String toString() => message;
+}
+
 abstract interface class AdminRepository {
   Future<void> approveHospital(String hospitalId);
 
@@ -30,6 +40,11 @@ abstract interface class AdminRepository {
     String? biography,
     List<int>? profileImageBytes,
     String? profileImageFileName,
+  });
+
+  Future<void> updateDoctorDepartment({
+    required String userId,
+    required String departmentId,
   });
 
   Future<void> createHospitalDepartment({
@@ -64,6 +79,17 @@ abstract interface class AdminRepository {
     required String table,
     required String recordId,
     required Map<String, Object?> changes,
+  });
+
+  Future<void> updateEmergencyCapacity({
+    required String recordId,
+    required int totalCapacity,
+    required int occupiedCapacity,
+    required int closedOrUnstaffedCapacity,
+    required int reservedCapacity,
+    required int currentPatientCount,
+    String? statusOverride,
+    String? overrideReason,
   });
 
   Future<void> updatePermission({
@@ -278,6 +304,9 @@ class SupabaseAdminRepository implements AdminRepository {
     if (requiredValues.any((value) => value.trim().isEmpty)) {
       throw ArgumentError('All required doctor fields must be completed.');
     }
+    if (departmentId == null || departmentId.trim().isEmpty) {
+      throw ArgumentError('A department assignment is required.');
+    }
     if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email.trim())) {
       throw ArgumentError('Enter a valid doctor email address.');
     }
@@ -289,12 +318,21 @@ class SupabaseAdminRepository implements AdminRepository {
     if (consultationFee != null && consultationFee < 0) {
       throw ArgumentError('The consultation fee cannot be negative.');
     }
+    final adminContext = await loadHospitalAdminContext();
+    if (adminContext.hospitalId != hospitalId ||
+        !adminContext.departments.any(
+          (department) => department.id == departmentId,
+        )) {
+      throw StateError(
+        'The selected department does not belong to your assigned hospital.',
+      );
+    }
     final response = await _client.functions.invoke(
       'admin-users',
       body: {
         'action': 'create_doctor',
         'hospital_id': hospitalId,
-        'department_id': _nullableText(departmentId),
+        'department_id': departmentId.trim(),
         'first_name': firstName.trim(),
         'last_name': lastName.trim(),
         'email': email.trim().toLowerCase(),
@@ -313,51 +351,85 @@ class SupabaseAdminRepository implements AdminRepository {
       );
     }
     if (profileImageBytes != null && profileImageBytes.isNotEmpty) {
-      final data = response.data;
-      var createdUserId = data is Map ? data['user_id']?.toString() : null;
-      if (createdUserId == null || createdUserId.isEmpty) {
+      try {
+        final data = response.data;
+        var createdUserId = data is Map ? data['user_id']?.toString() : null;
+        if (createdUserId == null || createdUserId.isEmpty) {
+          final createdUser = await _client
+              .from('users')
+              .select('id,auth_user_id')
+              .eq('email', email.trim().toLowerCase())
+              .maybeSingle();
+          createdUserId = createdUser?['id']?.toString();
+        }
+        if (createdUserId == null || createdUserId.isEmpty) {
+          throw StateError('The created doctor account could not be resolved.');
+        }
         final createdUser = await _client
             .from('users')
+            .select('id,auth_user_id')
+            .eq('id', createdUserId)
+            .single();
+        final createdAuthUserId = createdUser['auth_user_id']?.toString();
+        if (createdAuthUserId == null || createdAuthUserId.isEmpty) {
+          throw StateError('The profile image owner could not be resolved.');
+        }
+        final extension =
+            (profileImageFileName ?? 'profile.jpg')
+                    .split('.')
+                    .last
+                    .toLowerCase() ==
+                'png'
+            ? 'png'
+            : 'jpg';
+        final path = '$createdAuthUserId/profile.$extension';
+        await _client.storage
+            .from('profile-images')
+            .uploadBinary(
+              path,
+              Uint8List.fromList(profileImageBytes),
+              fileOptions: FileOptions(
+                contentType: extension == 'png' ? 'image/png' : 'image/jpeg',
+                upsert: true,
+              ),
+            );
+        await _client
+            .from('users')
+            .update({
+              'profile_image_url': _client.storage
+                  .from('profile-images')
+                  .getPublicUrl(path),
+            })
+            .eq('id', createdUserId)
             .select('id')
-            .eq('email', email.trim().toLowerCase())
-            .maybeSingle();
-        createdUserId = createdUser?['id']?.toString();
-      }
-      if (createdUserId == null || createdUserId.isEmpty) {
-        throw StateError(
-          'Doctor created, but the profile image could not be linked.',
+            .single();
+      } catch (error) {
+        throw AdminMutationPartialSuccess(
+          'Doctor account created, but the profile image was not saved.',
+          error,
         );
       }
-      final extension =
-          (profileImageFileName ?? 'profile.jpg')
-                  .split('.')
-                  .last
-                  .toLowerCase() ==
-              'png'
-          ? 'png'
-          : 'jpg';
-      final path = '$createdUserId/profile.$extension';
-      await _client.storage
-          .from('profile-images')
-          .uploadBinary(
-            path,
-            Uint8List.fromList(profileImageBytes),
-            fileOptions: FileOptions(
-              contentType: extension == 'png' ? 'image/png' : 'image/jpeg',
-              upsert: true,
-            ),
-          );
-      await _client
-          .from('users')
-          .update({
-            'profile_image_url': _client.storage
-                .from('profile-images')
-                .getPublicUrl(path),
-          })
-          .eq('id', createdUserId)
-          .select('id')
-          .single();
     }
+  }
+
+  @override
+  Future<void> updateDoctorDepartment({
+    required String userId,
+    required String departmentId,
+  }) async {
+    if (userId.trim().isEmpty) {
+      throw ArgumentError('A doctor account is required.');
+    }
+    if (departmentId.trim().isEmpty) {
+      throw ArgumentError('A department assignment is required.');
+    }
+    await _client.rpc<void>(
+      'assign_doctor_department',
+      params: {
+        'target_user_id': userId.trim(),
+        'target_department_id': departmentId.trim(),
+      },
+    );
   }
 
   @override
@@ -537,6 +609,74 @@ class SupabaseAdminRepository implements AdminRepository {
         .eq('id', recordId)
         .select('id')
         .single();
+  }
+
+  @override
+  Future<void> updateEmergencyCapacity({
+    required String recordId,
+    required int totalCapacity,
+    required int occupiedCapacity,
+    required int closedOrUnstaffedCapacity,
+    required int reservedCapacity,
+    required int currentPatientCount,
+    String? statusOverride,
+    String? overrideReason,
+  }) async {
+    if (recordId.trim().isEmpty) {
+      throw ArgumentError('An emergency capacity record is required.');
+    }
+    final values = [
+      totalCapacity,
+      occupiedCapacity,
+      closedOrUnstaffedCapacity,
+      reservedCapacity,
+      currentPatientCount,
+    ];
+    if (values.any((value) => value < 0)) {
+      throw ArgumentError('Emergency capacity values cannot be negative.');
+    }
+    if (occupiedCapacity + closedOrUnstaffedCapacity + reservedCapacity >
+        totalCapacity) {
+      throw ArgumentError(
+        'Occupied, unavailable, and reserved beds cannot exceed total capacity.',
+      );
+    }
+    final normalizedOverride = _nullableText(statusOverride);
+    if (normalizedOverride != null &&
+        !const {
+          'limited',
+          'full',
+          'temporarily_closed',
+        }.contains(normalizedOverride)) {
+      throw ArgumentError.value(
+        statusOverride,
+        'statusOverride',
+        'Unsupported emergency status override.',
+      );
+    }
+    final normalizedReason = _nullableText(overrideReason);
+    if (normalizedOverride != null &&
+        (normalizedReason == null ||
+            normalizedReason.length < 3 ||
+            normalizedReason.length > 500)) {
+      throw ArgumentError(
+        'Explain the operational status override in 3 to 500 characters.',
+      );
+    }
+
+    await _client.rpc<void>(
+      'update_emergency_capacity',
+      params: {
+        'target_record_id': recordId,
+        'total_capacity': totalCapacity,
+        'occupied_capacity': occupiedCapacity,
+        'closed_unstaffed_capacity': closedOrUnstaffedCapacity,
+        'reserved_capacity': reservedCapacity,
+        'reported_patient_count': currentPatientCount,
+        'manual_status_override': normalizedOverride,
+        'manual_override_reason': normalizedReason,
+      },
+    );
   }
 
   @override

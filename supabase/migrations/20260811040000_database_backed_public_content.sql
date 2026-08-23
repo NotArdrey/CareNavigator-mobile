@@ -71,12 +71,12 @@ where hospital_name =
 
 update public.hospitals
 set
-  contact_number = '(045) 409-6688 / 961-3544',
-  email = 'mcc@jblmgh.com.ph',
-  directory_source_url = 'https://www.philhealth.gov.ph/partners/providers/facilities/accredited/HOSP_022825.pdf',
-  directory_verified_at = now(),
+  contact_number = null,
+  email = null,
+  directory_source_url = null,
+  directory_verified_at = null,
   updated_at = now()
-where hospital_name = 'Jose B. Lingad Memorial General Hospital';
+where id = '20000000-0000-4000-8000-000000000001'::uuid;
 
 update public.hospitals
 set

@@ -53,10 +53,10 @@ where hospital_name = 'Dr. Paulino J. Garcia Memorial Research and Medical Cente
 
 update public.hospitals
 set
-  image_url = 'https://crhsbpkuteyqbxjpozrp.supabase.co/storage/v1/object/public/hospital-images/directory/jose-lingad-memorial-general-hospital.jpg',
-  image_attribution = 'Ramon FVelasquez - CC BY-SA 3.0',
-  image_source_url = 'https://commons.wikimedia.org/wiki/File:Lingadjf2.JPG'
-where hospital_name = 'Jose B. Lingad Memorial General Hospital';
+  image_url = 'https://placehold.co/1280x800/0f766e/ffffff/png?text=CareNavigator+Regional+Hospital',
+  image_attribution = 'CareNavigator demonstration placeholder',
+  image_source_url = 'https://placehold.co/'
+where id = '20000000-0000-4000-8000-000000000001'::uuid;
 
 update public.hospitals
 set
@@ -71,4 +71,3 @@ set
   image_attribution = 'Photo source: RH-Care',
   image_source_url = 'https://rh-care.info/clinic/tarlac-provincial-hospital-tph-cares/'
 where hospital_name = 'Tarlac Provincial Hospital';
-

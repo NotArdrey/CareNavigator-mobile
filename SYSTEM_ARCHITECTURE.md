@@ -15,7 +15,7 @@ The system uses a layered client/server architecture with a managed backend:
 - **Data-access layer:** Dart repositories that wrap the Supabase client.
 - **Backend platform:** Supabase Auth, PostgreSQL, Row Level Security (RLS), Realtime, private Storage, database triggers, and scheduled Edge Functions.
 - **Serverless integration layer:** Supabase Edge Functions for privileged workflows, AI calls, account provisioning, and outbound notifications.
-- **External services:** Groq for preliminary AI analysis, Gmail SMTP for opt-in email notifications, Jitsi for online consultations, and Google Maps for directions.
+- **External services:** Groq for preliminary AI analysis, Gmail SMTP for opt-in email notifications, Jitsi for online consultations, OpenStreetMap tiles, and OSRM driving routes for the hospital map.
 
 The public Flutter client uses only the Supabase URL and publishable client key. Administrative credentials, AI keys, SMTP credentials, bootstrap tokens, and scheduler tokens remain server-side.
 
@@ -34,7 +34,7 @@ flowchart LR
     Groq[Groq AI]
     SMTP[Gmail SMTP]
     Jitsi[Jitsi video]
-    Maps[Google Maps]
+    Maps[OpenStreetMap + OSRM]
 
     Guest --> Client
     Patient --> Client
@@ -45,7 +45,7 @@ flowchart LR
     Client -->|publishable key + user JWT| Supabase
     Supabase -->|server-side AI requests| Groq
     Supabase -->|server-side email delivery| SMTP
-    Client -->|open directions| Maps
+    Client -->|load map tiles and driving routes| Maps
     Client -->|join approved consultation room| Jitsi
 ```
 
@@ -184,7 +184,7 @@ Each function validates the request, checks authorization, performs server-side 
 2. The hospital repository queries approved/public hospital data through Supabase.
 3. PostgreSQL policies expose only appropriate directory and operational fields.
 4. The client displays hospital details, services, doctors, schedules, and availability.
-5. Directions are opened externally through Google Maps; no map-provider secret is stored in Flutter.
+5. Hospital locations and OSRM driving routes open in the in-app OpenStreetMap view; no map-provider secret is stored in Flutter.
 
 ### 6.2 Preliminary symptom assessment
 
@@ -257,7 +257,7 @@ Runtime
    ├─ Supabase Auth/API/Realtime/Storage/PostgreSQL
    ├─ Supabase Edge Functions
    ├─ Supabase Cron + pg_net
-   └─ Groq, Gmail SMTP, Jitsi, and Google Maps integrations
+   └─ Groq, Gmail SMTP, Jitsi, OpenStreetMap, and OSRM integrations
 ```
 
 The repository's deployment configuration is in `supabase/config.toml`. Environment-specific public client settings are supplied through asset configuration or `--dart-define`. Server secrets are provisioned through Supabase secret storage and are not compiled into the client.

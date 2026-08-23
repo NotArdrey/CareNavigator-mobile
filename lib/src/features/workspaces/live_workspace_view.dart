@@ -1,13 +1,16 @@
+import 'dart:async';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_selector/file_selector.dart';
-import 'dart:typed_data';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/auth/user_role.dart';
 import '../../models/clinical_checkup.dart';
+import '../../models/consultation_scheduling.dart';
 import '../../models/consultation_type.dart';
 import '../../models/hospitals/hospital_models.dart';
 import '../../providers/core_providers.dart';
@@ -15,6 +18,7 @@ import '../../providers/hospital_directory_provider.dart';
 import '../../repositories/admin_repository.dart';
 import '../../repositories/care_repository.dart';
 import '../../repositories/consultation_repository.dart';
+import '../../repositories/profile_repository.dart';
 import '../../repositories/repository_failure.dart';
 import '../../repositories/workspace_repository.dart';
 import '../../routing/root_overlay.dart';
@@ -35,6 +39,9 @@ class LiveWorkspaceView extends ConsumerStatefulWidget {
     this.itemId,
     this.isTab = false,
     this.showDetailHeader = true,
+    this.requestReservation = false,
+    this.initialReservationHospitalId,
+    this.initialReservationDoctorId,
   });
 
   final UserRole role;
@@ -42,6 +49,9 @@ class LiveWorkspaceView extends ConsumerStatefulWidget {
   final String? itemId;
   final bool isTab;
   final bool showDetailHeader;
+  final bool requestReservation;
+  final String? initialReservationHospitalId;
+  final String? initialReservationDoctorId;
 
   @override
   ConsumerState<LiveWorkspaceView> createState() => _LiveWorkspaceViewState();
@@ -52,6 +62,9 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
   final _searchFocusNode = FocusNode();
   String _query = '';
   final Set<String> _busyItems = {};
+  String? _handledReservationIntent;
+  WorkspaceSnapshot? _expandedSnapshot;
+  bool _loadingMore = false;
 
   WorkspaceRequest get _request =>
       (role: widget.role, section: _dataSection, itemId: widget.itemId);
@@ -60,6 +73,44 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
       widget.role == UserRole.patient && widget.section == 'medical-records'
       ? 'records'
       : widget.section;
+
+  @override
+  void initState() {
+    super.initState();
+    _scheduleRequestedReservation();
+  }
+
+  @override
+  void didUpdateWidget(covariant LiveWorkspaceView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.role != widget.role ||
+        oldWidget.section != widget.section ||
+        oldWidget.itemId != widget.itemId) {
+      _expandedSnapshot = null;
+    }
+    _scheduleRequestedReservation();
+  }
+
+  void _scheduleRequestedReservation() {
+    if (!widget.requestReservation ||
+        widget.role != UserRole.patient ||
+        widget.section != 'appointments') {
+      return;
+    }
+    final intent =
+        '${widget.initialReservationHospitalId ?? ''}:${widget.initialReservationDoctorId ?? ''}';
+    if (_handledReservationIntent == intent) return;
+    _handledReservationIntent = intent;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(
+        _reserveConsultation(
+          initialHospitalId: widget.initialReservationHospitalId,
+          initialDoctorId: widget.initialReservationDoctorId,
+        ),
+      );
+    });
+  }
 
   @override
   void dispose() {
@@ -146,39 +197,39 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
           message: _friendlyError(error),
           onRetry: () => ref.invalidate(careNotificationsProvider),
         ),
-        data: (items) => _buildSnapshot(
-          WorkspaceSnapshot(
-            title: 'Notifications',
-            description: 'Live account and care updates for your account.',
-            metrics: [
-              WorkspaceMetric(
-                label: 'Unread',
-                value: '${items.where((item) => !item.isRead).length}',
-              ),
-            ],
-            items: items
-                .map(
-                  (item) => WorkspaceItem(
-                    id: item.id,
-                    kind: 'notifications',
-                    title: item.title,
-                    subtitle: item.message,
-                    status: item.isRead ? 'read' : 'unread',
-                    timestamp: item.createdAt,
-                    isUnread: !item.isRead,
-                    data: {
-                      'notification_type': item.type,
-                      'title': item.title,
-                      'message': item.message,
-                      'is_read': item.isRead,
-                      'created_at': item.createdAt.toIso8601String(),
-                    },
-                  ),
-                )
-                .toList(growable: false),
-            loadedAt: DateTime.now(),
-          ),
-        ),
+        data: (items) {
+          final visibleNotifications = collapseNotificationThreads(items);
+          return _buildSnapshot(
+            WorkspaceSnapshot(
+              title: 'Notifications',
+              description: 'Live account and care updates for your account.',
+              items: visibleNotifications
+                  .map(
+                    (item) => WorkspaceItem(
+                      id: item.id,
+                      kind: 'notifications',
+                      title: item.title,
+                      subtitle: item.message,
+                      status: item.isRead ? 'read' : 'unread',
+                      timestamp: item.createdAt,
+                      isUnread: !item.isRead,
+                      data: {
+                        'notification_type': item.type,
+                        'title': item.title,
+                        'message': item.message,
+                        'is_read': item.isRead,
+                        'created_at': item.createdAt.toIso8601String(),
+                        'reference_id': item.referenceId,
+                        'data': item.data,
+                        ...item.data,
+                      },
+                    ),
+                  )
+                  .toList(growable: false),
+              loadedAt: DateTime.now(),
+            ),
+          );
+        },
       );
     }
     final snapshot = ref.watch(workspaceSnapshotProvider(_request));
@@ -188,10 +239,44 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
         message: _friendlyError(error),
         onRetry: () => ref.invalidate(workspaceSnapshotProvider(_request)),
       ),
-      data: widget.section == 'messages' && widget.itemId == null
-          ? _buildMessagesInbox
-          : _buildSnapshot,
+      data: (value) {
+        final expanded = _expandedSnapshot;
+        final effective =
+            expanded != null &&
+                (expanded.loadedAt ?? DateTime(1970)).isAfter(
+                  value.loadedAt ?? DateTime(1970),
+                )
+            ? expanded
+            : value;
+        return widget.section == 'messages' && widget.itemId == null
+            ? _buildMessagesInbox(effective)
+            : _buildSnapshot(effective);
+      },
     );
+  }
+
+  Future<void> _loadMore(WorkspaceSnapshot snapshot) async {
+    final repository = ref.read(workspaceRepositoryProvider);
+    if (repository == null || _loadingMore) return;
+    setState(() => _loadingMore = true);
+    try {
+      final expanded = await repository.load(
+        role: widget.role,
+        section: _dataSection,
+        itemId: widget.itemId,
+        limit: snapshot.items.length + 100,
+      );
+      if (mounted) setState(() => _expandedSnapshot = expanded);
+    } catch (error) {
+      showRootMessage(_friendlyError(error));
+    } finally {
+      if (mounted) setState(() => _loadingMore = false);
+    }
+  }
+
+  void _refreshSnapshot() {
+    setState(() => _expandedSnapshot = null);
+    ref.invalidate(workspaceSnapshotProvider(_request));
   }
 
   Widget _buildMessagesInbox(WorkspaceSnapshot snapshot) {
@@ -209,7 +294,7 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
 
     return SingleChildScrollView(
       child: PageContent(
-        maxWidth: 920,
+        maxWidth: 980,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -224,17 +309,21 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
                     ),
                   ),
                 ),
-                IconButton(
-                  tooltip: 'Search conversations',
-                  onPressed: _searchFocusNode.requestFocus,
-                  icon: const Icon(Icons.search),
-                ),
-                IconButton(
+                IconButton.filled(
                   tooltip: 'Start a conversation',
                   onPressed: _startConversation,
-                  icon: const Icon(Icons.add),
+                  icon: const Icon(Icons.edit_square),
                 ),
               ],
+            ),
+            const SizedBox(height: AppSpacing.x2),
+            Text(
+              isPatient
+                  ? 'Chat with your care team.'
+                  : 'Chat with patients in your care.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
             ),
             const SizedBox(height: AppSpacing.x5),
             TextField(
@@ -243,8 +332,25 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
               focusNode: _searchFocusNode,
               onChanged: (value) => setState(() => _query = value),
               decoration: InputDecoration(
-                hintText: 'Search conversations...',
+                hintText: 'Search conversations',
                 prefixIcon: const Icon(Icons.search),
+                filled: true,
+                fillColor: AppColors.surfaceMuted,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(28),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(28),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(28),
+                  borderSide: const BorderSide(
+                    color: AppColors.focus,
+                    width: 1.5,
+                  ),
+                ),
                 suffixIcon: normalizedQuery.isEmpty
                     ? null
                     : IconButton(
@@ -272,11 +378,18 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
               DecoratedBox(
                 decoration: BoxDecoration(
                   color: AppColors.surface,
-                  border: Border.all(color: AppColors.border),
-                  borderRadius: BorderRadius.circular(AppRadius.panel),
+                  border: Border.all(color: AppColors.divider),
+                  borderRadius: BorderRadius.circular(AppRadius.sheet),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x0A102A3A),
+                      blurRadius: 18,
+                      offset: Offset(0, 6),
+                    ),
+                  ],
                 ),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(AppRadius.panel),
+                  borderRadius: BorderRadius.circular(AppRadius.sheet),
                   child: Column(
                     children: [
                       for (
@@ -289,7 +402,7 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
                           onTap: () => _open(conversations[index]),
                         ),
                         if (index != conversations.length - 1)
-                          const Divider(height: 1, indent: 80),
+                          const Divider(height: 1, indent: 84),
                       ],
                     ],
                   ),
@@ -371,6 +484,18 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
         isPatientConsultationView && widget.section == 'consultations';
     final isPatientConsultationDetail =
         isPatientConsultationView && widget.itemId != null;
+    final isDoctorScheduleView =
+        widget.role == UserRole.doctor &&
+        widget.section == 'schedule' &&
+        widget.itemId == null;
+    final isDoctorAppointmentsView =
+        widget.role == UserRole.doctor &&
+        widget.section == 'appointments' &&
+        widget.itemId == null;
+    final isNotificationDetail =
+        widget.section == 'notifications' && widget.itemId != null;
+    final isConnectionRequestDetail =
+        isNotificationDetail && snapshot.items.any(_isPatientConnectionRequest);
     final consultationCount = snapshot.items
         .where((item) => item.kind == 'consultations')
         .length;
@@ -398,36 +523,28 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
               )
             else if (!isPatientConsultationDetail)
               PageHeader(
-                title: isPatientConsultationsPage
+                title: isConnectionRequestDetail
+                    ? 'Connection request'
+                    : isPatientConsultationsPage
                     ? 'Consultations'
+                    : isDoctorScheduleView
+                    ? 'Availability'
                     : snapshot.title,
-                description: isPatientConsultationsPage
+                description: isConnectionRequestDetail
+                    ? 'Review who wants to connect and choose what you are comfortable with.'
+                    : isPatientConsultationsPage
                     ? 'View your past and upcoming consultations.'
+                    : isDoctorScheduleView
+                    ? 'Choose when patients can reserve a consultation with you.'
                     : snapshot.description,
                 actions: [
-                  if (_patientUploadCategory != null && widget.itemId == null)
-                    FilledButton.icon(
-                      onPressed: _busyItems.contains('medical-file-upload')
-                          ? null
-                          : _uploadContextualMedicalFile,
-                      icon: _busyItems.contains('medical-file-upload')
-                          ? const SizedBox.square(
-                              dimension: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: AppColors.primaryForeground,
-                              ),
-                            )
-                          : const Icon(Icons.upload_file_outlined),
-                      label: Text(_patientUploadButtonLabel!),
-                    ),
                   if (isPatientConsultationView && widget.itemId == null)
                     FilledButton.icon(
-                      onPressed: _busyItems.contains('consultation-book')
+                      onPressed: _busyItems.contains('consultation-reserve')
                           ? null
-                          : _bookConsultation,
+                          : _reserveConsultation,
                       icon: const Icon(Icons.event_available_outlined),
-                      label: const Text('Book consultation'),
+                      label: const Text('Reserve consultation'),
                     ),
                   if (isPatientConsultationView)
                     Semantics(
@@ -483,6 +600,16 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
                       icon: const Icon(Icons.science_outlined),
                       label: const Text('Request test'),
                     ),
+                  if (widget.role == UserRole.doctor &&
+                      widget.section == 'results-review' &&
+                      widget.itemId == null)
+                    FilledButton.icon(
+                      onPressed: _busyItems.contains('lab-result-upload')
+                          ? null
+                          : _uploadDoctorLaboratoryResult,
+                      icon: const Icon(Icons.upload_file_outlined),
+                      label: const Text('Upload diagnostic result'),
+                    ),
                   if (widget.role == UserRole.hospitalAdministrator &&
                       widget.section == 'staff' &&
                       widget.itemId == null)
@@ -526,99 +653,273 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
                     ),
                   if (widget.role != UserRole.patient)
                     OutlinedButton.icon(
-                      onPressed: () =>
-                          ref.invalidate(workspaceSnapshotProvider(_request)),
+                      onPressed: _refreshSnapshot,
                       icon: const Icon(Icons.refresh),
                       label: const Text('Refresh'),
                     ),
                 ],
               ),
             const SizedBox(height: AppSpacing.x3),
-            if (!isPatientConsultationView && snapshot.metrics.isNotEmpty) ...[
+            if (isDoctorScheduleView) ...[
               const SizedBox(height: AppSpacing.x5),
-              _MetricGrid(metrics: snapshot.metrics),
+              _ScheduleSummary(items: snapshot.items),
+            ] else if (!isPatientConsultationView &&
+                !isNotificationDetail &&
+                snapshot.metrics.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.x5),
+              _MetricGrid(
+                metrics: isDoctorAppointmentsView
+                    ? [
+                        WorkspaceMetric(
+                          label: 'Active appointments',
+                          value:
+                              '${snapshot.items.where((item) => !_isPastConsultation(item)).length}',
+                        ),
+                      ]
+                    : snapshot.metrics,
+              ),
             ],
             const SizedBox(height: AppSpacing.x5),
-            ContentPanel(
-              title: isPatientConsultationView
-                  ? null
-                  : widget.itemId == null
-                  ? 'Current records'
-                  : 'Record detail',
-              subtitle: isPatientConsultationView || snapshot.loadedAt == null
-                  ? null
-                  : 'Updated ${DateFormat('MMM d, y · h:mm a').format(snapshot.loadedAt!.toLocal())}',
-              action: snapshot.items.length > 5 && widget.itemId == null
-                  ? SizedBox(
-                      width: 260,
-                      child: TextField(
-                        controller: _searchController,
-                        onChanged: (value) => setState(() => _query = value),
-                        decoration: InputDecoration(
-                          hintText: isPatientConsultationView
-                              ? 'Search consultations'
-                              : 'Search visible records',
-                          prefixIcon: Icon(Icons.search),
-                          isDense: true,
-                        ),
-                      ),
-                    )
-                  : null,
-              child: items.isEmpty
-                  ? DataState(
-                      icon: normalizedQuery.isEmpty
-                          ? Icons.inbox_outlined
-                          : Icons.search_off_outlined,
-                      title: normalizedQuery.isEmpty
-                          ? isPatientConsultationView
-                                ? 'No consultations yet'
-                                : 'No records available'
-                          : 'No matching records',
-                      message: normalizedQuery.isEmpty
-                          ? isPatientConsultationView
-                                ? 'Your consultations will appear here when they are available.'
-                                : 'There is no information to show in this section yet.'
-                          : 'Try a different search term.',
-                      action: normalizedQuery.isEmpty
-                          ? null
-                          : TextButton(
-                              onPressed: () {
-                                _searchController.clear();
-                                setState(() => _query = '');
-                              },
-                              child: const Text('Clear search'),
-                            ),
-                    )
-                  : isPatientConsultationView && widget.itemId == null
-                  ? _buildPatientConsultationSections(items)
-                  : Column(
-                      children: [
-                        for (var index = 0; index < items.length; index++) ...[
-                          _LiveRecordRow(
-                            item: items[index],
-                            busy: _busyItems.contains(items[index].id),
-                            onOpen: _canOpen(items[index])
-                                ? () => _open(items[index])
-                                : null,
-                            trailing: _actionsFor(items[index]),
+            if (isDoctorAppointmentsView)
+              _buildDoctorAppointmentPanels(
+                items: items,
+                snapshot: snapshot,
+                normalizedQuery: normalizedQuery,
+              )
+            else
+              ContentPanel(
+                title: isPatientConsultationView
+                    ? null
+                    : isDoctorScheduleView
+                    ? 'Your weekly hours'
+                    : widget.itemId == null
+                    ? 'Current records'
+                    : isConnectionRequestDetail
+                    ? 'Review request'
+                    : 'Record detail',
+                subtitle: isDoctorScheduleView
+                    ? '${snapshot.items.length} ${snapshot.items.length == 1 ? 'time slot' : 'time slots'} · ${snapshot.items.where((item) => item.data['is_active'] == true).length} open for reservation'
+                    : isPatientConsultationView || snapshot.loadedAt == null
+                    ? null
+                    : 'Updated ${DateFormat('MMM d, y · h:mm a').format(snapshot.loadedAt!.toLocal())}',
+                action:
+                    !isDoctorScheduleView &&
+                        snapshot.items.length > 5 &&
+                        widget.itemId == null
+                    ? SizedBox(
+                        width: 260,
+                        child: TextField(
+                          controller: _searchController,
+                          onChanged: (value) => setState(() => _query = value),
+                          decoration: InputDecoration(
+                            hintText: isPatientConsultationView
+                                ? 'Search consultations'
+                                : isDoctorScheduleView
+                                ? 'Search day or type'
+                                : 'Search visible records',
+                            prefixIcon: Icon(Icons.search),
+                            isDense: true,
                           ),
-                          if (widget.itemId != null)
-                            _LiveRecordDetails(
+                        ),
+                      )
+                    : null,
+                child: isDoctorScheduleView
+                    ? _ScheduleWeekView(
+                        items: snapshot.items,
+                        busyItems: _busyItems,
+                        actionsFor: _actionsFor,
+                      )
+                    : items.isEmpty
+                    ? DataState(
+                        icon: normalizedQuery.isEmpty
+                            ? Icons.inbox_outlined
+                            : Icons.search_off_outlined,
+                        title: normalizedQuery.isEmpty
+                            ? isPatientConsultationView
+                                  ? 'No consultations yet'
+                                  : 'No records available'
+                            : 'No matching records',
+                        message: normalizedQuery.isEmpty
+                            ? isPatientConsultationView
+                                  ? 'Your consultations will appear here when they are available.'
+                                  : 'There is no information to show in this section yet.'
+                            : 'Try a different search term.',
+                        action: normalizedQuery.isEmpty
+                            ? null
+                            : TextButton(
+                                onPressed: () {
+                                  _searchController.clear();
+                                  setState(() => _query = '');
+                                },
+                                child: const Text('Clear search'),
+                              ),
+                      )
+                    : isPatientConsultationView && widget.itemId == null
+                    ? _buildPatientConsultationSections(items)
+                    : Column(
+                        children: [
+                          for (
+                            var index = 0;
+                            index < items.length;
+                            index++
+                          ) ...[
+                            _LiveRecordRow(
                               item: items[index],
-                              role: widget.role,
-                              topActions: _buildPatientQuickActions(
-                                items[index],
+                              busy: _busyItems.contains(items[index].id),
+                              onOpen: _canOpen(items[index])
+                                  ? () => _open(items[index])
+                                  : null,
+                              trailing: _actionsFor(items[index]),
+                            ),
+                            if (widget.itemId != null)
+                              _LiveRecordDetails(
+                                item: items[index],
+                                role: widget.role,
+                                topActions: _buildDetailActions(items[index]),
+                              ),
+                            if (index != items.length - 1)
+                              const Divider(height: 1),
+                          ],
+                          if (snapshot.hasMore &&
+                              widget.itemId == null &&
+                              normalizedQuery.isEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                top: AppSpacing.x4,
+                              ),
+                              child: Center(
+                                child: OutlinedButton.icon(
+                                  onPressed: _loadingMore
+                                      ? null
+                                      : () => _loadMore(snapshot),
+                                  icon: _loadingMore
+                                      ? const SizedBox.square(
+                                          dimension: 16,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      : const Icon(Icons.expand_more),
+                                  label: Text(
+                                    _loadingMore ? 'Loading...' : 'Load more',
+                                  ),
+                                ),
                               ),
                             ),
-                          if (index != items.length - 1)
-                            const Divider(height: 1),
                         ],
-                      ],
-                    ),
-            ),
+                      ),
+              ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildDoctorAppointmentPanels({
+    required List<WorkspaceItem> items,
+    required WorkspaceSnapshot snapshot,
+    required String normalizedQuery,
+  }) {
+    final active = items
+        .where((item) => !_isPastConsultation(item))
+        .toList(growable: false);
+    final history = items.where(_isPastConsultation).toList(growable: false)
+      ..sort(_comparePastConsultations);
+    final updatedLabel = snapshot.loadedAt == null
+        ? null
+        : 'Updated ${DateFormat('MMM d, y Â· h:mm a').format(snapshot.loadedAt!.toLocal())}';
+
+    Widget recordsOrEmpty(
+      List<WorkspaceItem> sectionItems, {
+      required String emptyTitle,
+      required String emptyMessage,
+    }) {
+      if (sectionItems.isEmpty) {
+        return DataState(
+          icon: normalizedQuery.isEmpty
+              ? Icons.inbox_outlined
+              : Icons.search_off_outlined,
+          title: normalizedQuery.isEmpty ? emptyTitle : 'No matching records',
+          message: normalizedQuery.isEmpty
+              ? emptyMessage
+              : 'Try a different search term.',
+        );
+      }
+      return Column(
+        children: [
+          for (var index = 0; index < sectionItems.length; index++) ...[
+            _LiveRecordRow(
+              item: sectionItems[index],
+              busy: _busyItems.contains(sectionItems[index].id),
+              onOpen: _canOpen(sectionItems[index])
+                  ? () => _open(sectionItems[index])
+                  : null,
+              trailing: _actionsFor(sectionItems[index]),
+            ),
+            if (index != sectionItems.length - 1) const Divider(height: 1),
+          ],
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ContentPanel(
+          key: const ValueKey('doctor-current-appointments-panel'),
+          title: 'Current appointments',
+          subtitle: updatedLabel,
+          action: snapshot.items.length > 5
+              ? SizedBox(
+                  width: 260,
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (value) => setState(() => _query = value),
+                    decoration: const InputDecoration(
+                      hintText: 'Search appointments',
+                      prefixIcon: Icon(Icons.search),
+                      isDense: true,
+                    ),
+                  ),
+                )
+              : null,
+          child: recordsOrEmpty(
+            active,
+            emptyTitle: 'No current appointments',
+            emptyMessage: 'New and upcoming appointments will appear here.',
+          ),
+        ),
+        const SizedBox(height: AppSpacing.x5),
+        ContentPanel(
+          key: const ValueKey('doctor-appointment-history-panel'),
+          title: 'History',
+          subtitle: history.isEmpty
+              ? null
+              : '${history.length} ${history.length == 1 ? 'record' : 'records'}',
+          child: recordsOrEmpty(
+            history,
+            emptyTitle: 'No appointment history',
+            emptyMessage:
+                'Completed, cancelled, and declined appointments will appear here.',
+          ),
+        ),
+        if (snapshot.hasMore && normalizedQuery.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.x4),
+            child: Center(
+              child: OutlinedButton.icon(
+                onPressed: _loadingMore ? null : () => _loadMore(snapshot),
+                icon: _loadingMore
+                    ? const SizedBox.square(
+                        dimension: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.expand_more),
+                label: Text(_loadingMore ? 'Loading...' : 'Load more'),
+              ),
+            ),
+          ),
+      ],
     );
   }
 
@@ -682,53 +983,104 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
           style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
         ),
         const SizedBox(height: AppSpacing.x3),
-        Wrap(
-          spacing: AppSpacing.x2,
-          runSpacing: AppSpacing.x2,
-          children: [
-            FilledButton.icon(
-              onPressed: _busyItems.contains(item.id)
-                  ? null
-                  : () => _bookAppointment(item),
-              icon: const Icon(Icons.calendar_month_outlined, size: 18),
-              label: const Text('Book Appointment'),
-            ),
-            FilledButton.icon(
-              onPressed: _busyItems.contains(item.id)
-                  ? null
-                  : () => _messagePatient(item),
-              icon: const Icon(Icons.chat_bubble_outline, size: 18),
-              label: const Text('Message Patient'),
-            ),
-            FilledButton.icon(
-              onPressed: _busyItems.contains(item.id)
-                  ? null
-                  : () => _recordPatientCheckup(item),
-              icon: const Icon(Icons.folder_shared_outlined, size: 18),
-              label: const Text('Add Record'),
-            ),
-            FilledButton.icon(
-              onPressed: _busyItems.contains('prescription-create')
-                  ? null
-                  : _createPrescription,
-              icon: const Icon(Icons.medication_outlined, size: 18),
-              label: const Text('Issue Prescription'),
-            ),
-            FilledButton.icon(
-              onPressed: _busyItems.contains('laboratory-request-create')
-                  ? null
-                  : _createLaboratoryRequest,
-              icon: const Icon(Icons.science_outlined, size: 18),
-              label: const Text('Request Laboratory Test'),
-            ),
-          ],
+        LayoutBuilder(
+          builder: (context, constraints) {
+            const gap = AppSpacing.x2;
+            final availableWidth = constraints.hasBoundedWidth
+                ? constraints.maxWidth
+                : 760.0;
+            final columnCount = availableWidth >= 760
+                ? 4
+                : availableWidth >= 340
+                ? 2
+                : 1;
+            final buttonWidth =
+                (availableWidth - gap * (columnCount - 1)) / columnCount;
+
+            Widget action({
+              required IconData icon,
+              required String label,
+              required VoidCallback? onPressed,
+            }) => SizedBox(
+              width: buttonWidth,
+              height: 48,
+              child: FilledButton.icon(
+                onPressed: onPressed,
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                ),
+                icon: Icon(icon, size: 18),
+                label: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(label, maxLines: 1),
+                ),
+              ),
+            );
+
+            return Wrap(
+              spacing: gap,
+              runSpacing: gap,
+              children: [
+                action(
+                  icon: Icons.chat_bubble_outline,
+                  label: 'Message Patient',
+                  onPressed: _busyItems.contains(item.id)
+                      ? null
+                      : () => _messagePatient(item),
+                ),
+                action(
+                  icon: Icons.folder_shared_outlined,
+                  label: 'Add Record',
+                  onPressed: _busyItems.contains(item.id)
+                      ? null
+                      : () => _recordPatientCheckup(item),
+                ),
+                action(
+                  icon: Icons.medication_outlined,
+                  label: 'Issue Prescription',
+                  onPressed: _busyItems.contains('prescription-create')
+                      ? null
+                      : () => _createPrescription(item),
+                ),
+                action(
+                  icon: Icons.upload_file_outlined,
+                  label: 'Upload diagnostic result',
+                  onPressed: _busyItems.contains(item.id)
+                      ? null
+                      : () => _uploadDoctorLaboratoryResult(item),
+                ),
+              ],
+            );
+          },
         ),
       ],
     );
   }
 
+  Widget? _buildDetailActions(WorkspaceItem item) {
+    if (_isPatientConnectionRequest(item)) {
+      return _ConnectionRequestCard(
+        item: item,
+        busy: _busyItems.contains(item.id),
+        onAccept: widget.role == UserRole.patient
+            ? () => _decidePatientConnectionRequest(item, approve: true)
+            : null,
+        onDecline: widget.role == UserRole.patient
+            ? () => _decidePatientConnectionRequest(item, approve: false)
+            : null,
+      );
+    }
+    return _buildPatientQuickActions(item);
+  }
+
   bool _canOpen(WorkspaceItem item) =>
-      widget.section != null && widget.itemId == null && item.id != 'record';
+      widget.section != null &&
+      widget.itemId == null &&
+      item.id != 'record' &&
+      !{
+        'guest_consultation_requests',
+        'online_consultation_requests',
+      }.contains(item.kind);
 
   void _open(WorkspaceItem item) {
     final section = widget.section;
@@ -746,26 +1098,96 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
       );
     }
     if (item.kind == 'medical_documents') {
-      return TextButton.icon(
-        onPressed: _busyItems.contains(item.id)
-            ? null
-            : () => _downloadFile(item),
-        icon: const Icon(Icons.download_outlined, size: 18),
-        label: const Text('Download'),
+      final canManage =
+          widget.role == UserRole.patient &&
+          item.data['is_current_user_upload'] == true;
+      return Wrap(
+        spacing: AppSpacing.x1,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          TextButton.icon(
+            onPressed: _busyItems.contains(item.id)
+                ? null
+                : () => _downloadFile(item),
+            icon: const Icon(Icons.download_outlined, size: 18),
+            label: const Text('Download'),
+          ),
+          if (canManage) ...[
+            IconButton(
+              tooltip: 'Edit file title',
+              onPressed: _busyItems.contains(item.id)
+                  ? null
+                  : () => _renameMedicalFile(item),
+              icon: const Icon(Icons.edit_outlined),
+            ),
+            IconButton(
+              tooltip: 'Delete file',
+              onPressed: _busyItems.contains(item.id)
+                  ? null
+                  : () => _deleteMedicalFile(item),
+              icon: const Icon(Icons.delete_outline),
+            ),
+          ],
+        ],
       );
     }
     if (item.kind == 'consultations') {
       return _consultationActions(item);
     }
+    if (item.kind == 'online_consultation_requests') {
+      if (widget.role == UserRole.patient &&
+          !{
+            'completed',
+            'rejected',
+            'cancelled',
+            'no_show',
+            'in_progress',
+          }.contains(item.status)) {
+        return TextButton.icon(
+          onPressed: _busyItems.contains(item.id)
+              ? null
+              : () => _cancelOnlineRequest(item),
+          icon: const Icon(Icons.cancel_outlined, size: 18),
+          label: const Text('Cancel request'),
+        );
+      }
+      if (widget.role == UserRole.hospitalAdministrator &&
+          {
+            'submitted',
+            'under_review',
+            'more_information_required',
+            'schedule_proposed',
+          }.contains(item.status)) {
+        return Wrap(
+          spacing: AppSpacing.x2,
+          children: [
+            TextButton(
+              onPressed: _busyItems.contains(item.id)
+                  ? null
+                  : () => _reviewOnlineRequest(item, approve: false),
+              child: const Text('Reject'),
+            ),
+            FilledButton(
+              onPressed: _busyItems.contains(item.id)
+                  ? null
+                  : () => _reviewOnlineRequest(item, approve: true),
+              child: const Text('Confirm request'),
+            ),
+          ],
+        );
+      }
+      return null;
+    }
     if (widget.role == UserRole.doctor &&
         widget.section == 'patients' &&
         item.kind == 'doctor_patient_assignments') {
+      if (widget.itemId != null) return null;
       return FilledButton.icon(
         onPressed: _busyItems.contains(item.id)
             ? null
             : () => _recordPatientCheckup(item),
         icon: const Icon(Icons.monitor_heart_outlined, size: 18),
-        label: const Text('Record checkup'),
+        label: const Text('Follow-up checkup'),
       );
     }
     if (item.kind == 'guest_consultation_requests' &&
@@ -773,7 +1195,7 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
       final assignedDoctor = item.data['assigned_doctor_id']?.toString();
       final canApprove =
           widget.role == UserRole.doctor ||
-          (assignedDoctor != null && assignedDoctor.isNotEmpty);
+          widget.role == UserRole.hospitalAdministrator;
       return Wrap(
         spacing: AppSpacing.x2,
         children: [
@@ -784,9 +1206,13 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
             child: const Text('Reject'),
           ),
           Tooltip(
-            message: canApprove
+            message:
+                widget.role == UserRole.hospitalAdministrator &&
+                    (assignedDoctor == null || assignedDoctor.isEmpty)
+                ? 'Choose an eligible doctor before approval'
+                : canApprove
                 ? 'Approve and schedule request'
-                : 'Assign a doctor before approval',
+                : 'This request is assigned to another doctor',
             child: FilledButton(
               onPressed: !canApprove || _busyItems.contains(item.id)
                   ? null
@@ -804,7 +1230,7 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
     }
     if (item.kind == 'users' &&
         {'accounts', 'staff'}.contains(widget.section)) {
-      return PopupMenuButton<String>(
+      final statusMenu = PopupMenuButton<String>(
         tooltip: 'Change account status',
         enabled: !_busyItems.contains(item.id),
         onSelected: (status) => _updateAccountStatus(item, status),
@@ -814,12 +1240,31 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
           PopupMenuItem(value: 'suspended', child: Text('Suspend account')),
         ],
       );
+      final isHospitalDoctor =
+          widget.role == UserRole.hospitalAdministrator &&
+          widget.section == 'staff' &&
+          (item.data['display_name']?.toString().trim().isNotEmpty ?? false);
+      if (!isHospitalDoctor) return statusMenu;
+      return Wrap(
+        spacing: AppSpacing.x1,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          TextButton.icon(
+            onPressed: _busyItems.contains(item.id)
+                ? null
+                : () => _changeDoctorDepartment(item),
+            icon: const Icon(Icons.account_tree_outlined, size: 18),
+            label: const Text('Change department'),
+          ),
+          statusMenu,
+        ],
+      );
     }
     if (item.kind == 'doctor_schedules') {
       final active = item.data['is_active'] == true;
-      final bookedCount =
+      final reservedCount =
           int.tryParse(
-            item.data['booked_consultation_count']?.toString() ?? '',
+            item.data['reserved_consultation_count']?.toString() ?? '',
           ) ??
           0;
       return Wrap(
@@ -833,7 +1278,7 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
                 : () => _setScheduleActive(item, !active),
             child: Text(active ? 'Unpublish' : 'Publish'),
           ),
-          if (bookedCount == 0)
+          if (reservedCount == 0)
             IconButton(
               tooltip: 'Delete availability',
               onPressed: _busyItems.contains(item.id)
@@ -844,10 +1289,10 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
           else
             Tooltip(
               message:
-                  '$bookedCount appointment${bookedCount == 1 ? '' : 's'} use this availability; deletion is protected.',
+                  '$reservedCount appointment${reservedCount == 1 ? '' : 's'} use this availability; deletion is protected.',
               child: const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 8),
-                child: Text('Booked'),
+                child: Text('Reserved'),
               ),
             ),
         ],
@@ -862,30 +1307,30 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
         label: const Text('Edit'),
       );
     }
-    if (widget.role == UserRole.doctor &&
-        {
-          'prescriptions',
-          'laboratory_results',
-          'medical_records',
-          'laboratory_requests',
-        }.contains(item.kind)) {
+    if (item.kind == 'emergency_room_status') {
+      return FilledButton.icon(
+        onPressed: _busyItems.contains(item.id)
+            ? null
+            : () => _editEmergencyCapacity(item),
+        icon: const Icon(Icons.fact_check_outlined, size: 18),
+        label: const Text('Confirm capacity'),
+      );
+    }
+    if (widget.role == UserRole.doctor && item.kind == 'laboratory_requests') {
       return IconButton(
-        tooltip: 'Delete record',
+        tooltip: 'Cancel laboratory request',
         onPressed: _busyItems.contains(item.id)
             ? null
             : () => _deleteCareRecord(item),
-        icon: const Icon(Icons.delete_outline),
+        icon: const Icon(Icons.cancel_outlined),
       );
     }
     if ({
       'hospital_services',
       'hospital_departments',
       'hospital_facility_status',
-      'emergency_room_status',
     }.contains(item.kind)) {
-      final statuses = item.kind == 'emergency_room_status'
-          ? const ['available', 'limited', 'full', 'temporarily_closed']
-          : const ['available', 'limited', 'unavailable'];
+      const statuses = ['available', 'limited', 'unavailable'];
       final statusMenu = PopupMenuButton<String>(
         tooltip: 'Update availability',
         enabled: !_busyItems.contains(item.id),
@@ -1114,12 +1559,62 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
     () async {
       final repository = ref.read(careRepositoryProvider);
       if (repository == null) throw StateError('Care service is unavailable.');
-      await repository.markNotificationRead(item.id);
+      final groupedIds = item.data['notification_ids'];
+      final notificationIds = groupedIds is Iterable
+          ? groupedIds
+                .map((id) => id.toString().trim())
+                .where((id) => id.isNotEmpty)
+                .toSet()
+          : {item.id};
+      for (final notificationId in notificationIds) {
+        await repository.markNotificationRead(notificationId);
+      }
       ref.invalidate(careNotificationsProvider);
       ref.invalidate(workspaceSnapshotProvider(_request));
       showRootMessage('Notification marked as read.');
     },
   );
+
+  Future<void> _decidePatientConnectionRequest(
+    WorkspaceItem item, {
+    required bool approve,
+  }) async {
+    final requestId =
+        _connectionRequestData(
+          item,
+        )['connection_request_id']?.toString().trim() ??
+        item.data['reference_id']?.toString().trim() ??
+        '';
+    if (requestId.isEmpty) {
+      showRootMessage('This connection request is missing its reference.');
+      return;
+    }
+    final confirmed = await confirmRootAction(
+      title: approve ? 'Accept this connection?' : 'Decline this connection?',
+      message: approve
+          ? 'This gives the verified clinician access to the care information needed to support you for up to 90 days.'
+          : 'The clinician will not be connected to your account. This will not affect your account or current care.',
+      confirmLabel: approve ? 'Accept request' : 'Decline request',
+      destructive: !approve,
+    );
+    if (!confirmed) return;
+    await _runItemAction(item.id, () async {
+      final repository = ref.read(careRepositoryProvider);
+      if (repository == null) throw StateError('Care service is unavailable.');
+      await repository.decidePatientConnectionRequest(
+        requestId: requestId,
+        approve: approve,
+      );
+      ref.invalidate(careNotificationsProvider);
+      ref.invalidate(workspaceSnapshotProvider(_request));
+      ref.invalidate(hospitalDirectoryProvider);
+      showRootMessage(
+        approve
+            ? 'Connection accepted. The clinician can now support your care.'
+            : 'Connection request declined.',
+      );
+    });
+  }
 
   Future<void> _downloadFile(WorkspaceItem item) => _runItemAction(
     item.id,
@@ -1133,56 +1628,37 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
     },
   );
 
-  String? get _patientUploadCategory => widget.role != UserRole.patient
-      ? null
-      : switch (widget.section) {
-          'labs' => 'lab_result',
-          'prescriptions' => 'prescription',
-          _ => null,
-        };
-
-  String? get _patientUploadButtonLabel => switch (_patientUploadCategory) {
-    'lab_result' => 'Upload Lab Result',
-    'prescription' => 'Upload Prescription',
-    _ => null,
-  };
-
-  Future<void> _uploadContextualMedicalFile() async {
-    final category = _patientUploadCategory;
-    final buttonLabel = _patientUploadButtonLabel;
-    if (category == null || buttonLabel == null) return;
-    const acceptedTypes = XTypeGroup(
-      label: 'Medical files',
-      extensions: ['pdf', 'jpg', 'jpeg', 'png'],
-      mimeTypes: ['application/pdf', 'image/jpeg', 'image/png'],
+  Future<void> _renameMedicalFile(WorkspaceItem item) async {
+    final title = await showRootDialog<String>(
+      barrierDismissible: false,
+      builder: (context) =>
+          _MedicalDocumentTitleDialog(initialValue: item.title),
     );
-    final selected = await openFile(acceptedTypeGroups: const [acceptedTypes]);
-    if (selected == null) return;
-    final confirmed = await confirmRootAction(
-      title: '$buttonLabel?',
-      message:
-          '“${selected.name}” will be stored securely and visible only to you and your care team.',
-      confirmLabel: 'Upload securely',
-    );
-    if (!confirmed) return;
-    await _runItemAction('medical-file-upload', () async {
+    if (title == null || title == item.title) return;
+    await _runItemAction(item.id, () async {
       final repository = ref.read(careRepositoryProvider);
       if (repository == null) throw StateError('Care service is unavailable.');
-      final patientId = await repository.currentPatientId();
-      final bytes = await selected.readAsBytes();
-      await repository.uploadMedicalFile(
-        patientId: patientId,
-        fileName: selected.name,
-        title: selected.name,
-        documentType: category,
-        bytes: bytes,
-      );
+      await repository.renameOwnMedicalFile(fileId: item.id, title: title);
       ref.invalidate(workspaceSnapshotProvider(_request));
-      showRootMessage(
-        category == 'lab_result'
-            ? 'Lab result uploaded securely.'
-            : 'Prescription uploaded securely.',
-      );
+      showRootMessage('File title updated.');
+    });
+  }
+
+  Future<void> _deleteMedicalFile(WorkspaceItem item) async {
+    final confirmed = await confirmRootAction(
+      title: 'Delete ${item.title}?',
+      message:
+          'This permanently removes the file you uploaded. Doctor-uploaded files cannot be deleted by patients.',
+      confirmLabel: 'Delete file',
+      destructive: true,
+    );
+    if (!confirmed) return;
+    await _runItemAction(item.id, () async {
+      final repository = ref.read(careRepositoryProvider);
+      if (repository == null) throw StateError('Care service is unavailable.');
+      await repository.deleteOwnMedicalFile(fileId: item.id);
+      ref.invalidate(workspaceSnapshotProvider(_request));
+      showRootMessage('Uploaded file deleted.');
     });
   }
 
@@ -1246,45 +1722,78 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
     });
   }
 
-  Future<void> _createPrescription() => _runItemAction(
-    'prescription-create',
-    () async {
-      final repository = ref.read(careRepositoryProvider);
-      if (repository == null) throw StateError('Care service is unavailable.');
-      final relationships = await repository.listClinicalRelationships();
-      if (relationships.isEmpty) {
-        throw StateError(
-          'No assigned patient consultation is available for prescribing.',
-        );
-      }
-      final draft = await showRootDialog<_PrescriptionDraft>(
-        barrierDismissible: false,
-        builder: (context) => _PrescriptionDialog(relationships: relationships),
+  Future<void> _createPrescription([
+    WorkspaceItem? selectedPatient,
+  ]) => _runItemAction('prescription-create', () async {
+    final repository = ref.read(careRepositoryProvider);
+    if (repository == null) throw StateError('Care service is unavailable.');
+    final relationships = _relationshipsForPatient(
+      await repository.listClinicalRelationships(),
+      selectedPatient,
+    );
+    if (relationships.isEmpty) {
+      throw StateError(
+        selectedPatient == null
+            ? 'No active doctor-patient relationship is available for prescribing.'
+            : 'This patient is not currently assigned to you for prescribing.',
       );
-      if (draft == null) return;
-      await repository.createPrescription(
-        relationship: draft.relationship,
-        medicationName: draft.medicationName,
-        dosage: draft.dosage,
-        frequency: draft.frequency,
-        duration: draft.duration,
-        instructions: draft.instructions,
-        attachment: draft.attachment,
-      );
-      ref.invalidate(workspaceSnapshotProvider(_request));
-      showRootMessage('Prescription issued to the selected patient.');
-    },
-  );
+    }
+    PrescriberDetails? prescriber;
+    try {
+      prescriber = await repository.currentPrescriberDetails();
+    } catch (_) {
+      // The dialog still opens so the clinician can see which profile detail
+      // must be completed before issuance.
+    }
+    final draft = await showRootDialog<_PrescriptionDraft>(
+      barrierDismissible: false,
+      builder: (context) => _PrescriptionDialog(
+        relationships: relationships,
+        repository: repository,
+        prescriber: prescriber,
+      ),
+    );
+    if (draft == null) return;
+    await repository.createPrescription(
+      relationship: draft.relationship,
+      medicationName: draft.medicationName,
+      dosage: draft.dosage,
+      frequency: draft.frequency,
+      duration: draft.duration,
+      diagnosisReason: draft.diagnosisReason,
+      medicationFormStrength: draft.medicationFormStrength,
+      route: draft.route,
+      exactDose: draft.exactDose,
+      quantityToDispense: draft.quantityToDispense,
+      refills: draft.refills,
+      startDate: draft.startDate,
+      endDate: draft.endDate,
+      isPrn: draft.isPrn,
+      prnReason: draft.prnReason,
+      maximumDailyDose: draft.maximumDailyDose,
+      electronicSignatureAccepted: draft.electronicSignatureAccepted,
+      instructions: draft.instructions,
+      attachment: draft.attachment,
+    );
+    ref.invalidate(workspaceSnapshotProvider(_request));
+    showRootMessage(
+      draft.attachment == null
+          ? 'Prescription issued to the selected patient.'
+          : 'Prescription issued. The attachment and its AI summary status are available to the patient and care team.',
+    );
+  });
 
   Future<void> _createLaboratoryRequest() => _runItemAction(
     'laboratory-request-create',
     () async {
       final repository = ref.read(careRepositoryProvider);
       if (repository == null) throw StateError('Care service is unavailable.');
-      final relationships = await repository.listClinicalRelationships();
+      final relationships = (await repository.listClinicalRelationships())
+          .where((relationship) => relationship.hasConsultation)
+          .toList(growable: false);
       if (relationships.isEmpty) {
         throw StateError(
-          'No assigned patient consultation is available for a laboratory request.',
+          'No active patient consultation is available for a laboratory request.',
         );
       }
       final draft = await showRootDialog<_LaboratoryRequestDraft>(
@@ -1305,17 +1814,92 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
     },
   );
 
-  Future<void> _bookConsultation() => _runItemAction(
-    'consultation-book',
-    () async {
-      await ref.read(hospitalDirectoryProvider.notifier).refresh();
-      final directory = ref.read(hospitalDirectoryProvider);
-      if (directory.errorMessage != null) {
-        throw StateError(directory.errorMessage!);
-      }
-      final clinicians = <DoctorDirectoryEntry>[
-        for (final hospital in directory.entries)
-          for (final doctor in hospital.doctors)
+  Future<void> _uploadDoctorLaboratoryResult([
+    WorkspaceItem? selectedPatient,
+  ]) => _runItemAction(selectedPatient?.id ?? 'lab-result-upload', () async {
+    final repository = ref.read(careRepositoryProvider);
+    if (repository == null) throw StateError('Care service is unavailable.');
+    final relationships = _relationshipsForPatient(
+      await repository.listClinicalRelationships(),
+      selectedPatient,
+    );
+    if (relationships.isEmpty) {
+      throw StateError(
+        selectedPatient == null
+            ? 'No active doctor-patient relationship is available for a diagnostic result.'
+            : 'This patient is not currently assigned to you for a diagnostic result.',
+      );
+    }
+    final draft = await showRootDialog<_LaboratoryResultUploadDraft>(
+      barrierDismissible: false,
+      builder: (context) => _LaboratoryResultUploadDialog(
+        relationships: relationships,
+        repository: repository,
+      ),
+    );
+    if (draft == null) return;
+    await repository.uploadMedicalFile(
+      patientId: draft.relationship.patientId,
+      fileName: draft.attachment.name,
+      title: draft.testProcedureName,
+      documentType: 'diagnostic_result',
+      bytes: draft.attachment.bytes,
+      referenceId: draft.relationship.clinicalReferenceId,
+      referenceType: draft.relationship.clinicalReferenceType,
+      diagnosticResult: DiagnosticResultDetails(
+        category: draft.category,
+        testProcedureName: draft.testProcedureName,
+        performedOrCollectedDate: draft.performedOrCollectedDate,
+        resultDate: draft.resultDate,
+        facility: draft.facility,
+        requestingDoctor: draft.requestingDoctor,
+        findingsImpression: draft.findingsImpression,
+        notes: draft.notes,
+      ),
+    );
+    ref.invalidate(workspaceSnapshotProvider(_request));
+    showRootMessage(
+      'Diagnostic result uploaded for ${draft.relationship.patientLabel}. Its AI summary status is available to the patient and care team.',
+    );
+  });
+
+  List<ClinicalRelationship> _relationshipsForPatient(
+    List<ClinicalRelationship> relationships,
+    WorkspaceItem? selectedPatient,
+  ) {
+    if (selectedPatient == null) return relationships;
+    final patientId = selectedPatient.data['patient_id']?.toString() ?? '';
+    final selectedPatientLabel =
+        selectedPatient.data['patient_name']?.toString().trim() ?? '';
+    return relationships
+        .where((relationship) => relationship.patientId == patientId)
+        .map(
+          (relationship) => ClinicalRelationship(
+            patientId: relationship.patientId,
+            patientLabel: selectedPatientLabel.isEmpty
+                ? selectedPatient.title
+                : selectedPatientLabel,
+            consultationId: relationship.consultationId,
+            consultationLabel: relationship.consultationLabel,
+            assignmentId: relationship.assignmentId,
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  Future<void> _reserveConsultation({
+    String? initialHospitalId,
+    String? initialDoctorId,
+  }) => _runItemAction('consultation-reserve', () async {
+    await ref.read(hospitalDirectoryProvider.notifier).refresh();
+    final directory = ref.read(hospitalDirectoryProvider);
+    if (directory.errorMessage != null) {
+      throw StateError(directory.errorMessage!);
+    }
+    final clinicians = <DoctorDirectoryEntry>[
+      for (final hospital in directory.entries)
+        for (final doctor in hospital.doctors)
+          if (doctor.publishedConsultationTypes.isNotEmpty)
             DoctorDirectoryEntry(
               doctor: doctor,
               hospitalId: hospital.id,
@@ -1325,36 +1909,55 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
               hospitalIsAvailable: hospital.isAvailable,
               hospitalImageUrl: hospital.imageUrl,
             ),
-      ];
-      if (clinicians.isEmpty) {
-        throw StateError(
-          'No clinician with published availability is available for booking.',
-        );
-      }
-      final draft = await showRootDialog<_BookingDraft>(
-        barrierDismissible: false,
-        builder: (context) => _BookingDialog(clinicians: clinicians),
+    ];
+    if (clinicians.isEmpty) {
+      throw StateError(
+        'No clinician with published availability is available for reservations.',
       );
-      if (draft == null) return;
-      final appointmentDate = await requestRootDateTime(
-        initial: draft.clinician.doctor.nextAvailableAt,
+    }
+    if (initialHospitalId != null &&
+        !clinicians.any((entry) => entry.hospitalId == initialHospitalId)) {
+      throw StateError(
+        'No clinician with published availability is available at this hospital.',
       );
-      if (appointmentDate == null) return;
-      final repository = ref.read(consultationRepositoryProvider);
-      if (repository == null) {
-        throw StateError('Consultation service is unavailable.');
-      }
-      await repository.bookConsultation(
-        doctorId: draft.clinician.doctor.id,
-        hospitalId: draft.clinician.hospitalId,
-        consultationType: draft.consultationType,
-        appointmentDate: appointmentDate,
-        chiefComplaint: draft.chiefComplaint,
+    }
+    final repository = ref.read(consultationRepositoryProvider);
+    if (repository == null) {
+      throw StateError('Consultation service is unavailable.');
+    }
+    final profile = await ref.read(careProfileProvider.future);
+    if (profile.mobileNumber?.trim().isEmpty ?? true) {
+      throw StateError(
+        'Add a registered phone number to your account profile before requesting care.',
       );
-      ref.invalidate(workspaceSnapshotProvider(_request));
-      showRootMessage('Consultation request booked and pending approval.');
-    },
-  );
+    }
+    final draft = await showRootDialog<_ReservationDraft>(
+      barrierDismissible: false,
+      builder: (context) => _ReservationDialog(
+        clinicians: clinicians,
+        repository: repository,
+        profile: profile,
+        initialHospitalId: initialHospitalId,
+        initialDoctorId: initialDoctorId,
+      ),
+    );
+    if (draft == null) return;
+    await repository.reserveConsultation(
+      doctorId: draft.clinician.doctor.id,
+      hospitalId: draft.clinician.hospitalId,
+      consultationType: draft.consultationType,
+      appointmentDate: draft.appointmentDate,
+      chiefComplaint: draft.chiefComplaint,
+      symptomDuration: draft.symptomDuration,
+      sharedCategories: draft.sharedCategories,
+    );
+    ref.invalidate(workspaceSnapshotProvider(_request));
+    showRootMessage(
+      draft.consultationType == 'online'
+          ? 'Online consultation request submitted for hospital review. The preferred slot is not reserved until confirmation.'
+          : 'Face-to-face consultation reserved and pending approval.',
+    );
+  });
 
   Future<void> _joinConsultation(WorkspaceItem item) =>
       _runItemAction(item.id, () async {
@@ -1395,9 +1998,10 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
     final current = DateTime.tryParse(
       item.data['appointment_date']?.toString() ?? '',
     );
+    final minimum = DateTime.now().add(reservationMinimumLeadTime);
     final selected = await requestRootDateTime(
-      initial:
-          current?.toLocal() ?? DateTime.now().add(const Duration(days: 1)),
+      initial: current?.toLocal() ?? minimum.add(const Duration(days: 1)),
+      minimum: minimum,
     );
     if (selected == null || selected == current?.toLocal()) return;
     await _runItemAction(item.id, () async {
@@ -1468,90 +2072,54 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
       if (patientId.isEmpty) {
         throw StateError('The selected patient is missing a clinical link.');
       }
+      final repository = ref.read(careRepositoryProvider);
+      if (repository == null) throw StateError('Care service is unavailable.');
       final draft =
           await showRootDialog<
             ({
               ClinicalCheckupDraft checkup,
-              ({List<int> bytes, String name})? attachment,
+              List<({List<int> bytes, String name})> attachments,
             })
           >(
             barrierDismissible: false,
-            builder: (context) => _PatientCheckupDialog(patient: item.data),
+            builder: (context) => _PatientCheckupDialog(
+              patient: item.data,
+              repository: repository,
+            ),
           );
       if (draft == null) return;
-      final repository = ref.read(careRepositoryProvider);
-      if (repository == null) throw StateError('Care service is unavailable.');
       await repository.recordPatientCheckup(
         patientId: patientId,
         checkup: draft.checkup,
-        attachment: draft.attachment,
+        attachments: draft.attachments,
       );
       ref.invalidate(workspaceSnapshotProvider(_request));
-      showRootMessage('Patient checkup recorded.');
-    });
-  }
-
-  Future<void> _bookAppointment(WorkspaceItem item) async {
-    await _runItemAction(item.id, () async {
-      final patientId = item.data['patient_id']?.toString() ?? '';
-      if (patientId.isEmpty) {
-        throw StateError('The selected patient is missing a clinical link.');
-      }
-      final draft =
-          await showRootDialog<
-            ({
-              DateTime date,
-              String type,
-              String complaint,
-              ({List<int> bytes, String name})? attachment,
-            })
-          >(
-            barrierDismissible: false,
-            builder: (context) => _BookAppointmentDialog(patient: item.data),
-          );
-      if (draft == null) return;
-      final repository = ref.read(careRepositoryProvider);
-      if (repository == null) throw StateError('Care service is unavailable.');
-      await repository.bookAppointment(
-        patientId: patientId,
-        appointmentDate: draft.date,
-        consultationType: draft.type,
-        chiefComplaint: draft.complaint,
-        attachment: draft.attachment,
-      );
-      ref.invalidate(workspaceSnapshotProvider(_request));
-      showRootMessage('Appointment booked.');
+      showRootMessage('Follow-up checkup recorded.');
     });
   }
 
   Future<void> _messagePatient(WorkspaceItem item) async {
     await _runItemAction(item.id, () async {
       final patientId = item.data['patient_id']?.toString() ?? '';
-      final conversationId = item.data['conversation_id']?.toString();
-      if (patientId.isEmpty ||
-          conversationId == null ||
-          conversationId.isEmpty) {
-        showRootMessage('Patient has not set up a messaging conversation yet.');
-        return;
+      if (patientId.isEmpty) {
+        throw StateError('The selected patient is missing a clinical link.');
       }
-      final draft =
-          await showRootDialog<
-            ({String message, ({List<int> bytes, String name})? attachment})
-          >(
-            barrierDismissible: false,
-            builder: (context) => _MessagePatientDialog(patient: item.data),
-          );
-      if (draft == null) return;
       final repository = ref.read(careRepositoryProvider);
       if (repository == null) throw StateError('Care service is unavailable.');
-      await repository.sendMessage(
-        conversationId: conversationId,
-        body: draft.message,
-        patientId: patientId,
-        attachment: draft.attachment,
+      final existingConversationId =
+          item.data['conversation_id']?.toString() ?? '';
+      final conversationId = existingConversationId.isNotEmpty
+          ? existingConversationId
+          : await repository.ensurePatientConversation(patientId);
+      ref.invalidate(
+        workspaceSnapshotProvider((
+          role: widget.role,
+          section: 'messages',
+          itemId: null,
+        )),
       );
-      ref.invalidate(workspaceSnapshotProvider(_request));
-      showRootMessage('Message sent.');
+      if (!mounted) return;
+      context.go('${widget.role.homeLocation}/messages/$conversationId');
     });
   }
 
@@ -1604,6 +2172,159 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
     });
   }
 
+  Future<void> _cancelOnlineRequest(WorkspaceItem item) async {
+    final reason = await requestDecisionNote(
+      title: 'Cancel online consultation request',
+      message:
+          'The preferred slot is released if the hospital already confirmed it. Give the care team a brief reason.',
+      confirmLabel: 'Cancel request',
+      destructive: true,
+    );
+    if (reason == null) return;
+    await _runItemAction(item.id, () async {
+      final repository = ref.read(consultationRepositoryProvider);
+      if (repository == null) {
+        throw StateError('Consultation service is unavailable.');
+      }
+      await repository.cancelOnlineRequest(requestId: item.id, reason: reason);
+      ref.invalidate(workspaceSnapshotProvider(_request));
+      showRootMessage('Online consultation request cancelled.');
+    });
+  }
+
+  Future<void> _reviewOnlineRequest(
+    WorkspaceItem item, {
+    required bool approve,
+  }) async {
+    String? notes;
+    String? selectedDoctorId;
+    DateTime? confirmedSchedule;
+    String? channel;
+
+    if (!approve) {
+      notes = await requestDecisionNote(
+        title: 'Reject online consultation request',
+        message:
+            'Explain why the hospital cannot accept this request so the patient can choose the next step.',
+        confirmLabel: 'Reject request',
+        destructive: true,
+      );
+      if (notes == null) return;
+    } else {
+      try {
+        final repository = ref.read(consultationRepositoryProvider);
+        if (repository == null) {
+          throw StateError('Consultation service is unavailable.');
+        }
+        final hospitalId = item.data['hospital_id']?.toString();
+        if (hospitalId == null || hospitalId.isEmpty) {
+          throw StateError('The request is missing its receiving hospital.');
+        }
+        final doctors = await repository.listGuestReviewDoctors(
+          hospitalId: hospitalId,
+          departmentId: item.data['requested_department_id']?.toString(),
+        );
+        if (doctors.isEmpty) {
+          throw StateError(
+            'No verified doctor is available for this hospital and department.',
+          );
+        }
+        final currentDoctorId =
+            item.data['assigned_doctor_id']?.toString() ??
+            item.data['requested_doctor_id']?.toString();
+        final matchingDoctors = doctors.where(
+          (doctor) => doctor.id == currentDoctorId,
+        );
+        GuestReviewDoctor? selectedDoctor = matchingDoctors.isEmpty
+            ? null
+            : matchingDoctors.first;
+        selectedDoctor ??= await showRootDialog<GuestReviewDoctor>(
+          barrierDismissible: false,
+          builder: (context) => _GuestDoctorSelectionDialog(doctors: doctors),
+        );
+        if (selectedDoctor == null) return;
+        selectedDoctorId = selectedDoctor.id;
+
+        final proposed = DateTime.tryParse(
+          item.data['proposed_schedule']?.toString() ??
+              item.data['preferred_schedule']?.toString() ??
+              '',
+        );
+        if (proposed == null) {
+          throw StateError('The request is missing a preferred schedule.');
+        }
+        final minimum = DateTime.now().add(reservationMinimumLeadTime);
+        confirmedSchedule = await requestRootDateTime(
+          initial: proposed.toLocal(),
+          minimum: minimum,
+        );
+        if (confirmedSchedule == null) return;
+
+        channel = await showRootDialog<String>(
+          barrierDismissible: false,
+          builder: (context) => SimpleDialog(
+            title: const Text('Confirm consultation channel'),
+            children: [
+              SimpleDialogOption(
+                onPressed: () => Navigator.of(context).pop('call'),
+                child: const ListTile(
+                  leading: Icon(Icons.call_outlined),
+                  title: Text('Phone call'),
+                ),
+              ),
+              SimpleDialogOption(
+                onPressed: () => Navigator.of(context).pop('email'),
+                child: const ListTile(
+                  leading: Icon(Icons.email_outlined),
+                  title: Text('Email'),
+                ),
+              ),
+              SimpleDialogOption(
+                onPressed: () => Navigator.of(context).pop('video'),
+                child: const ListTile(
+                  leading: Icon(Icons.videocam_outlined),
+                  title: Text('Video'),
+                ),
+              ),
+            ],
+          ),
+        );
+        if (channel == null) return;
+        final confirmed = await confirmRootAction(
+          title: 'Confirm online consultation?',
+          message:
+              'The hospital will create the official appointment only after rechecking this doctor and time.',
+          confirmLabel: 'Confirm appointment',
+        );
+        if (!confirmed) return;
+      } catch (error) {
+        showRootMessage(_friendlyError(error));
+        return;
+      }
+    }
+
+    await _runItemAction(item.id, () async {
+      final repository = ref.read(consultationRepositoryProvider);
+      if (repository == null) {
+        throw StateError('Consultation service is unavailable.');
+      }
+      await repository.reviewOnlineRequest(
+        requestId: item.id,
+        decision: approve ? 'confirmed' : 'rejected',
+        doctorId: selectedDoctorId,
+        confirmedSchedule: confirmedSchedule,
+        channel: channel,
+        notes: notes,
+      );
+      ref.invalidate(workspaceSnapshotProvider(_request));
+      showRootMessage(
+        approve
+            ? 'Online request confirmed and official appointment created.'
+            : 'Online consultation request rejected.',
+      );
+    });
+  }
+
   Future<void> _reviewGuestRequest(
     WorkspaceItem item, {
     required bool approve,
@@ -1633,6 +2354,46 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
       showRootMessage('Choose a valid appointment time before approval.');
       return;
     }
+    if (approve &&
+        preferred!.isBefore(DateTime.now().add(reservationMinimumLeadTime))) {
+      showRootMessage(
+        'Guest consultations must be scheduled at least 24 hours in advance.',
+      );
+      return;
+    }
+    var selectedDoctorId = item.data['assigned_doctor_id']?.toString();
+    if (approve &&
+        widget.role == UserRole.hospitalAdministrator &&
+        (selectedDoctorId == null || selectedDoctorId.isEmpty)) {
+      try {
+        final repository = ref.read(consultationRepositoryProvider);
+        if (repository == null) {
+          throw StateError('Consultation service is unavailable.');
+        }
+        final hospitalId = item.data['preferred_hospital_id']?.toString();
+        if (hospitalId == null || hospitalId.isEmpty) {
+          throw StateError('The request is missing its preferred hospital.');
+        }
+        final doctors = await repository.listGuestReviewDoctors(
+          hospitalId: hospitalId,
+          departmentId: item.data['preferred_department_id']?.toString(),
+        );
+        if (doctors.isEmpty) {
+          throw StateError(
+            'No eligible doctor is available for this hospital and department.',
+          );
+        }
+        final selected = await showRootDialog<GuestReviewDoctor>(
+          barrierDismissible: false,
+          builder: (context) => _GuestDoctorSelectionDialog(doctors: doctors),
+        );
+        if (selected == null) return;
+        selectedDoctorId = selected.id;
+      } catch (error) {
+        showRootMessage(_friendlyError(error));
+        return;
+      }
+    }
     await _runItemAction(item.id, () async {
       final repository = ref.read(consultationRepositoryProvider);
       if (repository == null) {
@@ -1642,7 +2403,7 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
         requestId: item.id,
         decision: approve ? 'approved' : 'rejected',
         doctorId: widget.role == UserRole.hospitalAdministrator
-            ? item.data['assigned_doctor_id']?.toString()
+            ? selectedDoctorId
             : null,
         appointmentDate: approve ? preferred : null,
         notes: notes,
@@ -1745,6 +2506,7 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
         },
       );
       ref.invalidate(workspaceSnapshotProvider(_request));
+      ref.invalidate(hospitalDirectoryProvider);
       showRootMessage('Operational status updated.');
     });
   }
@@ -1790,7 +2552,51 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
               },
       );
       ref.invalidate(workspaceSnapshotProvider(_request));
+      ref.invalidate(hospitalDirectoryProvider);
       showRootMessage('${item.title} capacity updated.');
+    });
+  }
+
+  Future<void> _editEmergencyCapacity(WorkspaceItem item) async {
+    final total = _intValue(item.data['maximum_capacity']);
+    final available = _intValue(item.data['available_beds']);
+    final publishedOccupied = item.data['occupied_beds'];
+    final inferredOccupied = (total - available).clamp(0, total);
+    final values = await showRootDialog<_EmergencyCapacityDraft>(
+      barrierDismissible: false,
+      builder: (context) => _EmergencyCapacityDialog(
+        initialTotal: total,
+        initialOccupied: publishedOccupied == null
+            ? inferredOccupied
+            : _intValue(publishedOccupied),
+        initialClosedOrUnstaffed: _intValue(
+          item.data['closed_or_unstaffed_beds'],
+        ),
+        initialReserved: _intValue(item.data['reserved_beds']),
+        initialPatientCount: _intValue(item.data['current_patient_count']),
+        initialStatusOverride: item.data['status_override']?.toString(),
+        initialOverrideReason: item.data['override_reason']?.toString(),
+      ),
+    );
+    if (values == null) return;
+    await _runItemAction(item.id, () async {
+      final repository = ref.read(adminRepositoryProvider);
+      if (repository == null) throw StateError('Admin service is unavailable.');
+      await repository.updateEmergencyCapacity(
+        recordId: item.id,
+        totalCapacity: values.total,
+        occupiedCapacity: values.occupied,
+        closedOrUnstaffedCapacity: values.closedOrUnstaffed,
+        reservedCapacity: values.reserved,
+        currentPatientCount: values.currentPatients,
+        statusOverride: values.statusOverride,
+        overrideReason: values.overrideReason,
+      );
+      ref.invalidate(workspaceSnapshotProvider(_request));
+      ref.invalidate(hospitalDirectoryProvider);
+      showRootMessage(
+        'Emergency capacity confirmed. The public timestamp has been refreshed.',
+      );
     });
   }
 
@@ -1874,47 +2680,88 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
       final repository = ref.read(adminRepositoryProvider);
       if (repository == null) throw StateError('Admin service is unavailable.');
       final adminContext = await repository.loadHospitalAdminContext();
+      if (adminContext.departments.isEmpty) {
+        throw StateError(
+          'Add at least one hospital department before creating a doctor.',
+        );
+      }
       final draft = await showRootDialog<_DoctorAccountDraft>(
         barrierDismissible: false,
         builder: (context) => _DoctorAccountDialog(context: adminContext),
       );
       if (draft == null) return;
-      await repository.createDoctorAccount(
-        hospitalId: adminContext.hospitalId,
-        firstName: draft.firstName,
-        lastName: draft.lastName,
-        email: draft.email,
-        temporaryPassword: draft.temporaryPassword,
-        specialization: draft.specialization,
-        licenseNumber: draft.licenseNumber,
-        departmentId: draft.departmentId,
-        consultationFee: draft.consultationFee,
-        biography: draft.biography,
-        profileImageBytes: draft.profileImageBytes,
-        profileImageFileName: draft.profileImageFileName,
-      );
+      try {
+        await repository.createDoctorAccount(
+          hospitalId: adminContext.hospitalId,
+          firstName: draft.firstName,
+          lastName: draft.lastName,
+          email: draft.email,
+          temporaryPassword: draft.temporaryPassword,
+          specialization: draft.specialization,
+          licenseNumber: draft.licenseNumber,
+          departmentId: draft.departmentId,
+          consultationFee: draft.consultationFee,
+          biography: draft.biography,
+          profileImageBytes: draft.profileImageBytes,
+          profileImageFileName: draft.profileImageFileName,
+        );
+      } on AdminMutationPartialSuccess catch (error) {
+        ref.invalidate(workspaceSnapshotProvider(_request));
+        ref.invalidate(hospitalDirectoryProvider);
+        showRootMessage(error.message);
+        return;
+      }
       ref.invalidate(workspaceSnapshotProvider(_request));
+      ref.invalidate(hospitalDirectoryProvider);
       showRootMessage('Doctor account created for the assigned hospital.');
     },
   );
 
+  Future<void> _changeDoctorDepartment(WorkspaceItem item) async {
+    await _runItemAction(item.id, () async {
+      final repository = ref.read(adminRepositoryProvider);
+      if (repository == null) throw StateError('Admin service is unavailable.');
+      final adminContext = await repository.loadHospitalAdminContext();
+      if (adminContext.departments.isEmpty) {
+        throw StateError(
+          'Add at least one hospital department before assigning a doctor.',
+        );
+      }
+      final departmentId = await showRootDialog<String>(
+        barrierDismissible: false,
+        builder: (context) => _DoctorDepartmentDialog(
+          doctorName: item.data['display_name']?.toString() ?? item.title,
+          departments: adminContext.departments,
+          currentDepartmentId: item.data['department_id']?.toString(),
+        ),
+      );
+      if (departmentId == null) return;
+      await repository.updateDoctorDepartment(
+        userId: item.id,
+        departmentId: departmentId,
+      );
+      ref.invalidate(workspaceSnapshotProvider(_request));
+      showRootMessage('Doctor department updated.');
+    });
+  }
+
   Future<void> _createPatientAccount() => _runItemAction(
     'patient-account-create',
     () async {
-      final draft = await showRootDialog<_PatientAccountDraft>(
-        barrierDismissible: false,
-        builder: (context) => const _PatientAccountDialog(),
-      );
-      if (draft == null) return;
       final repository = ref.read(careRepositoryProvider);
       if (repository == null) throw StateError('Care service is unavailable.');
+      final draft = await showRootDialog<_PatientAccountDraft>(
+        barrierDismissible: false,
+        builder: (context) => _PatientAccountDialog(
+          searchPatients: repository.searchExistingPatients,
+        ),
+      );
+      if (draft == null) return;
 
       if (draft.isExistingAccount) {
-        await repository.linkExistingPatient(draft.email);
+        await repository.linkExistingPatient(draft.patientId);
         ref.invalidate(workspaceSnapshotProvider(_request));
-        showRootMessage(
-          'Existing patient successfully linked to your account.',
-        );
+        showRootMessage('Connection request sent to the existing patient.');
       } else {
         await repository.createPatientAccount(
           firstName: draft.firstName,
@@ -2037,9 +2884,10 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
 
   Future<void> _deleteCareRecord(WorkspaceItem item) async {
     final confirmed = await confirmRootAction(
-      title: 'Delete ${item.title}?',
-      message: 'This permanently removes the selected care record.',
-      confirmLabel: 'Delete record',
+      title: 'Cancel ${item.title}?',
+      message:
+          'This keeps the order and its attachments in the clinical audit trail, but marks the request cancelled.',
+      confirmLabel: 'Cancel request',
       destructive: true,
     );
     if (!confirmed) return;
@@ -2048,7 +2896,7 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
       if (repository == null) throw StateError('Care service is unavailable.');
       await repository.deleteCareRecord(table: item.kind, recordId: item.id);
       ref.invalidate(workspaceSnapshotProvider(_request));
-      showRootMessage('Care record deleted.');
+      showRootMessage('Laboratory request cancelled.');
     });
   }
 
@@ -2148,11 +2996,15 @@ class _ConversationInboxRow extends StatelessWidget {
           '${item.title}, ${item.subtitle}${unread > 0 ? ', $unread unread' : ''}',
       child: InkWell(
         onTap: onTap,
+        hoverColor: AppColors.selected.withValues(alpha: .65),
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.x4),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.x4,
+            vertical: AppSpacing.x3,
+          ),
           child: Row(
             children: [
-              _ConversationAvatar(name: item.title),
+              _ConversationAvatar(name: item.title, size: 52),
               const SizedBox(width: AppSpacing.x3),
               Expanded(
                 child: Column(
@@ -2174,6 +3026,9 @@ class _ConversationInboxRow extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: item.isUnread
+                            ? AppColors.textPrimary
+                            : AppColors.textSecondary,
                         fontWeight: item.isUnread
                             ? FontWeight.w600
                             : FontWeight.w400,
@@ -2188,7 +3043,14 @@ class _ConversationInboxRow extends StatelessWidget {
                 children: [
                   Text(
                     _inboxTime(item.timestamp),
-                    style: Theme.of(context).textTheme.bodySmall,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: item.isUnread
+                          ? AppColors.primary
+                          : AppColors.textMuted,
+                      fontWeight: item.isUnread
+                          ? FontWeight.w700
+                          : FontWeight.w400,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.x2),
                   if (unread > 0)
@@ -2238,13 +3100,25 @@ class _ConversationAvatar extends StatelessWidget {
         .take(2)
         .map((word) => word[0].toUpperCase())
         .join();
-    return CircleAvatar(
-      radius: size / 2,
-      backgroundColor: AppColors.secondary,
-      foregroundColor: AppColors.primary,
+    return Container(
+      width: size,
+      height: size,
+      decoration: const BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.brand, AppColors.primary],
+        ),
+      ),
+      alignment: Alignment.center,
       child: Text(
         initials.isEmpty ? 'C' : initials,
-        style: TextStyle(fontSize: size * .34, fontWeight: FontWeight.w700),
+        style: TextStyle(
+          color: AppColors.primaryForeground,
+          fontSize: size * .34,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -2279,18 +3153,28 @@ class _LiveConversationView extends ConsumerStatefulWidget {
 
 class _LiveConversationViewState extends ConsumerState<_LiveConversationView> {
   final _messageController = TextEditingController();
+  ({List<int> bytes, String name})? _attachment;
   bool _sending = false;
 
   @override
   void initState() {
     super.initState();
+    _messageController.addListener(_onDraftChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) => _markRead());
   }
 
   @override
   void dispose() {
+    _messageController.removeListener(_onDraftChanged);
     _messageController.dispose();
     super.dispose();
+  }
+
+  bool get _canSend =>
+      _messageController.text.trim().isNotEmpty || _attachment != null;
+
+  void _onDraftChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _markRead() async {
@@ -2323,7 +3207,7 @@ class _LiveConversationViewState extends ConsumerState<_LiveConversationView> {
 
   Future<void> _send() async {
     final body = _messageController.text.trim();
-    if (body.isEmpty || _sending) return;
+    if (!_canSend || _sending) return;
     setState(() => _sending = true);
     try {
       final repository = ref.read(careRepositoryProvider);
@@ -2331,13 +3215,46 @@ class _LiveConversationViewState extends ConsumerState<_LiveConversationView> {
       await repository.sendMessage(
         conversationId: widget.conversationId,
         body: body,
+        attachment: _attachment,
       );
       _messageController.clear();
+      if (mounted) setState(() => _attachment = null);
       _refreshConversationSnapshots();
     } catch (error) {
       showRootMessage(_friendlyError(error));
     } finally {
       if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  Future<void> _pickAttachment() async {
+    const acceptedTypes = XTypeGroup(
+      label: 'Secure care attachments',
+      extensions: ['pdf', 'jpg', 'jpeg', 'png'],
+      mimeTypes: ['application/pdf', 'image/jpeg', 'image/png'],
+    );
+    final selected = await openFile(acceptedTypeGroups: const [acceptedTypes]);
+    if (selected == null) return;
+    final bytes = await selected.readAsBytes();
+    if (bytes.isEmpty || bytes.length > 20 * 1024 * 1024) {
+      showRootMessage('Attachments must be between 1 byte and 20 MB.');
+      return;
+    }
+    if (mounted) {
+      setState(() => _attachment = (bytes: bytes, name: selected.name));
+    }
+  }
+
+  Future<void> _openAttachment(CareMessage message) async {
+    try {
+      final repository = ref.read(careRepositoryProvider);
+      if (repository == null) throw StateError('Care service is unavailable.');
+      final url = await repository.createSignedMessageAttachmentUrl(message.id);
+      if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+        throw StateError('The secure attachment link could not be opened.');
+      }
+    } catch (error) {
+      showRootMessage(_friendlyError(error));
     }
   }
 
@@ -2353,7 +3270,7 @@ class _LiveConversationViewState extends ConsumerState<_LiveConversationView> {
         itemId: widget.conversationId,
       )),
     );
-    final identity = ref.watch(appIdentityProvider);
+    final currentUserId = ref.watch(careProfileProvider).asData?.value.userId;
     final item = conversation.asData?.value.items.firstOrNull;
     final participantName = item?.title ?? 'Care conversation';
     final participantRole =
@@ -2367,21 +3284,20 @@ class _LiveConversationViewState extends ConsumerState<_LiveConversationView> {
     ].join(' · ');
 
     return ColoredBox(
-      color: AppColors.surface,
+      color: AppColors.surfaceMuted,
       child: Column(
         children: [
           Material(
             color: AppColors.surface,
+            elevation: 2,
+            shadowColor: const Color(0x18102A3A),
             child: SafeArea(
               bottom: false,
               child: Container(
-                constraints: const BoxConstraints(minHeight: 68),
+                constraints: const BoxConstraints(minHeight: 72),
                 padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.x2,
+                  horizontal: AppSpacing.x3,
                   vertical: AppSpacing.x2,
-                ),
-                decoration: const BoxDecoration(
-                  border: Border(bottom: BorderSide(color: AppColors.divider)),
                 ),
                 child: Row(
                   children: [
@@ -2391,7 +3307,7 @@ class _LiveConversationViewState extends ConsumerState<_LiveConversationView> {
                           context.go('${widget.role.homeLocation}/messages'),
                       icon: const Icon(Icons.arrow_back),
                     ),
-                    _ConversationAvatar(name: participantName, size: 42),
+                    _ConversationAvatar(name: participantName, size: 44),
                     const SizedBox(width: AppSpacing.x3),
                     Expanded(
                       child: Column(
@@ -2405,11 +3321,24 @@ class _LiveConversationViewState extends ConsumerState<_LiveConversationView> {
                             style: Theme.of(context).textTheme.titleMedium
                                 ?.copyWith(fontWeight: FontWeight.w700),
                           ),
-                          Text(
-                            subtitle,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.bodySmall,
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.lock_outline,
+                                size: 13,
+                                color: AppColors.textMuted,
+                              ),
+                              const SizedBox(width: AppSpacing.x1),
+                              Flexible(
+                                child: Text(
+                                  '$subtitle · Secure conversation',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(color: AppColors.textMuted),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -2420,105 +3349,165 @@ class _LiveConversationViewState extends ConsumerState<_LiveConversationView> {
             ),
           ),
           Expanded(
-            child: messages.when(
-              loading: () => const Center(
-                child: CircularProgressIndicator(strokeWidth: 2.5),
-              ),
-              error: (error, _) => DataState(
-                icon: Icons.chat_bubble_outline,
-                title: 'Conversation unavailable',
-                message: _friendlyError(error),
-                action: FilledButton.icon(
-                  onPressed: () => ref.invalidate(
-                    conversationMessagesProvider(widget.conversationId),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 920),
+                child: messages.when(
+                  loading: () => const Center(
+                    child: CircularProgressIndicator(strokeWidth: 2.5),
                   ),
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Retry'),
+                  error: (error, _) => DataState(
+                    icon: Icons.chat_bubble_outline,
+                    title: 'Conversation unavailable',
+                    message: _friendlyError(error),
+                    action: FilledButton.icon(
+                      onPressed: () => ref.invalidate(
+                        conversationMessagesProvider(widget.conversationId),
+                      ),
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Retry'),
+                    ),
+                  ),
+                  data: (items) {
+                    final newestFirst = items.toList()
+                      ..sort((a, b) => b.sentAt.compareTo(a.sentAt));
+                    return newestFirst.isEmpty
+                        ? _NewConversationState(
+                            participantName: participantName,
+                            participantRole: participantRole,
+                          )
+                        : ListView.separated(
+                            key: const Key('conversation-message-list'),
+                            reverse: true,
+                            padding: const EdgeInsets.fromLTRB(
+                              AppSpacing.x3,
+                              AppSpacing.x6,
+                              AppSpacing.x3,
+                              AppSpacing.x6,
+                            ),
+                            itemCount: newestFirst.length,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(height: AppSpacing.x2),
+                            itemBuilder: (context, index) {
+                              final message = newestFirst[index];
+                              return _LiveMessageBubble(
+                                message: message,
+                                mine: message.senderId == currentUserId,
+                                participantName: participantName,
+                                onOpenAttachment: message.attachmentPath == null
+                                    ? null
+                                    : () => _openAttachment(message),
+                              );
+                            },
+                          );
+                  },
                 ),
               ),
-              data: (items) => items.isEmpty
-                  ? const Center(
-                      child: DataState(
-                        icon: Icons.forum_outlined,
-                        title: 'No messages yet',
-                        message: 'Send a message to start the conversation.',
-                      ),
-                    )
-                  : ListView.separated(
-                      key: const Key('conversation-message-list'),
-                      reverse: true,
-                      padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.x4,
-                        AppSpacing.x6,
-                        AppSpacing.x4,
-                        AppSpacing.x6,
-                      ),
-                      itemCount: items.length,
-                      separatorBuilder: (_, _) =>
-                          const SizedBox(height: AppSpacing.x3),
-                      itemBuilder: (context, index) {
-                        final message = items[items.length - index - 1];
-                        return _LiveMessageBubble(
-                          message: message,
-                          mine: message.senderId == identity.userId,
-                        );
-                      },
-                    ),
             ),
           ),
           Material(
             color: AppColors.surface,
+            elevation: 8,
+            shadowColor: const Color(0x1F102A3A),
             child: SafeArea(
               top: false,
               child: Container(
                 padding: const EdgeInsets.fromLTRB(8, 10, 12, 10),
-                decoration: const BoxDecoration(
-                  border: Border(top: BorderSide(color: AppColors.divider)),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    IconButton(
-                      tooltip: 'Add attachment',
-                      onPressed: () => showRootMessage(
-                        'Attachments can be added from the related care record.',
-                      ),
-                      icon: const Icon(Icons.add),
-                    ),
-                    Expanded(
-                      child: TextField(
-                        key: const Key('message-composer'),
-                        controller: _messageController,
-                        minLines: 1,
-                        maxLines: 4,
-                        maxLength: 2000,
-                        textCapitalization: TextCapitalization.sentences,
-                        textInputAction: TextInputAction.newline,
-                        decoration: const InputDecoration(
-                          hintText: 'Type a message...',
-                          counterText: '',
-                          filled: true,
-                          fillColor: AppColors.surfaceMuted,
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: AppSpacing.x4,
-                            vertical: AppSpacing.x3,
-                          ),
+                    if (_attachment != null)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(8, 0, 4, 8),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.attachment, size: 18),
+                            const SizedBox(width: AppSpacing.x2),
+                            Expanded(
+                              child: Text(
+                                _attachment!.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: 'Remove attachment',
+                              onPressed: _sending
+                                  ? null
+                                  : () => setState(() => _attachment = null),
+                              icon: const Icon(Icons.close, size: 18),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                    const SizedBox(width: AppSpacing.x2),
-                    IconButton.filled(
-                      tooltip: 'Send message',
-                      onPressed: _sending ? null : _send,
-                      icon: _sending
-                          ? const SizedBox.square(
-                              dimension: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: AppColors.primaryForeground,
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        IconButton(
+                          tooltip: _attachment == null
+                              ? 'Add attachment'
+                              : 'Change attachment',
+                          onPressed: _sending ? null : _pickAttachment,
+                          style: IconButton.styleFrom(
+                            foregroundColor: AppColors.primary,
+                          ),
+                          icon: Icon(
+                            _attachment == null
+                                ? Icons.add_circle_outline
+                                : Icons.attach_file,
+                          ),
+                        ),
+                        Expanded(
+                          child: TextField(
+                            key: const Key('message-composer'),
+                            controller: _messageController,
+                            minLines: 1,
+                            maxLines: 4,
+                            maxLength: 2000,
+                            textCapitalization: TextCapitalization.sentences,
+                            textInputAction: TextInputAction.newline,
+                            decoration: InputDecoration(
+                              hintText: 'Aa',
+                              counterText: '',
+                              filled: true,
+                              fillColor: AppColors.surfaceMuted,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.x4,
+                                vertical: AppSpacing.x3,
                               ),
-                            )
-                          : const Icon(Icons.send),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(24),
+                                borderSide: BorderSide.none,
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(24),
+                                borderSide: BorderSide.none,
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(24),
+                                borderSide: const BorderSide(
+                                  color: AppColors.focus,
+                                  width: 1.5,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.x2),
+                        IconButton.filled(
+                          tooltip: 'Send message',
+                          onPressed: _sending || !_canSend ? null : _send,
+                          icon: _sending
+                              ? const SizedBox.square(
+                                  dimension: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: AppColors.primaryForeground,
+                                  ),
+                                )
+                              : const Icon(Icons.send_rounded),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -2531,30 +3520,103 @@ class _LiveConversationViewState extends ConsumerState<_LiveConversationView> {
   }
 }
 
+class _NewConversationState extends StatelessWidget {
+  const _NewConversationState({
+    required this.participantName,
+    required this.participantRole,
+  });
+
+  final String participantName;
+  final String participantRole;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.x6),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _ConversationAvatar(name: participantName, size: 72),
+            const SizedBox(height: AppSpacing.x4),
+            Text(
+              participantName,
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: AppSpacing.x1),
+            Text(
+              participantRole,
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: AppSpacing.x4),
+            const Wrap(
+              alignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: AppSpacing.x1,
+              children: [
+                Icon(Icons.lock_outline, size: 15, color: AppColors.textMuted),
+                Text(
+                  'Messages and attachments are shared securely.',
+                  style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _LiveMessageBubble extends StatelessWidget {
-  const _LiveMessageBubble({required this.message, required this.mine});
+  const _LiveMessageBubble({
+    required this.message,
+    required this.mine,
+    required this.participantName,
+    this.onOpenAttachment,
+  });
 
   final CareMessage message;
   final bool mine;
+  final String participantName;
+  final VoidCallback? onOpenAttachment;
 
   @override
   Widget build(BuildContext context) {
     return Semantics(
       label:
-          '${mine ? 'Your' : 'Care team'} message, ${message.message ?? 'Attachment'}',
+          '${mine ? 'Your' : participantName} message, ${message.message ?? 'Attachment'}',
       child: Align(
         alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 560),
+          constraints: const BoxConstraints(maxWidth: 620),
           child: Container(
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.x4,
               vertical: AppSpacing.x3,
             ),
             decoration: BoxDecoration(
-              color: mine ? AppColors.primary : AppColors.surfaceMuted,
-              borderRadius: BorderRadius.circular(AppRadius.panel),
-              border: mine ? null : Border.all(color: AppColors.border),
+              color: mine ? AppColors.primary : AppColors.surface,
+              borderRadius: BorderRadius.only(
+                topLeft: const Radius.circular(20),
+                topRight: const Radius.circular(20),
+                bottomLeft: Radius.circular(mine ? 20 : 5),
+                bottomRight: Radius.circular(mine ? 5 : 20),
+              ),
+              boxShadow: mine
+                  ? null
+                  : const [
+                      BoxShadow(
+                        color: Color(0x0F102A3A),
+                        blurRadius: 8,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2567,9 +3629,22 @@ class _LiveMessageBubble extends StatelessWidget {
                         : AppColors.textPrimary,
                   ),
                 ),
+                if (onOpenAttachment != null) ...[
+                  const SizedBox(height: AppSpacing.x2),
+                  TextButton.icon(
+                    onPressed: onOpenAttachment,
+                    style: TextButton.styleFrom(
+                      foregroundColor: mine
+                          ? AppColors.primaryForeground
+                          : AppColors.primary,
+                    ),
+                    icon: const Icon(Icons.attach_file, size: 18),
+                    label: const Text('Open secure attachment'),
+                  ),
+                ],
                 const SizedBox(height: AppSpacing.x1),
                 Text(
-                  DateFormat('MMM d · h:mm a').format(message.sentAt.toLocal()),
+                  '${DateFormat('h:mm a').format(message.sentAt.toLocal())}${mine && message.readAt != null ? ' · Seen' : ''}',
                   style: TextStyle(
                     fontSize: 11,
                     color: mine
@@ -2596,6 +3671,7 @@ class _PatientAccountDraft {
     required this.email,
     this.address = '',
     this.password = '',
+    this.patientId = '',
     this.isExistingAccount = false,
   });
 
@@ -2607,13 +3683,17 @@ class _PatientAccountDraft {
   final String email;
   final String address;
   final String password;
+  final String patientId;
   final bool isExistingAccount;
 }
 
 enum _PatientRegistrationMode { newAccount, existingAccount }
 
 class _PatientAccountDialog extends StatefulWidget {
-  const _PatientAccountDialog();
+  const _PatientAccountDialog({required this.searchPatients});
+
+  final Future<List<ExistingPatientMatch>> Function(String query)
+  searchPatients;
 
   @override
   State<_PatientAccountDialog> createState() => _PatientAccountDialogState();
@@ -2627,10 +3707,18 @@ class _PatientAccountDialogState extends State<_PatientAccountDialog> {
   final _mobileController = TextEditingController();
   final _addressController = TextEditingController();
   final _emailController = TextEditingController();
+  final _patientSearchController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmationController = TextEditingController();
   DateTime? _birthDate;
   String? _sex;
+  Timer? _searchDebounce;
+  List<ExistingPatientMatch> _searchResults = const [];
+  ExistingPatientMatch? _selectedPatient;
+  bool _isSearching = false;
+  bool _hasSearched = false;
+  String? _searchError;
+  int _searchGeneration = 0;
 
   @override
   void dispose() {
@@ -2639,9 +3727,54 @@ class _PatientAccountDialogState extends State<_PatientAccountDialog> {
     _mobileController.dispose();
     _addressController.dispose();
     _emailController.dispose();
+    _patientSearchController.dispose();
     _passwordController.dispose();
     _confirmationController.dispose();
+    _searchDebounce?.cancel();
     super.dispose();
+  }
+
+  void _schedulePatientSearch(String value) {
+    _searchDebounce?.cancel();
+    final query = value.trim();
+    final generation = ++_searchGeneration;
+    setState(() {
+      _selectedPatient = null;
+      _searchError = null;
+      _searchResults = const [];
+      _isSearching = false;
+      _hasSearched = false;
+    });
+    if (query.length < 2) return;
+    _searchDebounce = Timer(
+      const Duration(milliseconds: 350),
+      () => _searchPatients(query, generation),
+    );
+  }
+
+  Future<void> _searchPatients(String query, int generation) async {
+    setState(() {
+      _isSearching = true;
+      _hasSearched = true;
+      _searchError = null;
+    });
+    try {
+      final results = await widget.searchPatients(query);
+      if (!mounted || generation != _searchGeneration) return;
+      setState(() {
+        _searchResults = results;
+        _isSearching = false;
+      });
+    } catch (error) {
+      if (!mounted || generation != _searchGeneration) return;
+      setState(() {
+        _searchResults = const [];
+        _isSearching = false;
+        _searchError = error is StateError
+            ? error.message
+            : 'Could not search patient accounts.';
+      });
+    }
   }
 
   @override
@@ -2662,19 +3795,35 @@ class _PatientAccountDialogState extends State<_PatientAccountDialog> {
                   segments: const [
                     ButtonSegment(
                       value: _PatientRegistrationMode.newAccount,
-                      label: Text('New account'),
                       icon: Icon(Icons.person_add_alt_outlined),
+                      label: Text('New account'),
                     ),
                     ButtonSegment(
                       value: _PatientRegistrationMode.existingAccount,
-                      label: Text('Existing patient'),
                       icon: Icon(Icons.search),
+                      label: Text('Existing patient'),
                     ),
                   ],
                   selected: {_mode},
-                  onSelectionChanged: (set) =>
-                      setState(() => _mode = set.first),
                   showSelectedIcon: false,
+                  onSelectionChanged: (selection) {
+                    setState(() {
+                      _mode = selection.single;
+                      _selectedPatient = null;
+                    });
+                  },
+                ),
+                const SizedBox(height: AppSpacing.x4),
+                Container(
+                  padding: const EdgeInsets.all(AppSpacing.x3),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceMuted,
+                    borderRadius: BorderRadius.circular(AppRadius.panel),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: const Text(
+                    'The existing-patient directory searches active CareNavigator identities by name or email. Finding a patient does not reveal medical records; record access still requires an approved care relationship.',
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.x6),
                 if (_mode == _PatientRegistrationMode.newAccount) ...[
@@ -2693,6 +3842,7 @@ class _PatientAccountDialogState extends State<_PatientAccountDialog> {
                     onBirthDateChanged: (value) =>
                         setState(() => _birthDate = value),
                     onSexChanged: (value) => setState(() => _sex = value),
+                    stackNameFields: true,
                   ),
                   const SizedBox(height: AppSpacing.x4),
                   TextFormField(
@@ -2724,17 +3874,59 @@ class _PatientAccountDialogState extends State<_PatientAccountDialog> {
                   ),
                 ] else ...[
                   const Text(
-                    'Search for a patient who already has a CareNavigator account.',
+                    'Search the global patient directory for an active CareNavigator account. Patients with the same name are listed separately by email.',
                   ),
                   const SizedBox(height: AppSpacing.x4),
                   TextFormField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
+                    controller: _patientSearchController,
+                    keyboardType: TextInputType.text,
+                    textInputAction: TextInputAction.search,
+                    onChanged: _schedulePatientSearch,
+                    onFieldSubmitted: (value) {
+                      _searchDebounce?.cancel();
+                      final query = value.trim();
+                      if (query.length < 2) return;
+                      final generation = ++_searchGeneration;
+                      _searchPatients(query, generation);
+                    },
                     decoration: const InputDecoration(
-                      labelText: 'Patient email address',
-                      prefixIcon: Icon(Icons.email_outlined),
+                      labelText: 'Patient name or email address',
+                      hintText: 'Enter at least 2 characters',
+                      prefixIcon: Icon(Icons.search),
                     ),
                   ),
+                  const SizedBox(height: AppSpacing.x3),
+                  if (_isSearching)
+                    const Center(child: CircularProgressIndicator())
+                  else if (_searchError != null)
+                    Text(
+                      _searchError!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    )
+                  else if (_hasSearched && _searchResults.isEmpty)
+                    const Text('No matching active patient accounts found.')
+                  else
+                    ..._searchResults.map(
+                      (patient) => Card(
+                        margin: const EdgeInsets.only(bottom: AppSpacing.x2),
+                        clipBehavior: Clip.antiAlias,
+                        child: ListTile(
+                          selected:
+                              _selectedPatient?.patientId == patient.patientId,
+                          leading: Icon(
+                            _selectedPatient?.patientId == patient.patientId
+                                ? Icons.check_circle
+                                : Icons.person_outline,
+                          ),
+                          title: Text(patient.displayName),
+                          subtitle: Text(patient.email),
+                          onTap: () =>
+                              setState(() => _selectedPatient = patient),
+                        ),
+                      ),
+                    ),
                 ],
               ],
             ),
@@ -2749,13 +3941,17 @@ class _PatientAccountDialogState extends State<_PatientAccountDialog> {
         FilledButton(
           onPressed: () {
             if (_mode == _PatientRegistrationMode.existingAccount) {
-              final email = _emailController.text.trim();
-              if (email.isEmpty || !email.contains('@')) {
-                showRootMessage('Please enter a valid email address.');
+              final patient = _selectedPatient;
+              if (patient == null) {
+                showRootMessage('Search for and select a patient account.');
                 return;
               }
               Navigator.of(context).pop(
-                _PatientAccountDraft(email: email, isExistingAccount: true),
+                _PatientAccountDraft(
+                  email: patient.email,
+                  patientId: patient.patientId,
+                  isExistingAccount: true,
+                ),
               );
               return;
             }
@@ -2778,7 +3974,11 @@ class _PatientAccountDialogState extends State<_PatientAccountDialog> {
               ),
             );
           },
-          child: const Text('Register patient'),
+          child: Text(
+            _mode == _PatientRegistrationMode.existingAccount
+                ? 'Send request'
+                : 'Register patient',
+          ),
         ),
       ],
     );
@@ -2978,30 +4178,26 @@ class _DoctorAccountDialogState extends State<_DoctorAccountDialog> {
                   ),
                   validator: _requiredClinicalValue,
                 ),
-                if (widget.context.departments.isNotEmpty) ...[
-                  const SizedBox(height: AppSpacing.x4),
-                  DropdownButtonFormField<String?>(
-                    initialValue: _departmentId,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Department (optional)',
-                    ),
-                    items: [
-                      const DropdownMenuItem(
-                        child: Text('No department selected'),
-                      ),
-                      for (final department in widget.context.departments)
-                        DropdownMenuItem(
-                          value: department.id,
-                          child: Text(
-                            department.name,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                const SizedBox(height: AppSpacing.x4),
+                DropdownButtonFormField<String>(
+                  initialValue: _departmentId,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'Department'),
+                  items: [
+                    for (final department in widget.context.departments)
+                      DropdownMenuItem(
+                        value: department.id,
+                        child: Text(
+                          department.name,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                    ],
-                    onChanged: (value) => setState(() => _departmentId = value),
-                  ),
-                ],
+                      ),
+                  ],
+                  validator: (value) => value == null || value.trim().isEmpty
+                      ? 'Select a department.'
+                      : null,
+                  onChanged: (value) => setState(() => _departmentId = value),
+                ),
                 const SizedBox(height: AppSpacing.x4),
                 TextFormField(
                   controller: _feeController,
@@ -3085,6 +4281,74 @@ class _DoctorAccountDialogState extends State<_DoctorAccountDialog> {
       _profileImageBytes = bytes;
     });
   }
+}
+
+class _DoctorDepartmentDialog extends StatefulWidget {
+  const _DoctorDepartmentDialog({
+    required this.doctorName,
+    required this.departments,
+    this.currentDepartmentId,
+  });
+
+  final String doctorName;
+  final List<HospitalDepartmentOption> departments;
+  final String? currentDepartmentId;
+
+  @override
+  State<_DoctorDepartmentDialog> createState() =>
+      _DoctorDepartmentDialogState();
+}
+
+class _DoctorDepartmentDialogState extends State<_DoctorDepartmentDialog> {
+  late String? _departmentId =
+      widget.departments.any(
+        (department) => department.id == widget.currentDepartmentId,
+      )
+      ? widget.currentDepartmentId
+      : null;
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    icon: const Icon(Icons.account_tree_outlined),
+    title: const Text('Change doctor department'),
+    content: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 480),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Assign ${widget.doctorName} to a hospital department.'),
+          const SizedBox(height: AppSpacing.x4),
+          DropdownButtonFormField<String>(
+            initialValue: _departmentId,
+            isExpanded: true,
+            decoration: const InputDecoration(labelText: 'Department'),
+            items: [
+              for (final department in widget.departments)
+                DropdownMenuItem(
+                  value: department.id,
+                  child: Text(department.name, overflow: TextOverflow.ellipsis),
+                ),
+            ],
+            onChanged: (value) => setState(() => _departmentId = value),
+          ),
+        ],
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.of(context).pop(),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(
+        onPressed:
+            _departmentId == null || _departmentId == widget.currentDepartmentId
+            ? null
+            : () => Navigator.of(context).pop(_departmentId),
+        child: const Text('Save department'),
+      ),
+    ],
+  );
 }
 
 class _DoctorImagePicker extends StatelessWidget {
@@ -3349,33 +4613,63 @@ class _ScheduleDraft {
 class _PrescriptionDraft {
   const _PrescriptionDraft({
     required this.relationship,
+    required this.diagnosisReason,
     required this.medicationName,
+    required this.medicationFormStrength,
+    required this.route,
+    required this.exactDose,
     required this.dosage,
     required this.frequency,
     required this.duration,
+    required this.quantityToDispense,
+    required this.refills,
+    required this.startDate,
+    required this.endDate,
+    required this.isPrn,
+    required this.prnReason,
+    required this.maximumDailyDose,
+    required this.electronicSignatureAccepted,
     required this.instructions,
     this.attachment,
   });
 
   final ClinicalRelationship relationship;
+  final String diagnosisReason;
   final String medicationName;
+  final String medicationFormStrength;
+  final String route;
+  final String exactDose;
   final String dosage;
   final String frequency;
   final String duration;
+  final String quantityToDispense;
+  final int refills;
+  final DateTime startDate;
+  final DateTime? endDate;
+  final bool isPrn;
+  final String prnReason;
+  final String maximumDailyDose;
+  final bool electronicSignatureAccepted;
   final String instructions;
   final ({List<int> bytes, String name})? attachment;
 }
 
-class _BookingDraft {
-  const _BookingDraft({
+class _ReservationDraft {
+  const _ReservationDraft({
     required this.clinician,
     required this.consultationType,
     required this.chiefComplaint,
+    required this.symptomDuration,
+    required this.sharedCategories,
+    required this.appointmentDate,
   });
 
   final DoctorDirectoryEntry clinician;
   final String consultationType;
   final String chiefComplaint;
+  final String symptomDuration;
+  final List<String> sharedCategories;
+  final DateTime appointmentDate;
 }
 
 class _ConsultationCompletionDraft {
@@ -3480,6 +4774,7 @@ class _ConsultationCompletionDialogState
                   showReasonForVisit: true,
                   reasonReadOnly: true,
                   showDoctorNotes: false,
+                  stackFields: true,
                   onChanged: () => setState(() {}),
                 ),
               ],
@@ -3515,9 +4810,13 @@ class _ConsultationCompletionDialogState
 }
 
 class _PatientCheckupDialog extends StatefulWidget {
-  const _PatientCheckupDialog({required this.patient});
+  const _PatientCheckupDialog({
+    required this.patient,
+    required this.repository,
+  });
 
   final Map<String, Object?> patient;
+  final CareRepository repository;
 
   @override
   State<_PatientCheckupDialog> createState() => _PatientCheckupDialogState();
@@ -3526,19 +4825,76 @@ class _PatientCheckupDialog extends StatefulWidget {
 class _PatientCheckupDialogState extends State<_PatientCheckupDialog> {
   final _formKey = GlobalKey<FormState>();
   final _controllers = _CheckupFormControllers();
-  ({List<int> bytes, String name})? _attachment;
+  final List<({List<int> bytes, String name})> _attachments = [];
+  bool _scanning = false;
+  String? _scanStatus;
+  String? _scanError;
 
-  Future<void> _pickAttachment() async {
+  Future<void> _pickAttachments() async {
     const acceptedTypes = XTypeGroup(
       label: 'Medical files',
-      extensions: ['pdf', 'jpg', 'jpeg', 'png'],
-      mimeTypes: ['application/pdf', 'image/jpeg', 'image/png'],
+      extensions: ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'],
+      mimeTypes: [
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'image/jpeg',
+        'image/png',
+      ],
     );
-    final selected = await openFile(acceptedTypeGroups: const [acceptedTypes]);
-    if (selected == null) return;
-    final bytes = await selected.readAsBytes();
+    final selected = await openFiles(acceptedTypeGroups: const [acceptedTypes]);
+    if (selected.isEmpty) return;
+    final files = await Future.wait(
+      selected.map(
+        (file) async => (bytes: await file.readAsBytes(), name: file.name),
+      ),
+    );
     if (mounted) {
-      setState(() => _attachment = (bytes: bytes, name: selected.name));
+      setState(() {
+        _attachments.addAll(files);
+        _scanStatus = null;
+        _scanError = null;
+      });
+    }
+  }
+
+  Future<void> _scanAttachments() async {
+    if (_attachments.isEmpty) {
+      setState(() {
+        _scanStatus = null;
+        _scanError = 'Attach at least one medical file to scan.';
+      });
+      return;
+    }
+    if (_attachments.length > 5) {
+      setState(() {
+        _scanStatus = null;
+        _scanError = 'Select up to 5 medical files for each AI scan.';
+      });
+      return;
+    }
+
+    setState(() {
+      _scanning = true;
+      _scanStatus = null;
+      _scanError = null;
+    });
+    try {
+      final draft = await widget.repository.extractCheckupFromAttachments(
+        attachments: _attachments,
+      );
+      if (!mounted) return;
+      final filled = _controllers.applyAiDraft(draft);
+      setState(() {
+        _scanStatus = filled == 0
+            ? 'The scan found no new details to add. Existing entries were kept.'
+            : 'AI filled $filled ${filled == 1 ? 'field' : 'fields'}. Review and edit every value before saving.';
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _scanError = _friendlyError(error));
+    } finally {
+      if (mounted) setState(() => _scanning = false);
     }
   }
 
@@ -3551,7 +4907,7 @@ class _PatientCheckupDialogState extends State<_PatientCheckupDialog> {
   @override
   Widget build(BuildContext context) => AlertDialog(
     icon: const Icon(Icons.monitor_heart_outlined),
-    title: const Text('Record patient checkup'),
+    title: const Text('Follow-up patient checkup'),
     content: Form(
       key: _formKey,
       child: ConstrainedBox(
@@ -3563,6 +4919,97 @@ class _PatientCheckupDialogState extends State<_PatientCheckupDialog> {
               _PatientIdentitySummary(patient: widget.patient),
               const SizedBox(height: AppSpacing.x4),
               _CheckupSectionTitle(
+                title: 'Attachments and AI auto-fill',
+                subtitle:
+                    'Attach up to 5 PDF, Word, JPG, or PNG files. Groq AI reads them together and fills empty fields, including notes and observations.',
+              ),
+              const SizedBox(height: AppSpacing.x3),
+              if (_attachments.isNotEmpty) ...[
+                for (var index = 0; index < _attachments.length; index++)
+                  Row(
+                    children: [
+                      const Icon(Icons.attachment, size: 16),
+                      const SizedBox(width: AppSpacing.x2),
+                      Expanded(
+                        child: Text(
+                          _attachments[index].name,
+                          style: Theme.of(context).textTheme.bodySmall,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Remove attachment',
+                        icon: const Icon(Icons.close, size: 16),
+                        onPressed: _scanning
+                            ? null
+                            : () => setState(() {
+                                _attachments.removeAt(index);
+                                _scanStatus = null;
+                                _scanError = null;
+                              }),
+                      ),
+                    ],
+                  ),
+                const SizedBox(height: AppSpacing.x2),
+              ],
+              Wrap(
+                spacing: AppSpacing.x2,
+                runSpacing: AppSpacing.x2,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: _scanning ? null : _pickAttachments,
+                    icon: const Icon(Icons.attach_file, size: 18),
+                    label: Text(
+                      _attachments.isEmpty ? 'Attach Files' : 'Add More Files',
+                    ),
+                  ),
+                  FilledButton.icon(
+                    onPressed: _scanning || _attachments.isEmpty
+                        ? null
+                        : _scanAttachments,
+                    icon: _scanning
+                        ? const SizedBox.square(
+                            dimension: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.auto_awesome_outlined, size: 18),
+                    label: Text(
+                      _scanning ? 'Scanning files...' : 'Scan & Auto-fill',
+                    ),
+                  ),
+                ],
+              ),
+              if (_scanStatus != null) ...[
+                const SizedBox(height: AppSpacing.x2),
+                Text(
+                  _scanStatus!,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: AppColors.success),
+                ),
+              ],
+              if (_scanError != null) ...[
+                const SizedBox(height: AppSpacing.x2),
+                Text(
+                  _scanError!,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                ),
+              ],
+              if (widget.patient['checkup_history']
+                  case final List history) ...[
+                const SizedBox(height: AppSpacing.x4),
+                _PatientCheckupHistory(
+                  records: history
+                      .whereType<Map>()
+                      .map((record) => Map<String, Object?>.from(record))
+                      .toList(growable: false),
+                ),
+              ],
+              const SizedBox(height: AppSpacing.x4),
+              _CheckupSectionTitle(
                 title: 'Optional measurements and medical information',
                 subtitle:
                     'Record only what is clinically needed. This creates a new history entry and does not change patient identity details.',
@@ -3571,36 +5018,8 @@ class _PatientCheckupDialogState extends State<_PatientCheckupDialog> {
               _ClinicalCheckupFields(
                 controllers: _controllers,
                 showReasonForVisit: true,
+                stackFields: true,
                 onChanged: () => setState(() {}),
-              ),
-              const SizedBox(height: AppSpacing.x4),
-              if (_attachment != null) ...[
-                Row(
-                  children: [
-                    const Icon(Icons.attachment, size: 16),
-                    const SizedBox(width: AppSpacing.x2),
-                    Expanded(
-                      child: Text(
-                        _attachment!.name,
-                        style: Theme.of(context).textTheme.bodySmall,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close, size: 16),
-                      onPressed: () => setState(() => _attachment = null),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.x2),
-              ],
-              OutlinedButton.icon(
-                onPressed: _pickAttachment,
-                icon: const Icon(Icons.attach_file, size: 18),
-                label: Text(
-                  _attachment == null ? 'Attach File' : 'Change Attachment',
-                ),
               ),
             ],
           ),
@@ -3626,9 +5045,9 @@ class _PatientCheckupDialogState extends State<_PatientCheckupDialog> {
           }
           Navigator.of(
             context,
-          ).pop((checkup: checkup, attachment: _attachment));
+          ).pop((checkup: checkup, attachments: List.of(_attachments)));
         },
-        child: const Text('Save checkup'),
+        child: const Text('Save follow-up'),
       ),
     ],
   );
@@ -3654,6 +5073,42 @@ class _CheckupFormControllers {
   final alcoholUse = TextEditingController();
   final pregnancyStatus = TextEditingController();
   final doctorNotes = TextEditingController();
+
+  int applyAiDraft(ClinicalCheckupDraft draft) {
+    var filled = 0;
+    void fill(TextEditingController controller, Object? value) {
+      if (controller.text.trim().isNotEmpty || value == null) return;
+      final text = switch (value) {
+        final double number when number == number.roundToDouble() =>
+          number.toInt().toString(),
+        _ => value.toString().trim(),
+      };
+      if (text.isEmpty) return;
+      controller.text = text;
+      filled++;
+    }
+
+    fill(reasonForVisit, draft.reasonForVisit);
+    fill(heightCm, draft.heightCm);
+    fill(weightKg, draft.weightKg);
+    fill(bloodPressureSystolic, draft.bloodPressureSystolic);
+    fill(bloodPressureDiastolic, draft.bloodPressureDiastolic);
+    fill(bodyTemperatureC, draft.bodyTemperatureC);
+    fill(heartRateBpm, draft.heartRateBpm);
+    fill(respiratoryRateBpm, draft.respiratoryRateBpm);
+    fill(oxygenSaturationPercent, draft.oxygenSaturationPercent);
+    fill(currentSymptoms, draft.currentSymptoms);
+    fill(knownMedicalConditions, draft.knownMedicalConditions.join(', '));
+    fill(allergies, draft.allergies.join(', '));
+    fill(currentMedications, draft.currentMedications.join(', '));
+    fill(relevantMedicalHistory, draft.relevantMedicalHistory);
+    fill(previousSurgeries, draft.previousSurgeries);
+    fill(smokingStatus, draft.smokingStatus);
+    fill(alcoholUse, draft.alcoholUse);
+    fill(pregnancyStatus, draft.pregnancyStatus);
+    fill(doctorNotes, draft.doctorNotes);
+    return filled;
+  }
 
   ClinicalCheckupDraft draft({String? doctorNotesOverride}) =>
       ClinicalCheckupDraft(
@@ -3711,6 +5166,7 @@ class _ClinicalCheckupFields extends StatelessWidget {
     this.showReasonForVisit = false,
     this.reasonReadOnly = false,
     this.showDoctorNotes = true,
+    this.stackFields = false,
     this.onChanged,
   });
 
@@ -3718,6 +5174,7 @@ class _ClinicalCheckupFields extends StatelessWidget {
   final bool showReasonForVisit;
   final bool reasonReadOnly;
   final bool showDoctorNotes;
+  final bool stackFields;
   final VoidCallback? onChanged;
 
   @override
@@ -3748,6 +5205,7 @@ class _ClinicalCheckupFields extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.x3),
         _CheckupWrap(
+          stacked: stackFields,
           children: [
             _optionalNumberField(
               controller: controllers.heightCm,
@@ -3777,6 +5235,7 @@ class _ClinicalCheckupFields extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.x3),
         _CheckupWrap(
+          stacked: stackFields,
           children: [
             _optionalNumberField(
               controller: controllers.bloodPressureSystolic,
@@ -3808,6 +5267,7 @@ class _ClinicalCheckupFields extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.x3),
         _CheckupWrap(
+          stacked: stackFields,
           children: [
             _optionalNumberField(
               controller: controllers.bodyTemperatureC,
@@ -3884,6 +5344,7 @@ class _ClinicalCheckupFields extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.x3),
         _CheckupWrap(
+          stacked: stackFields,
           children: [
             _checkupDropdown(
               controller: controllers.smokingStatus,
@@ -3933,25 +5394,40 @@ class _ClinicalCheckupFields extends StatelessWidget {
 }
 
 class _CheckupWrap extends StatelessWidget {
-  const _CheckupWrap({required this.children});
+  const _CheckupWrap({required this.children, this.stacked = false});
 
   final List<Widget> children;
+  final bool stacked;
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) {
-      final width = constraints.maxWidth >= 660
-          ? (constraints.maxWidth - AppSpacing.x3) / 2
-          : constraints.maxWidth;
-      return Wrap(
-        spacing: AppSpacing.x3,
-        runSpacing: AppSpacing.x3,
+  Widget build(BuildContext context) {
+    if (stacked) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          for (final child in children) SizedBox(width: width, child: child),
+          for (var index = 0; index < children.length; index++) ...[
+            children[index],
+            if (index != children.length - 1)
+              const SizedBox(height: AppSpacing.x3),
+          ],
         ],
       );
-    },
-  );
+    }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth >= 660
+            ? (constraints.maxWidth - AppSpacing.x3) / 2
+            : constraints.maxWidth;
+        return Wrap(
+          spacing: AppSpacing.x3,
+          runSpacing: AppSpacing.x3,
+          children: [
+            for (final child in children) SizedBox(width: width, child: child),
+          ],
+        );
+      },
+    );
+  }
 }
 
 class _CheckupSectionTitle extends StatelessWidget {
@@ -4177,34 +5653,215 @@ class _ClinicalDocumentationField extends StatelessWidget {
   );
 }
 
-class _BookingDialog extends StatefulWidget {
-  const _BookingDialog({required this.clinicians});
+class _ReservationDialog extends StatefulWidget {
+  const _ReservationDialog({
+    required this.clinicians,
+    required this.repository,
+    required this.profile,
+    this.initialHospitalId,
+    this.initialDoctorId,
+  });
 
   final List<DoctorDirectoryEntry> clinicians;
+  final ConsultationRepository repository;
+  final CareProfile profile;
+  final String? initialHospitalId;
+  final String? initialDoctorId;
 
   @override
-  State<_BookingDialog> createState() => _BookingDialogState();
+  State<_ReservationDialog> createState() => _ReservationDialogState();
 }
 
-class _BookingDialogState extends State<_BookingDialog> {
+class _ReservationDialogState extends State<_ReservationDialog> {
   final _formKey = GlobalKey<FormState>();
   final _complaintController = TextEditingController();
-  late DoctorDirectoryEntry _clinician = widget.clinicians.first;
-  late String _consultationType =
-      _clinician.doctor.publishedConsultationTypes.first;
+  final _symptomDurationController = TextEditingController();
+  final Set<String> _sharedCategories = {
+    'consultations',
+    'medical_records',
+    'diagnoses',
+    'prescriptions',
+    'laboratory_requests',
+    'laboratory_results',
+    'medical_documents',
+    'allergies_medications',
+    'treatment_plans',
+  };
+  late String _hospitalId;
+  late DoctorDirectoryEntry _clinician;
+  late String _consultationType;
+  List<AvailableConsultationSlot> _slots = const [];
+  DateTime? _selectedDate;
+  AvailableConsultationSlot? _selectedSlot;
+  String? _availabilityError;
+  bool _loadingSlots = true;
+
+  List<DoctorDirectoryEntry> get _hospitalChoices {
+    final choices = <String, DoctorDirectoryEntry>{};
+    for (final entry in widget.clinicians) {
+      choices.putIfAbsent(entry.hospitalId, () => entry);
+    }
+    return choices.values.toList(growable: false);
+  }
+
+  List<DoctorDirectoryEntry> get _hospitalClinicians => widget.clinicians
+      .where((entry) => entry.hospitalId == _hospitalId)
+      .toList(growable: false);
+
+  DateTime _philippineTime(DateTime value) =>
+      value.toUtc().add(const Duration(hours: 8));
+
+  @override
+  void initState() {
+    super.initState();
+    DoctorDirectoryEntry? preferredClinician;
+    if (widget.initialHospitalId != null) {
+      final hospitalClinicians = widget.clinicians
+          .where((entry) => entry.hospitalId == widget.initialHospitalId)
+          .toList(growable: false);
+      if (widget.initialDoctorId != null) {
+        for (final entry in hospitalClinicians) {
+          if (entry.hospitalIsAvailable &&
+              entry.doctor.id == widget.initialDoctorId) {
+            preferredClinician = entry;
+            break;
+          }
+        }
+      }
+      if (preferredClinician == null) {
+        for (final entry in hospitalClinicians) {
+          if (entry.hospitalIsAvailable) {
+            preferredClinician = entry;
+            break;
+          }
+        }
+      }
+    } else if (widget.initialDoctorId != null) {
+      for (final entry in widget.clinicians) {
+        if (entry.hospitalIsAvailable &&
+            entry.doctor.id == widget.initialDoctorId) {
+          preferredClinician = entry;
+          break;
+        }
+      }
+    }
+    _clinician =
+        preferredClinician ??
+        widget.clinicians.firstWhere(
+          (entry) => entry.hospitalIsAvailable,
+          orElse: () => widget.clinicians.first,
+        );
+    _hospitalId = _clinician.hospitalId;
+    _consultationType = _clinician.doctor.publishedConsultationTypes.first;
+    _loadSlots();
+  }
+
+  void _selectHospital(String hospitalId) {
+    final clinicians = widget.clinicians
+        .where((entry) => entry.hospitalId == hospitalId)
+        .toList(growable: false);
+    final clinician = clinicians.firstWhere(
+      (entry) => entry.hospitalIsAvailable,
+      orElse: () => clinicians.first,
+    );
+    setState(() {
+      _hospitalId = hospitalId;
+      _clinician = clinician;
+      _consultationType = clinician.doctor.publishedConsultationTypes.first;
+    });
+    _loadSlots();
+  }
+
+  Future<void> _loadSlots() async {
+    final doctorId = _clinician.doctor.id;
+    final consultationType = _consultationType;
+    setState(() {
+      _loadingSlots = true;
+      _availabilityError = null;
+      _slots = const [];
+      _selectedDate = null;
+      _selectedSlot = null;
+    });
+    if (!_clinician.hospitalIsAvailable) {
+      setState(() => _loadingSlots = false);
+      return;
+    }
+    try {
+      final slots = await widget.repository.listAvailableSlots(
+        doctorId: doctorId,
+        consultationType: consultationType,
+      );
+      if (!mounted ||
+          doctorId != _clinician.doctor.id ||
+          consultationType != _consultationType) {
+        return;
+      }
+      setState(() {
+        _slots = slots;
+        _selectedDate = slots.isEmpty
+            ? null
+            : DateUtils.dateOnly(_philippineTime(slots.first.startsAt));
+        _selectedSlot = slots.isEmpty ? null : slots.first;
+        _loadingSlots = false;
+      });
+    } catch (error) {
+      if (!mounted ||
+          doctorId != _clinician.doctor.id ||
+          consultationType != _consultationType) {
+        return;
+      }
+      setState(() {
+        _availabilityError = error is RepositoryFailure
+            ? error.message
+            : 'Available appointment times could not be loaded.';
+        _loadingSlots = false;
+      });
+    }
+  }
+
+  List<DateTime> get _availableDates {
+    final dates = <DateTime>{};
+    for (final slot in _slots) {
+      dates.add(DateUtils.dateOnly(_philippineTime(slot.startsAt)));
+    }
+    return dates.toList()..sort();
+  }
+
+  List<AvailableConsultationSlot> get _slotsForSelectedDate => _slots
+      .where(
+        (slot) =>
+            DateUtils.isSameDay(_philippineTime(slot.startsAt), _selectedDate),
+      )
+      .toList(growable: false);
+
+  bool get _selectedSlotIsAvailable =>
+      _clinician.hospitalIsAvailable &&
+      !_loadingSlots &&
+      _selectedSlot != null &&
+      _slots.contains(_selectedSlot) &&
+      meetsReservationLeadTime(_selectedSlot!.startsAt);
 
   @override
   void dispose() {
     _complaintController.dispose();
+    _symptomDurationController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final types = _clinician.doctor.publishedConsultationTypes;
+    final hospitalChoices = _hospitalChoices;
+    final hospitalClinicians = _hospitalClinicians;
+    final hasAvailableHospitals = hospitalChoices.any(
+      (entry) => entry.hospitalIsAvailable,
+    );
+    final hasAvailableClinicians = hospitalClinicians.any(
+      (entry) => entry.hospitalIsAvailable,
+    );
     return AlertDialog(
       icon: const Icon(Icons.event_available_outlined),
-      title: const Text('Book consultation'),
+      title: const Text('Reserve consultation'),
       content: Form(
         key: _formKey,
         child: ConstrainedBox(
@@ -4213,28 +5870,125 @@ class _BookingDialogState extends State<_BookingDialog> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                DropdownButtonFormField<DoctorDirectoryEntry>(
-                  initialValue: _clinician,
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(AppSpacing.x3),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceMuted,
+                    borderRadius: BorderRadius.circular(AppRadius.control),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Account profile used for this request',
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                      const SizedBox(height: AppSpacing.x1),
+                      Text(
+                        '${widget.profile.firstName} ${widget.profile.lastName}',
+                      ),
+                      Text(
+                        [widget.profile.mobileNumber, widget.profile.email]
+                            .whereType<String>()
+                            .where((value) => value.trim().isNotEmpty)
+                            .join(' • '),
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      if (widget.profile.birthDate != null)
+                        Text(
+                          'Birth date: ${DateFormat('MMM d, y').format(widget.profile.birthDate!)}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      if (widget.profile.address?.trim().isNotEmpty ?? false)
+                        Text(
+                          widget.profile.address!,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton.icon(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            context.go('/patient/profile');
+                          },
+                          icon: const Icon(Icons.edit_outlined, size: 18),
+                          label: const Text('Update profile'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.x4),
+                DropdownButtonFormField<String>(
+                  key: const Key('reservation-hospital-dropdown'),
+                  initialValue: _hospitalId,
                   isExpanded: true,
-                  decoration: const InputDecoration(labelText: 'Clinician'),
+                  decoration: const InputDecoration(
+                    labelText: 'Hospital',
+                    prefixIcon: Icon(Icons.local_hospital_outlined),
+                  ),
                   items: [
-                    for (final entry in widget.clinicians)
+                    for (final entry in hospitalChoices)
                       DropdownMenuItem(
-                        value: entry,
+                        value: entry.hospitalId,
+                        enabled: entry.hospitalIsAvailable,
                         child: Text(
-                          '${entry.doctor.displayLabel} — ${entry.doctor.specialtyLabel}, ${entry.hospitalName}',
+                          entry.hospitalIsAvailable
+                              ? '${entry.hospitalName} — ${entry.locationLabel}'
+                              : '${entry.hospitalName} (unavailable)',
                           overflow: TextOverflow.ellipsis,
+                          style: entry.hospitalIsAvailable
+                              ? null
+                              : const TextStyle(color: AppColors.textMuted),
                         ),
                       ),
                   ],
-                  onChanged: (value) {
-                    if (value == null) return;
-                    setState(() {
-                      _clinician = value;
-                      _consultationType =
-                          value.doctor.publishedConsultationTypes.first;
-                    });
-                  },
+                  onChanged: !hasAvailableHospitals
+                      ? null
+                      : (value) {
+                          if (value != null && value != _hospitalId) {
+                            _selectHospital(value);
+                          }
+                        },
+                ),
+                const SizedBox(height: AppSpacing.x4),
+                DropdownButtonFormField<DoctorDirectoryEntry>(
+                  key: ValueKey('reservation-clinician-$_hospitalId'),
+                  initialValue: _clinician,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Clinician',
+                    prefixIcon: Icon(Icons.medical_services_outlined),
+                  ),
+                  items: [
+                    for (final entry in hospitalClinicians)
+                      DropdownMenuItem(
+                        value: entry,
+                        enabled: entry.hospitalIsAvailable,
+                        child: Text(
+                          entry.hospitalIsAvailable
+                              ? '${entry.doctor.displayLabel} — ${entry.doctor.specialtyLabel}'
+                              : '${entry.doctor.displayLabel} (unavailable)',
+                          overflow: TextOverflow.ellipsis,
+                          style: entry.hospitalIsAvailable
+                              ? null
+                              : const TextStyle(color: AppColors.textMuted),
+                        ),
+                      ),
+                  ],
+                  onChanged: !hasAvailableClinicians
+                      ? null
+                      : (value) {
+                          if (value == null) return;
+                          setState(() {
+                            _clinician = value;
+                            _consultationType =
+                                value.doctor.publishedConsultationTypes.first;
+                          });
+                          _loadSlots();
+                        },
                 ),
                 const SizedBox(height: AppSpacing.x4),
                 DropdownButtonFormField<String>(
@@ -4248,13 +6002,94 @@ class _BookingDialogState extends State<_BookingDialog> {
                         child: Text(type == 'online' ? 'Online' : 'In person'),
                       ),
                   ],
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() => _consultationType = value);
-                    }
-                  },
+                  onChanged: !_clinician.hospitalIsAvailable
+                      ? null
+                      : (value) {
+                          if (value != null) {
+                            setState(() => _consultationType = value);
+                            _loadSlots();
+                          }
+                        },
                 ),
                 const SizedBox(height: AppSpacing.x4),
+                if (_consultationType == 'online') ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(AppSpacing.x3),
+                    decoration: BoxDecoration(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.primaryContainer.withValues(alpha: 0.45),
+                      borderRadius: BorderRadius.circular(AppRadius.control),
+                    ),
+                    child: const Text(
+                      'This submits a preferred schedule for hospital review. It does not reserve the slot or create an official appointment until the hospital confirms a doctor, time, and channel.',
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.x4),
+                  TextFormField(
+                    controller: _symptomDurationController,
+                    maxLength: 200,
+                    decoration: const InputDecoration(
+                      labelText: 'How long have you had these symptoms?',
+                      hintText: 'For example: 3 days',
+                    ),
+                    validator: (value) => (value?.trim().isEmpty ?? true)
+                        ? 'Enter the symptom duration.'
+                        : null,
+                  ),
+                  const SizedBox(height: AppSpacing.x2),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Records to share for this care relationship',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.x1),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Records from another hospital remain read-only and keep their original hospital and author.',
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.x2),
+                  for (final entry in const <String, String>{
+                    'consultations': 'Consultations',
+                    'medical_records': 'Medical records',
+                    'diagnoses': 'Diagnoses',
+                    'prescriptions': 'Prescriptions',
+                    'laboratory_requests': 'Laboratory requests',
+                    'laboratory_results': 'Diagnostic results',
+                    'medical_documents': 'Medical documents',
+                    'allergies_medications': 'Allergies and medications',
+                    'treatment_plans': 'Treatment plans',
+                  }.entries)
+                    CheckboxListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      value: _sharedCategories.contains(entry.key),
+                      title: Text(entry.value),
+                      onChanged: (selected) => setState(() {
+                        if (selected == true) {
+                          _sharedCategories.add(entry.key);
+                        } else {
+                          _sharedCategories.remove(entry.key);
+                        }
+                      }),
+                    ),
+                  if (_sharedCategories.isEmpty)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Choose at least one record category.',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: AppSpacing.x4),
+                ],
                 TextFormField(
                   controller: _complaintController,
                   autofocus: true,
@@ -4265,15 +6100,117 @@ class _BookingDialogState extends State<_BookingDialog> {
                     labelText: 'Primary care concern',
                     alignLabelWithHint: true,
                   ),
-                  validator: (value) => (value?.trim().length ?? 0) < 5
-                      ? 'Describe the concern in at least 5 characters.'
-                      : null,
+                  validator: (value) {
+                    final minimum = _consultationType == 'online' ? 10 : 5;
+                    return (value?.trim().length ?? 0) < minimum
+                        ? 'Describe the concern in at least $minimum characters.'
+                        : null;
+                  },
                 ),
-                const SizedBox(height: AppSpacing.x2),
-                Text(
-                  'Next, choose a date and time. The server will accept only an unoccupied slot inside this clinician’s published schedule.',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
+                const SizedBox(height: AppSpacing.x4),
+                if (_loadingSlots)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: AppSpacing.x4),
+                    child: CircularProgressIndicator(),
+                  )
+                else if (_availabilityError != null)
+                  Column(
+                    children: [
+                      Text(
+                        _availabilityError!,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                      TextButton.icon(
+                        onPressed: _loadSlots,
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Retry availability'),
+                      ),
+                    ],
+                  )
+                else if (_slots.isEmpty)
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'No reservable appointment times are published for this clinician and care mode in the next 30 days. Reservations require at least 24 hours of notice.',
+                    ),
+                  )
+                else ...[
+                  DropdownButtonFormField<DateTime>(
+                    key: ValueKey(
+                      '${_clinician.doctor.id}-$_consultationType-${_slots.length}',
+                    ),
+                    initialValue: _selectedDate,
+                    isExpanded: true,
+                    decoration: InputDecoration(
+                      labelText: _consultationType == 'online'
+                          ? 'Preferred date'
+                          : 'Available date',
+                      prefixIcon: Icon(Icons.calendar_today_outlined),
+                    ),
+                    items: [
+                      for (final date in _availableDates)
+                        DropdownMenuItem(
+                          value: date,
+                          child: Text(
+                            DateFormat('EEEE, MMMM d, y').format(date),
+                          ),
+                        ),
+                    ],
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setState(() {
+                        _selectedDate = value;
+                        _selectedSlot = _slots.firstWhere(
+                          (slot) => DateUtils.isSameDay(
+                            _philippineTime(slot.startsAt),
+                            value,
+                          ),
+                        );
+                      });
+                    },
+                  ),
+                  const SizedBox(height: AppSpacing.x4),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Available time',
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.x2),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Wrap(
+                      spacing: AppSpacing.x2,
+                      runSpacing: AppSpacing.x2,
+                      children: [
+                        for (final slot in _slotsForSelectedDate)
+                          ChoiceChip(
+                            label: Text(
+                              DateFormat(
+                                'h:mm a',
+                              ).format(_philippineTime(slot.startsAt)),
+                            ),
+                            selected: identical(slot, _selectedSlot),
+                            onSelected: (_) =>
+                                setState(() => _selectedSlot = slot),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.x2),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      _consultationType == 'online'
+                          ? 'Times shown are preferred options only. The hospital rechecks availability during review (Philippine time).'
+                          : "Times shown are the clinician's published, currently unoccupied slots at least 24 hours away (Philippine time).",
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -4285,27 +6222,93 @@ class _BookingDialogState extends State<_BookingDialog> {
           child: const Text('Cancel'),
         ),
         FilledButton(
-          onPressed: () {
-            if (!(_formKey.currentState?.validate() ?? false)) return;
-            Navigator.of(context).pop(
-              _BookingDraft(
-                clinician: _clinician,
-                consultationType: _consultationType,
-                chiefComplaint: _complaintController.text.trim(),
-              ),
-            );
-          },
-          child: const Text('Choose schedule'),
+          key: const Key('reserve-consultation-submit'),
+          style: FilledButton.styleFrom(
+            disabledBackgroundColor: AppColors.border,
+            disabledForegroundColor: AppColors.textMuted,
+          ),
+          onPressed:
+              !_selectedSlotIsAvailable ||
+                  (_consultationType == 'online' && _sharedCategories.isEmpty)
+              ? null
+              : () {
+                  if (!(_formKey.currentState?.validate() ?? false)) return;
+                  Navigator.of(context).pop(
+                    _ReservationDraft(
+                      clinician: _clinician,
+                      consultationType: _consultationType,
+                      chiefComplaint: _complaintController.text.trim(),
+                      symptomDuration: _consultationType == 'online'
+                          ? _symptomDurationController.text.trim()
+                          : 'Not specified',
+                      sharedCategories: _consultationType == 'online'
+                          ? _sharedCategories.toList(growable: false)
+                          : const [],
+                      appointmentDate: _selectedSlot!.startsAt,
+                    ),
+                  );
+                },
+          child: Text(
+            _consultationType == 'online'
+                ? 'Submit request for review'
+                : 'Reserve consultation',
+          ),
         ),
       ],
     );
   }
 }
 
+class _GuestDoctorSelectionDialog extends StatelessWidget {
+  const _GuestDoctorSelectionDialog({required this.doctors});
+
+  final List<GuestReviewDoctor> doctors;
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    icon: const Icon(Icons.person_search_outlined),
+    title: const Text('Choose an eligible doctor'),
+    content: SizedBox(
+      width: 520,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxHeight: 360),
+        child: ListView.separated(
+          shrinkWrap: true,
+          itemCount: doctors.length,
+          separatorBuilder: (_, _) => const Divider(height: 1),
+          itemBuilder: (context, index) {
+            final doctor = doctors[index];
+            return ListTile(
+              leading: const CircleAvatar(
+                child: Icon(Icons.medical_services_outlined),
+              ),
+              title: Text(doctor.displayName),
+              subtitle: Text(doctor.specialization),
+              onTap: () => Navigator.of(context).pop(doctor),
+            );
+          },
+        ),
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.of(context).pop(),
+        child: const Text('Cancel'),
+      ),
+    ],
+  );
+}
+
 class _PrescriptionDialog extends StatefulWidget {
-  const _PrescriptionDialog({required this.relationships});
+  const _PrescriptionDialog({
+    required this.relationships,
+    required this.repository,
+    required this.prescriber,
+  });
 
   final List<ClinicalRelationship> relationships;
+  final CareRepository repository;
+  final PrescriberDetails? prescriber;
 
   @override
   State<_PrescriptionDialog> createState() => _PrescriptionDialogState();
@@ -4313,12 +6316,28 @@ class _PrescriptionDialog extends StatefulWidget {
 
 class _PrescriptionDialogState extends State<_PrescriptionDialog> {
   final _formKey = GlobalKey<FormState>();
+  final _diagnosisController = TextEditingController();
   final _medicationController = TextEditingController();
-  final _dosageController = TextEditingController();
+  final _formStrengthController = TextEditingController();
+  final _routeController = TextEditingController();
+  final _exactDoseController = TextEditingController();
   final _frequencyController = TextEditingController();
   final _durationController = TextEditingController();
+  final _quantityController = TextEditingController();
+  final _refillsController = TextEditingController(text: '0');
+  final _prnReasonController = TextEditingController();
+  final _maximumDailyDoseController = TextEditingController();
   final _instructionsController = TextEditingController();
   late ClinicalRelationship _relationship = widget.relationships.first;
+  DateTime _startDate = DateUtils.dateOnly(DateTime.now());
+  DateTime? _endDate;
+  bool _isPrn = false;
+  bool _signatureAccepted = false;
+  bool _scanning = false;
+  bool _scanCompleted = false;
+  bool _previewing = false;
+  String? _scanError;
+  String? _signatureError;
   ({List<int> bytes, String name})? _attachment;
 
   Future<void> _pickAttachment() async {
@@ -4330,17 +6349,128 @@ class _PrescriptionDialogState extends State<_PrescriptionDialog> {
     final selected = await openFile(acceptedTypeGroups: const [acceptedTypes]);
     if (selected == null) return;
     final bytes = await selected.readAsBytes();
-    if (mounted) {
-      setState(() => _attachment = (bytes: bytes, name: selected.name));
+    if (!mounted) return;
+    final attachment = (bytes: bytes, name: selected.name);
+    setState(() {
+      _attachment = attachment;
+      _scanning = true;
+      _scanCompleted = false;
+      _scanError = null;
+    });
+    try {
+      final extracted = await widget.repository
+          .extractPrescriptionFromAttachment(attachment: attachment);
+      if (!mounted || _attachment != attachment) return;
+      _applyScan(extracted);
+      setState(() {
+        _scanning = false;
+        _scanCompleted = true;
+      });
+    } catch (error) {
+      if (!mounted || _attachment != attachment) return;
+      setState(() {
+        _scanning = false;
+        _scanError = _friendlyError(error);
+      });
     }
   }
 
+  void _applyScan(PrescriptionScanDraft scan) {
+    void fill(TextEditingController controller, String? value) {
+      if (value != null && value.trim().isNotEmpty) {
+        controller.text = value.trim();
+      }
+    }
+
+    fill(_diagnosisController, scan.diagnosisReason);
+    fill(_medicationController, scan.medicationName);
+    fill(_formStrengthController, scan.medicationFormStrength);
+    fill(_routeController, scan.route);
+    fill(_exactDoseController, scan.exactDose);
+    fill(_frequencyController, scan.frequency);
+    fill(_durationController, scan.duration);
+    fill(_quantityController, scan.quantityToDispense);
+    if (scan.refills != null) _refillsController.text = '${scan.refills}';
+    fill(_prnReasonController, scan.prnReason);
+    fill(_maximumDailyDoseController, scan.maximumDailyDose);
+    fill(_instructionsController, scan.instructions);
+    _startDate = scan.startDate ?? _startDate;
+    _endDate = scan.endDate ?? _endDate;
+    _isPrn = scan.isPrn;
+  }
+
+  Future<void> _chooseStartDate() async {
+    final value = await showDatePicker(
+      context: context,
+      initialDate: _startDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (value == null || !mounted) return;
+    setState(() {
+      _startDate = DateUtils.dateOnly(value);
+      if (_endDate != null && _endDate!.isBefore(_startDate)) _endDate = null;
+    });
+  }
+
+  Future<void> _chooseEndDate() async {
+    final value = await showDatePicker(
+      context: context,
+      initialDate: _endDate ?? _startDate,
+      firstDate: _startDate,
+      lastDate: DateTime(2100),
+    );
+    if (value != null && mounted) {
+      setState(() => _endDate = DateUtils.dateOnly(value));
+    }
+  }
+
+  void _showPreview() {
+    final valid = _formKey.currentState?.validate() ?? false;
+    setState(() {
+      _signatureError = _signatureAccepted
+          ? null
+          : 'Confirm your electronic signature before previewing.';
+    });
+    if (!valid || !_signatureAccepted || _scanning) return;
+    setState(() => _previewing = true);
+  }
+
+  _PrescriptionDraft _draft() => _PrescriptionDraft(
+    relationship: _relationship,
+    diagnosisReason: _diagnosisController.text.trim(),
+    medicationName: _medicationController.text.trim(),
+    medicationFormStrength: _formStrengthController.text.trim(),
+    route: _routeController.text.trim(),
+    exactDose: _exactDoseController.text.trim(),
+    dosage: _exactDoseController.text.trim(),
+    frequency: _frequencyController.text.trim(),
+    duration: _durationController.text.trim(),
+    quantityToDispense: _quantityController.text.trim(),
+    refills: int.parse(_refillsController.text.trim()),
+    startDate: _startDate,
+    endDate: _endDate,
+    isPrn: _isPrn,
+    prnReason: _prnReasonController.text.trim(),
+    maximumDailyDose: _maximumDailyDoseController.text.trim(),
+    electronicSignatureAccepted: _signatureAccepted,
+    instructions: _instructionsController.text.trim(),
+    attachment: _attachment,
+  );
+
   @override
   void dispose() {
+    _diagnosisController.dispose();
     _medicationController.dispose();
-    _dosageController.dispose();
+    _formStrengthController.dispose();
+    _routeController.dispose();
+    _exactDoseController.dispose();
     _frequencyController.dispose();
     _durationController.dispose();
+    _quantityController.dispose();
+    _refillsController.dispose();
+    _prnReasonController.dispose();
+    _maximumDailyDoseController.dispose();
     _instructionsController.dispose();
     super.dispose();
   }
@@ -4348,125 +6478,379 @@ class _PrescriptionDialogState extends State<_PrescriptionDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      scrollable: true,
+      insetPadding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.x4,
+        vertical: AppSpacing.x6,
+      ),
       icon: const Icon(Icons.medication_outlined),
-      title: const Text('Issue prescription'),
-      content: Form(
-        key: _formKey,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 520),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _ClinicalRelationshipField(
-                  value: _relationship,
-                  relationships: widget.relationships,
-                  onChanged: (value) => setState(() => _relationship = value),
-                ),
-                const SizedBox(height: AppSpacing.x4),
-                TextFormField(
-                  controller: _medicationController,
-                  autofocus: true,
-                  textCapitalization: TextCapitalization.words,
-                  decoration: const InputDecoration(
-                    labelText: 'Medication name',
-                  ),
-                  validator: _requiredClinicalValue,
-                ),
-                const SizedBox(height: AppSpacing.x4),
-                TextFormField(
-                  controller: _dosageController,
-                  decoration: const InputDecoration(
-                    labelText: 'Dosage',
-                    hintText: 'Example: 500 mg',
-                  ),
-                  validator: _requiredClinicalValue,
-                ),
-                const SizedBox(height: AppSpacing.x4),
-                TextFormField(
-                  controller: _frequencyController,
-                  decoration: const InputDecoration(
-                    labelText: 'Frequency',
-                    hintText: 'Example: Every 8 hours',
-                  ),
-                  validator: _requiredClinicalValue,
-                ),
-                const SizedBox(height: AppSpacing.x4),
-                TextFormField(
-                  controller: _durationController,
-                  decoration: const InputDecoration(
-                    labelText: 'Duration',
-                    hintText: 'Example: 7 days',
-                  ),
-                  validator: _requiredClinicalValue,
-                ),
-                const SizedBox(height: AppSpacing.x4),
-                TextFormField(
-                  controller: _instructionsController,
-                  minLines: 2,
-                  maxLines: 5,
-                  maxLength: 2000,
-                  decoration: const InputDecoration(
-                    labelText: 'Instructions (optional)',
-                    alignLabelWithHint: true,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.x4),
-                if (_attachment != null) ...[
-                  Row(
-                    children: [
-                      const Icon(Icons.attachment, size: 16),
-                      const SizedBox(width: AppSpacing.x2),
-                      Expanded(
-                        child: Text(
-                          _attachment!.name,
-                          style: Theme.of(context).textTheme.bodySmall,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+      title: Text(_previewing ? 'Confirm prescription' : 'Issue prescription'),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 620),
+        child: _previewing
+            ? _buildPreview(context)
+            : Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _ClinicalRelationshipField(
+                      value: _relationship,
+                      relationships: widget.relationships,
+                      onChanged: (value) =>
+                          setState(() => _relationship = value),
+                    ),
+                    const SizedBox(height: AppSpacing.x4),
+                    Text(
+                      'Attach and scan first (optional)',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    const SizedBox(height: AppSpacing.x1),
+                    Text(
+                      'A PDF or clear image will be scanned to prefill the editable fields below. Always verify the result.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: AppSpacing.x2),
+                    OutlinedButton.icon(
+                      onPressed: _scanning ? null : _pickAttachment,
+                      icon: _scanning
+                          ? const SizedBox.square(
+                              dimension: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(
+                              Icons.document_scanner_outlined,
+                              size: 18,
+                            ),
+                      label: Text(
+                        _scanning
+                            ? 'Scanning attachment…'
+                            : _attachment == null
+                            ? 'Attach and scan file'
+                            : 'Change and rescan file',
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.close, size: 16),
-                        onPressed: () => setState(() => _attachment = null),
+                    ),
+                    if (_attachment != null) ...[
+                      const SizedBox(height: AppSpacing.x2),
+                      Row(
+                        children: [
+                          const Icon(Icons.attachment, size: 16),
+                          const SizedBox(width: AppSpacing.x2),
+                          Expanded(
+                            child: Text(
+                              _attachment!.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: 'Remove attachment',
+                            icon: const Icon(Icons.close, size: 18),
+                            onPressed: _scanning
+                                ? null
+                                : () => setState(() {
+                                    _attachment = null;
+                                    _scanCompleted = false;
+                                    _scanError = null;
+                                  }),
+                          ),
+                        ],
                       ),
                     ],
-                  ),
-                  const SizedBox(height: AppSpacing.x2),
-                ],
-                OutlinedButton.icon(
-                  onPressed: _pickAttachment,
-                  icon: const Icon(Icons.attach_file, size: 18),
-                  label: Text(
-                    _attachment == null ? 'Attach File' : 'Change Attachment',
-                  ),
+                    if (_scanCompleted)
+                      Text(
+                        'Scan complete. Review every autofilled value before issuing.',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                    if (_scanError != null)
+                      Text(
+                        'Scan unavailable: $_scanError You can still enter the prescription manually.',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                    const SizedBox(height: AppSpacing.x5),
+                    TextFormField(
+                      controller: _diagnosisController,
+                      textCapitalization: TextCapitalization.sentences,
+                      decoration: const InputDecoration(
+                        labelText: 'Diagnosis or reason for medication',
+                        hintText: 'Clinical indication for this medicine',
+                      ),
+                      validator: _requiredClinicalValue,
+                    ),
+                    const SizedBox(height: AppSpacing.x4),
+                    TextFormField(
+                      controller: _medicationController,
+                      textCapitalization: TextCapitalization.words,
+                      decoration: const InputDecoration(
+                        labelText: 'Medication name',
+                      ),
+                      validator: _requiredClinicalValue,
+                    ),
+                    const SizedBox(height: AppSpacing.x4),
+                    TextFormField(
+                      controller: _formStrengthController,
+                      decoration: const InputDecoration(
+                        labelText: 'Medication form and strength',
+                        hintText: 'Example: 500 mg tablet',
+                      ),
+                      validator: _requiredClinicalValue,
+                    ),
+                    const SizedBox(height: AppSpacing.x4),
+                    TextFormField(
+                      controller: _routeController,
+                      decoration: const InputDecoration(
+                        labelText: 'Route',
+                        hintText: 'Example: oral, topical, inhaled',
+                      ),
+                      validator: _requiredClinicalValue,
+                    ),
+                    const SizedBox(height: AppSpacing.x4),
+                    TextFormField(
+                      controller: _exactDoseController,
+                      decoration: const InputDecoration(
+                        labelText: 'Exact dose per intake',
+                        hintText: 'Example: 1 tablet or 5 mL',
+                      ),
+                      validator: _requiredClinicalValue,
+                    ),
+                    const SizedBox(height: AppSpacing.x4),
+                    TextFormField(
+                      controller: _frequencyController,
+                      decoration: const InputDecoration(
+                        labelText: 'Frequency',
+                        hintText: 'Example: Every 8 hours',
+                      ),
+                      validator: _requiredClinicalValue,
+                    ),
+                    const SizedBox(height: AppSpacing.x4),
+                    TextFormField(
+                      controller: _durationController,
+                      decoration: const InputDecoration(
+                        labelText: 'Duration',
+                        hintText: 'Example: 7 days',
+                      ),
+                      validator: _requiredClinicalValue,
+                    ),
+                    const SizedBox(height: AppSpacing.x4),
+                    TextFormField(
+                      controller: _quantityController,
+                      decoration: const InputDecoration(
+                        labelText: 'Total quantity to dispense',
+                        hintText: 'Example: 21 tablets',
+                      ),
+                      validator: _requiredClinicalValue,
+                    ),
+                    const SizedBox(height: AppSpacing.x4),
+                    TextFormField(
+                      controller: _refillsController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Number of refills',
+                        helperText: 'Enter 0 for no refills',
+                      ),
+                      validator: (value) {
+                        final parsed = int.tryParse(value?.trim() ?? '');
+                        return parsed == null || parsed < 0 || parsed > 99
+                            ? 'Enter a whole number from 0 to 99.'
+                            : null;
+                      },
+                    ),
+                    const SizedBox(height: AppSpacing.x4),
+                    Wrap(
+                      spacing: AppSpacing.x2,
+                      runSpacing: AppSpacing.x2,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: _chooseStartDate,
+                          icon: const Icon(Icons.event_outlined),
+                          label: Text(
+                            'Start: ${DateFormat.yMMMd().format(_startDate)}',
+                          ),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: _chooseEndDate,
+                          icon: const Icon(Icons.event_available_outlined),
+                          label: Text(
+                            _endDate == null
+                                ? 'Add end date'
+                                : 'End: ${DateFormat.yMMMd().format(_endDate!)}',
+                          ),
+                        ),
+                        if (_endDate != null)
+                          IconButton(
+                            tooltip: 'Clear end date',
+                            onPressed: () => setState(() => _endDate = null),
+                            icon: const Icon(Icons.close),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.x3),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Take as needed (PRN)'),
+                      subtitle: const Text(
+                        'Requires a PRN reason and maximum daily dose.',
+                      ),
+                      value: _isPrn,
+                      onChanged: (value) => setState(() => _isPrn = value),
+                    ),
+                    if (_isPrn) ...[
+                      const SizedBox(height: AppSpacing.x2),
+                      TextFormField(
+                        controller: _prnReasonController,
+                        decoration: const InputDecoration(
+                          labelText: 'PRN reason',
+                          hintText: 'Example: for breakthrough pain',
+                        ),
+                        validator: _requiredClinicalValue,
+                      ),
+                      const SizedBox(height: AppSpacing.x4),
+                      TextFormField(
+                        controller: _maximumDailyDoseController,
+                        decoration: const InputDecoration(
+                          labelText: 'Maximum daily dose',
+                          hintText: 'Example: maximum 4 tablets in 24 hours',
+                        ),
+                        validator: _requiredClinicalValue,
+                      ),
+                    ],
+                    const SizedBox(height: AppSpacing.x4),
+                    TextFormField(
+                      controller: _instructionsController,
+                      minLines: 2,
+                      maxLines: 5,
+                      maxLength: 2000,
+                      decoration: const InputDecoration(
+                        labelText: 'Instructions (optional)',
+                        alignLabelWithHint: true,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.x5),
+                    Text(
+                      'Prescriber',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    const SizedBox(height: AppSpacing.x2),
+                    if (widget.prescriber == null)
+                      Text(
+                        'Complete your prescriber name and license number in your profile before issuing.',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      )
+                    else
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.badge_outlined),
+                        title: Text(widget.prescriber!.name),
+                        subtitle: Text(
+                          [
+                            if (widget.prescriber!.specialization != null)
+                              widget.prescriber!.specialization!,
+                            'License ${widget.prescriber!.licenseNumber}',
+                          ].join(' · '),
+                        ),
+                      ),
+                    CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      controlAffinity: ListTileControlAffinity.leading,
+                      value: _signatureAccepted,
+                      onChanged: widget.prescriber == null
+                          ? null
+                          : (value) => setState(() {
+                              _signatureAccepted = value ?? false;
+                              if (_signatureAccepted) _signatureError = null;
+                            }),
+                      title: const Text('Apply my electronic signature'),
+                      subtitle: const Text(
+                        'I confirm that I reviewed these directions and intend to issue this prescription using my authenticated account.',
+                      ),
+                    ),
+                    if (_signatureError != null)
+                      Text(
+                        _signatureError!,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-        ),
+              ),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Cancel'),
         ),
+        if (_previewing)
+          TextButton(
+            onPressed: () => setState(() => _previewing = false),
+            child: const Text('Back to edit'),
+          ),
         FilledButton(
-          onPressed: () {
-            if (!(_formKey.currentState?.validate() ?? false)) return;
-            Navigator.of(context).pop(
-              _PrescriptionDraft(
-                relationship: _relationship,
-                medicationName: _medicationController.text.trim(),
-                dosage: _dosageController.text.trim(),
-                frequency: _frequencyController.text.trim(),
-                duration: _durationController.text.trim(),
-                instructions: _instructionsController.text.trim(),
-                attachment: _attachment,
-              ),
-            );
-          },
-          child: const Text('Issue prescription'),
+          onPressed: _previewing
+              ? () => Navigator.of(context).pop(_draft())
+              : _showPreview,
+          child: Text(_previewing ? 'Confirm & issue' : 'Preview prescription'),
         ),
+      ],
+    );
+  }
+
+  Widget _buildPreview(BuildContext context) {
+    final rows = <(String, String)>[
+      (
+        'Patient',
+        _relationship.hasConsultation
+            ? '${_relationship.patientLabel} — ${_relationship.consultationLabel}'
+            : _relationship.patientLabel,
+      ),
+      ('Diagnosis / reason', _diagnosisController.text.trim()),
+      ('Medication', _medicationController.text.trim()),
+      ('Form and strength', _formStrengthController.text.trim()),
+      ('Route', _routeController.text.trim()),
+      ('Dose per intake', _exactDoseController.text.trim()),
+      ('Frequency', _frequencyController.text.trim()),
+      ('Duration', _durationController.text.trim()),
+      ('Quantity', _quantityController.text.trim()),
+      (
+        'Refills',
+        _refillsController.text.trim() == '0'
+            ? 'No refills'
+            : _refillsController.text.trim(),
+      ),
+      ('Start date', DateFormat.yMMMMd().format(_startDate)),
+      if (_endDate != null) ('End date', DateFormat.yMMMMd().format(_endDate!)),
+      if (_isPrn) ('PRN reason', _prnReasonController.text.trim()),
+      if (_isPrn)
+        ('Maximum daily dose', _maximumDailyDoseController.text.trim()),
+      if (_instructionsController.text.trim().isNotEmpty)
+        ('Instructions', _instructionsController.text.trim()),
+      if (_attachment != null) ('Attachment', _attachment!.name),
+      ('Prescriber', widget.prescriber?.name ?? 'Unavailable'),
+      ('License', widget.prescriber?.licenseNumber ?? 'Unavailable'),
+      ('Electronic signature', 'Confirmed using authenticated account'),
+    ];
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Review every detail before issuing. After confirmation, the prescription and attachment become part of the patient record.',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        const SizedBox(height: AppSpacing.x4),
+        for (final row in rows) ...[
+          Text(row.$1, style: Theme.of(context).textTheme.labelMedium),
+          const SizedBox(height: AppSpacing.x1),
+          SelectableText(row.$2),
+          const Divider(height: AppSpacing.x5),
+        ],
       ],
     );
   }
@@ -4486,6 +6870,489 @@ class _LaboratoryRequestDraft {
   final String priority;
   final String instructions;
   final ({List<int> bytes, String name})? attachment;
+}
+
+class _LaboratoryResultUploadDraft {
+  const _LaboratoryResultUploadDraft({
+    required this.relationship,
+    required this.category,
+    required this.testProcedureName,
+    required this.performedOrCollectedDate,
+    required this.resultDate,
+    required this.facility,
+    required this.requestingDoctor,
+    required this.attachment,
+    required this.findingsImpression,
+    required this.notes,
+  });
+
+  final ClinicalRelationship relationship;
+  final String category;
+  final String testProcedureName;
+  final DateTime performedOrCollectedDate;
+  final DateTime resultDate;
+  final String facility;
+  final String requestingDoctor;
+  final ({List<int> bytes, String name}) attachment;
+  final String? findingsImpression;
+  final String? notes;
+}
+
+class _LaboratoryResultUploadDialog extends StatefulWidget {
+  const _LaboratoryResultUploadDialog({
+    required this.relationships,
+    required this.repository,
+  });
+
+  final List<ClinicalRelationship> relationships;
+  final CareRepository repository;
+
+  @override
+  State<_LaboratoryResultUploadDialog> createState() =>
+      _LaboratoryResultUploadDialogState();
+}
+
+class _LaboratoryResultUploadDialogState
+    extends State<_LaboratoryResultUploadDialog> {
+  static const _maximumAttachmentBytes = 20 * 1024 * 1024;
+  static const _categories = <String, String>{
+    'laboratory': 'Laboratory',
+    'x_ray': 'X-ray',
+    'ct_scan': 'CT scan',
+    'mri': 'MRI',
+    'ultrasound': 'Ultrasound',
+    'ecg': 'ECG',
+    'pathology': 'Pathology',
+    'other': 'Other',
+  };
+
+  final _formKey = GlobalKey<FormState>();
+  final _testProcedureController = TextEditingController();
+  final _performedOrCollectedController = TextEditingController();
+  final _resultDateController = TextEditingController();
+  final _facilityController = TextEditingController();
+  final _requestingDoctorController = TextEditingController();
+  final _findingsImpressionController = TextEditingController();
+  final _notesController = TextEditingController();
+  late ClinicalRelationship _relationship = widget.relationships.first;
+  String _category = 'laboratory';
+  DateTime? _performedOrCollectedDate;
+  DateTime? _resultDate;
+  ({List<int> bytes, String name})? _attachment;
+  String? _attachmentError;
+  bool _pickingAttachment = false;
+  bool _scanning = false;
+  bool _scanCompleted = false;
+  String? _scanError;
+
+  Future<void> _pickAttachment() async {
+    const acceptedTypes = XTypeGroup(
+      label: 'Diagnostic result files',
+      extensions: ['pdf', 'jpg', 'jpeg', 'png'],
+      mimeTypes: ['application/pdf', 'image/jpeg', 'image/png'],
+    );
+    setState(() {
+      _pickingAttachment = true;
+      _attachmentError = null;
+    });
+    try {
+      final selected = await openFile(
+        acceptedTypeGroups: const [acceptedTypes],
+      );
+      if (selected == null || !mounted) return;
+      final length = await selected.length();
+      if (length <= 0 || length > _maximumAttachmentBytes) {
+        setState(() {
+          _attachmentError = length <= 0
+              ? 'The selected file is empty.'
+              : 'Choose a file no larger than 20 MB.';
+        });
+        return;
+      }
+      final bytes = await selected.readAsBytes();
+      if (!mounted) return;
+      final attachment = (bytes: bytes, name: selected.name);
+      setState(() {
+        _attachment = attachment;
+        _attachmentError = null;
+        _scanning = true;
+        _scanCompleted = false;
+        _scanError = null;
+      });
+      try {
+        final extracted = await widget.repository
+            .extractDiagnosticResultFromAttachment(attachment: attachment);
+        if (!mounted || _attachment != attachment) return;
+        _applyScan(extracted);
+        setState(() {
+          _scanning = false;
+          _scanCompleted = true;
+        });
+      } catch (error) {
+        if (!mounted || _attachment != attachment) return;
+        setState(() {
+          _scanning = false;
+          _scanError = _friendlyError(error);
+        });
+      }
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _attachmentError =
+            'Could not read the selected file. ${_friendlyError(error)}';
+      });
+    } finally {
+      if (mounted) setState(() => _pickingAttachment = false);
+    }
+  }
+
+  void _applyScan(DiagnosticResultScanDraft scan) {
+    void fill(TextEditingController controller, String? value) {
+      if (value != null && value.trim().isNotEmpty) {
+        controller.text = value.trim();
+      }
+    }
+
+    final today = DateUtils.dateOnly(DateTime.now());
+    if (scan.category != null && _categories.containsKey(scan.category)) {
+      _category = scan.category!;
+    }
+    fill(_testProcedureController, scan.testProcedureName);
+    fill(_facilityController, scan.facility);
+    fill(_requestingDoctorController, scan.requestingDoctor);
+    fill(_findingsImpressionController, scan.findingsImpression);
+    fill(_notesController, scan.notes);
+    final performedDate = scan.performedOrCollectedDate == null
+        ? null
+        : DateUtils.dateOnly(scan.performedOrCollectedDate!);
+    final resultDate = scan.resultDate == null
+        ? null
+        : DateUtils.dateOnly(scan.resultDate!);
+    if (performedDate != null && !performedDate.isAfter(today)) {
+      _performedOrCollectedDate = performedDate;
+      _performedOrCollectedController.text = DateFormat.yMMMd().format(
+        performedDate,
+      );
+    }
+    if (resultDate != null &&
+        !resultDate.isAfter(today) &&
+        (_performedOrCollectedDate == null ||
+            !resultDate.isBefore(_performedOrCollectedDate!))) {
+      _resultDate = resultDate;
+      _resultDateController.text = DateFormat.yMMMd().format(resultDate);
+    }
+  }
+
+  Widget _buildResultFileScanner(BuildContext context) {
+    final busy = _pickingAttachment || _scanning;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Result file and AI autofill',
+          style: Theme.of(context).textTheme.titleSmall,
+        ),
+        const SizedBox(height: AppSpacing.x1),
+        Text(
+          'Attach a PDF or clear image first. AI will prefill the editable diagnostic fields below; always verify them before uploading.',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(height: AppSpacing.x2),
+        OutlinedButton.icon(
+          onPressed: busy ? null : _pickAttachment,
+          icon: busy
+              ? const SizedBox.square(
+                  dimension: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.document_scanner_outlined, size: 18),
+          label: Text(
+            _pickingAttachment
+                ? 'Reading result file…'
+                : _scanning
+                ? 'Scanning result file…'
+                : _attachment == null
+                ? 'Attach and scan result file'
+                : 'Change and rescan result file',
+          ),
+        ),
+        if (_attachment != null) ...[
+          const SizedBox(height: AppSpacing.x2),
+          Row(
+            children: [
+              const Icon(Icons.attachment, size: 16),
+              const SizedBox(width: AppSpacing.x2),
+              Expanded(
+                child: Text(
+                  _attachment!.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              IconButton(
+                tooltip: 'Remove attachment',
+                onPressed: busy
+                    ? null
+                    : () => setState(() {
+                        _attachment = null;
+                        _scanCompleted = false;
+                        _scanError = null;
+                      }),
+                icon: const Icon(Icons.close, size: 16),
+              ),
+            ],
+          ),
+        ],
+        if (_scanCompleted)
+          Text(
+            'Scan complete. Review every autofilled value before uploading.',
+            style: TextStyle(color: Theme.of(context).colorScheme.primary),
+          ),
+        if (_scanError != null)
+          Text(
+            'Scan unavailable: $_scanError You can still complete the fields manually and upload this file.',
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
+        if (_attachmentError != null) ...[
+          const SizedBox(height: AppSpacing.x1),
+          Text(
+            _attachmentError!,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.error,
+              fontSize: 12,
+            ),
+          ),
+        ],
+        const SizedBox(height: AppSpacing.x1),
+        Text(
+          'Accepted formats: PDF, JPG, or PNG (upload up to 20 MB; AI scan up to 2 MB).',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      ],
+    );
+  }
+
+  Future<void> _choosePerformedOrCollectedDate() async {
+    final today = DateUtils.dateOnly(DateTime.now());
+    final value = await showDatePicker(
+      context: context,
+      initialDate: _performedOrCollectedDate ?? today,
+      firstDate: DateTime(1900),
+      lastDate: today,
+    );
+    if (value == null || !mounted) return;
+    final selected = DateUtils.dateOnly(value);
+    setState(() {
+      _performedOrCollectedDate = selected;
+      _performedOrCollectedController.text = DateFormat.yMMMd().format(
+        selected,
+      );
+      if (_resultDate != null && _resultDate!.isBefore(selected)) {
+        _resultDate = null;
+        _resultDateController.clear();
+      }
+    });
+  }
+
+  Future<void> _chooseResultDate() async {
+    final today = DateUtils.dateOnly(DateTime.now());
+    final firstDate = _performedOrCollectedDate ?? DateTime(1900);
+    final value = await showDatePicker(
+      context: context,
+      initialDate: _resultDate ?? _performedOrCollectedDate ?? today,
+      firstDate: firstDate,
+      lastDate: today,
+    );
+    if (value == null || !mounted) return;
+    final selected = DateUtils.dateOnly(value);
+    setState(() {
+      _resultDate = selected;
+      _resultDateController.text = DateFormat.yMMMd().format(selected);
+    });
+  }
+
+  @override
+  void dispose() {
+    _testProcedureController.dispose();
+    _performedOrCollectedController.dispose();
+    _resultDateController.dispose();
+    _facilityController.dispose();
+    _requestingDoctorController.dispose();
+    _findingsImpressionController.dispose();
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      scrollable: true,
+      insetPadding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.x4,
+        vertical: AppSpacing.x6,
+      ),
+      icon: const Icon(Icons.upload_file_outlined),
+      title: const Text('Upload diagnostic result'),
+      content: Form(
+        key: _formKey,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 620),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _ClinicalRelationshipField(
+                value: _relationship,
+                relationships: widget.relationships,
+                onChanged: (value) => setState(() => _relationship = value),
+              ),
+              const SizedBox(height: AppSpacing.x4),
+              _buildResultFileScanner(context),
+              const SizedBox(height: AppSpacing.x5),
+              DropdownButtonFormField<String>(
+                key: ValueKey(_category),
+                initialValue: _category,
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: 'Result category'),
+                items: [
+                  for (final entry in _categories.entries)
+                    DropdownMenuItem(
+                      value: entry.key,
+                      child: Text(entry.value),
+                    ),
+                ],
+                onChanged: (value) =>
+                    setState(() => _category = value ?? 'laboratory'),
+              ),
+              const SizedBox(height: AppSpacing.x4),
+              TextFormField(
+                controller: _testProcedureController,
+                autofocus: true,
+                textCapitalization: TextCapitalization.sentences,
+                maxLength: 300,
+                decoration: const InputDecoration(
+                  labelText: 'Test/procedure name',
+                  hintText: 'Example: Complete blood count or chest CT',
+                ),
+                validator: (value) {
+                  final length = value?.trim().length ?? 0;
+                  return length < 2 ? 'Enter at least 2 characters.' : null;
+                },
+              ),
+              const SizedBox(height: AppSpacing.x4),
+              TextFormField(
+                controller: _performedOrCollectedController,
+                readOnly: true,
+                decoration: const InputDecoration(
+                  labelText: 'Date performed or specimen collected',
+                  suffixIcon: Icon(Icons.calendar_today_outlined),
+                ),
+                onTap: _choosePerformedOrCollectedDate,
+                validator: (_) => _performedOrCollectedDate == null
+                    ? 'Choose the performed or collected date.'
+                    : null,
+              ),
+              const SizedBox(height: AppSpacing.x4),
+              TextFormField(
+                controller: _resultDateController,
+                readOnly: true,
+                decoration: const InputDecoration(
+                  labelText: 'Result date',
+                  suffixIcon: Icon(Icons.calendar_today_outlined),
+                ),
+                onTap: _chooseResultDate,
+                validator: (_) =>
+                    _resultDate == null ? 'Choose the result date.' : null,
+              ),
+              const SizedBox(height: AppSpacing.x4),
+              TextFormField(
+                controller: _facilityController,
+                textCapitalization: TextCapitalization.words,
+                maxLength: 300,
+                decoration: const InputDecoration(labelText: 'Facility'),
+                validator: (value) => (value?.trim().isEmpty ?? true)
+                    ? 'Enter the facility.'
+                    : null,
+              ),
+              const SizedBox(height: AppSpacing.x2),
+              TextFormField(
+                controller: _requestingDoctorController,
+                textCapitalization: TextCapitalization.words,
+                maxLength: 300,
+                decoration: const InputDecoration(
+                  labelText: 'Requesting doctor',
+                ),
+                validator: (value) => (value?.trim().isEmpty ?? true)
+                    ? 'Enter the requesting doctor.'
+                    : null,
+              ),
+              const SizedBox(height: AppSpacing.x2),
+              TextFormField(
+                controller: _findingsImpressionController,
+                textCapitalization: TextCapitalization.sentences,
+                minLines: 2,
+                maxLines: 5,
+                maxLength: 4000,
+                decoration: const InputDecoration(
+                  labelText: 'Findings/impression (optional)',
+                  alignLabelWithHint: true,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.x4),
+              TextFormField(
+                controller: _notesController,
+                textCapitalization: TextCapitalization.sentences,
+                minLines: 2,
+                maxLines: 5,
+                maxLength: 2000,
+                decoration: const InputDecoration(
+                  labelText: 'Notes (optional)',
+                  alignLabelWithHint: true,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: _pickingAttachment || _scanning
+              ? null
+              : () {
+                  final valid = _formKey.currentState?.validate() ?? false;
+                  if (_attachment == null) {
+                    setState(() => _attachmentError = 'Choose a result file.');
+                  }
+                  if (!valid || _attachment == null) return;
+                  Navigator.of(context).pop(
+                    _LaboratoryResultUploadDraft(
+                      relationship: _relationship,
+                      category: _category,
+                      testProcedureName: _testProcedureController.text.trim(),
+                      performedOrCollectedDate: _performedOrCollectedDate!,
+                      resultDate: _resultDate!,
+                      facility: _facilityController.text.trim(),
+                      requestingDoctor: _requestingDoctorController.text.trim(),
+                      attachment: _attachment!,
+                      findingsImpression:
+                          _findingsImpressionController.text.trim().isEmpty
+                          ? null
+                          : _findingsImpressionController.text.trim(),
+                      notes: _notesController.text.trim().isEmpty
+                          ? null
+                          : _notesController.text.trim(),
+                    ),
+                  );
+                },
+          child: const Text('Upload diagnostic result'),
+        ),
+      ],
+    );
+  }
 }
 
 class _LaboratoryRequestDialog extends StatefulWidget {
@@ -4655,16 +7522,24 @@ class _ClinicalRelationshipField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (relationships.length == 1) {
+      return InputDecorator(
+        decoration: const InputDecoration(labelText: 'Patient'),
+        child: Text(value.patientLabel, overflow: TextOverflow.ellipsis),
+      );
+    }
     return DropdownButtonFormField<ClinicalRelationship>(
       initialValue: value,
       isExpanded: true,
-      decoration: const InputDecoration(labelText: 'Patient consultation'),
+      decoration: const InputDecoration(labelText: 'Patient'),
       items: [
         for (final relationship in relationships)
           DropdownMenuItem(
             value: relationship,
             child: Text(
-              '${relationship.patientLabel} — ${relationship.consultationLabel}',
+              relationship.hasConsultation
+                  ? '${relationship.patientLabel} — ${relationship.consultationLabel}'
+                  : relationship.patientLabel,
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -4825,6 +7700,329 @@ class _ScheduleDialogState extends State<_ScheduleDialog> {
   }
 }
 
+class _EmergencyCapacityDraft {
+  const _EmergencyCapacityDraft({
+    required this.total,
+    required this.occupied,
+    required this.closedOrUnstaffed,
+    required this.reserved,
+    required this.currentPatients,
+    this.statusOverride,
+    this.overrideReason,
+  });
+
+  final int total;
+  final int occupied;
+  final int closedOrUnstaffed;
+  final int reserved;
+  final int currentPatients;
+  final String? statusOverride;
+  final String? overrideReason;
+}
+
+class _EmergencyCapacityDialog extends StatefulWidget {
+  const _EmergencyCapacityDialog({
+    required this.initialTotal,
+    required this.initialOccupied,
+    required this.initialClosedOrUnstaffed,
+    required this.initialReserved,
+    required this.initialPatientCount,
+    this.initialStatusOverride,
+    this.initialOverrideReason,
+  });
+
+  final int initialTotal;
+  final int initialOccupied;
+  final int initialClosedOrUnstaffed;
+  final int initialReserved;
+  final int initialPatientCount;
+  final String? initialStatusOverride;
+  final String? initialOverrideReason;
+
+  @override
+  State<_EmergencyCapacityDialog> createState() =>
+      _EmergencyCapacityDialogState();
+}
+
+class _EmergencyCapacityDialogState extends State<_EmergencyCapacityDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _totalController;
+  late final TextEditingController _occupiedController;
+  late final TextEditingController _closedController;
+  late final TextEditingController _reservedController;
+  late final TextEditingController _patientController;
+  late final TextEditingController _reasonController;
+  String? _statusOverride;
+
+  @override
+  void initState() {
+    super.initState();
+    _totalController = TextEditingController(text: '${widget.initialTotal}');
+    _occupiedController = TextEditingController(
+      text: '${widget.initialOccupied}',
+    );
+    _closedController = TextEditingController(
+      text: '${widget.initialClosedOrUnstaffed}',
+    );
+    _reservedController = TextEditingController(
+      text: '${widget.initialReserved}',
+    );
+    _patientController = TextEditingController(
+      text: '${widget.initialPatientCount}',
+    );
+    _reasonController = TextEditingController(
+      text: widget.initialOverrideReason ?? '',
+    );
+    _statusOverride = switch (widget.initialStatusOverride) {
+      'limited' ||
+      'full' ||
+      'temporarily_closed' => widget.initialStatusOverride,
+      _ => null,
+    };
+  }
+
+  @override
+  void dispose() {
+    _totalController.dispose();
+    _occupiedController.dispose();
+    _closedController.dispose();
+    _reservedController.dispose();
+    _patientController.dispose();
+    _reasonController.dispose();
+    super.dispose();
+  }
+
+  int? _parsed(TextEditingController controller) =>
+      int.tryParse(controller.text.trim());
+
+  int? get _available {
+    final total = _parsed(_totalController);
+    final occupied = _parsed(_occupiedController);
+    final closed = _parsed(_closedController);
+    final reserved = _parsed(_reservedController);
+    if ([total, occupied, closed, reserved].any((value) => value == null)) {
+      return null;
+    }
+    return total! - occupied! - closed! - reserved!;
+  }
+
+  String? _wholeNumberValidator(String? value) {
+    final number = int.tryParse(value?.trim() ?? '');
+    return number == null || number < 0
+        ? 'Enter zero or a positive whole number.'
+        : null;
+  }
+
+  String? _reservedValidator(String? value) {
+    final basic = _wholeNumberValidator(value);
+    if (basic != null) return basic;
+    final available = _available;
+    return available != null && available < 0
+        ? 'Occupied, unavailable, and reserved beds exceed the total.'
+        : null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final available = _available;
+    final derivedStatus = available == null || available < 0
+        ? 'Check capacity values'
+        : available == 0
+        ? 'Full'
+        : () {
+            final total = _parsed(_totalController) ?? 0;
+            final closed = _parsed(_closedController) ?? 0;
+            final staffed = total - closed;
+            return staffed > 0 && available * 5 <= staffed
+                ? 'Limited'
+                : 'Available';
+          }();
+    return AlertDialog(
+      icon: const Icon(Icons.emergency_outlined),
+      title: const Text('Confirm emergency capacity'),
+      content: Form(
+        key: _formKey,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Enter the current ER census. Available beds and the public status are calculated by the server.',
+                ),
+                const SizedBox(height: AppSpacing.x4),
+                TextFormField(
+                  controller: _totalController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Physical ER beds',
+                    helperText: 'Configured ER treatment spaces',
+                  ),
+                  validator: _wholeNumberValidator,
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: AppSpacing.x3),
+                TextFormField(
+                  controller: _occupiedController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Occupied beds',
+                    helperText: 'Beds currently occupied by ER patients',
+                  ),
+                  validator: _wholeNumberValidator,
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: AppSpacing.x3),
+                TextFormField(
+                  controller: _closedController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Closed or unstaffed beds',
+                    helperText:
+                        'Unavailable for staffing, cleaning, maintenance, or infection control',
+                  ),
+                  validator: _wholeNumberValidator,
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: AppSpacing.x3),
+                TextFormField(
+                  controller: _reservedController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Reserved beds',
+                    helperText:
+                        'Held for arriving or clinically reserved patients',
+                  ),
+                  validator: _reservedValidator,
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: AppSpacing.x3),
+                TextFormField(
+                  controller: _patientController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Current ER patients',
+                    helperText: 'Includes waiting and boarding patients',
+                  ),
+                  validator: _wholeNumberValidator,
+                ),
+                const SizedBox(height: AppSpacing.x4),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: AppColors.selected,
+                    borderRadius: BorderRadius.circular(AppRadius.control),
+                    border: Border.all(color: AppColors.secondary),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.calculate_outlined,
+                          color: AppColors.primary,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            available == null || available < 0
+                                ? 'Available beds: Check the entered values'
+                                : 'Available beds: $available · Automatic status: $derivedStatus',
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.x4),
+                DropdownButtonFormField<String?>(
+                  initialValue: _statusOverride,
+                  decoration: const InputDecoration(
+                    labelText: 'Operational status override',
+                    helperText: 'Use only when the calculated status is unsafe',
+                  ),
+                  items: const [
+                    DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text('Automatic'),
+                    ),
+                    DropdownMenuItem<String?>(
+                      value: 'limited',
+                      child: Text('Limited'),
+                    ),
+                    DropdownMenuItem<String?>(
+                      value: 'full',
+                      child: Text('Full'),
+                    ),
+                    DropdownMenuItem<String?>(
+                      value: 'temporarily_closed',
+                      child: Text('Temporarily closed'),
+                    ),
+                  ],
+                  onChanged: (value) => setState(() {
+                    _statusOverride = value;
+                    if (value == null) _reasonController.clear();
+                  }),
+                ),
+                if (_statusOverride != null) ...[
+                  const SizedBox(height: AppSpacing.x3),
+                  TextFormField(
+                    controller: _reasonController,
+                    maxLength: 500,
+                    decoration: const InputDecoration(
+                      labelText: 'Override reason',
+                      helperText: 'Explain the staffing or operational risk',
+                    ),
+                    validator: (value) {
+                      if (_statusOverride == null) return null;
+                      final reason = value?.trim() ?? '';
+                      return reason.length < 3
+                          ? 'Enter at least 3 characters.'
+                          : null;
+                    },
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton.icon(
+          onPressed: () {
+            if (!(_formKey.currentState?.validate() ?? false) ||
+                _available == null ||
+                _available! < 0) {
+              return;
+            }
+            Navigator.of(context).pop(
+              _EmergencyCapacityDraft(
+                total: _parsed(_totalController)!,
+                occupied: _parsed(_occupiedController)!,
+                closedOrUnstaffed: _parsed(_closedController)!,
+                reserved: _parsed(_reservedController)!,
+                currentPatients: _parsed(_patientController)!,
+                statusOverride: _statusOverride,
+                overrideReason: _statusOverride == null
+                    ? null
+                    : _reasonController.text.trim(),
+              ),
+            );
+          },
+          icon: const Icon(Icons.publish_outlined),
+          label: const Text('Publish confirmation'),
+        ),
+      ],
+    );
+  }
+}
+
 class _CapacityDialog extends StatefulWidget {
   const _CapacityDialog({
     required this.resourceLabel,
@@ -4921,6 +8119,70 @@ class _CapacityDialogState extends State<_CapacityDialog> {
             ));
           },
           child: const Text('Save capacity'),
+        ),
+      ],
+    );
+  }
+}
+
+class _MedicalDocumentTitleDialog extends StatefulWidget {
+  const _MedicalDocumentTitleDialog({required this.initialValue});
+
+  final String initialValue;
+
+  @override
+  State<_MedicalDocumentTitleDialog> createState() =>
+      _MedicalDocumentTitleDialogState();
+}
+
+class _MedicalDocumentTitleDialogState
+    extends State<_MedicalDocumentTitleDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialValue);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      icon: const Icon(Icons.edit_document),
+      title: const Text('Edit file title'),
+      content: Form(
+        key: _formKey,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: TextFormField(
+            controller: _controller,
+            autofocus: true,
+            maxLength: 180,
+            decoration: const InputDecoration(labelText: 'File title'),
+            validator: (value) => (value?.trim().isEmpty ?? true)
+                ? 'A file title is required.'
+                : null,
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () {
+            if (!(_formKey.currentState?.validate() ?? false)) return;
+            Navigator.of(context).pop(_controller.text.trim());
+          },
+          child: const Text('Save title'),
         ),
       ],
     );
@@ -5043,6 +8305,304 @@ class _MetricGrid extends StatelessWidget {
   }
 }
 
+class _ScheduleSummary extends StatelessWidget {
+  const _ScheduleSummary({required this.items});
+
+  final List<WorkspaceItem> items;
+
+  @override
+  Widget build(BuildContext context) {
+    final active = items.where((item) => item.data['is_active'] == true).length;
+    final online = items
+        .where(
+          (item) =>
+              item.data['consultation_type']?.toString().toLowerCase() ==
+              'online',
+        )
+        .length;
+    final inPerson = items.length - online;
+    final summaries = [
+      (Icons.calendar_today_outlined, '${items.length}', 'Total slots'),
+      (Icons.event_available_outlined, '$active', 'Open for reservation'),
+      (Icons.videocam_outlined, '$online', 'Online'),
+      (Icons.local_hospital_outlined, '$inPerson', 'Face-to-face'),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 560;
+        final width = compact
+            ? (constraints.maxWidth - AppSpacing.x3) / 2
+            : (constraints.maxWidth - AppSpacing.x3 * 3) / 4;
+        return Wrap(
+          spacing: AppSpacing.x3,
+          runSpacing: AppSpacing.x3,
+          children: [
+            for (final summary in summaries)
+              SizedBox(
+                width: width,
+                child: Container(
+                  padding: const EdgeInsets.all(AppSpacing.x4),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    border: Border.all(color: AppColors.border),
+                    borderRadius: BorderRadius.circular(AppRadius.panel),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: AppColors.selected,
+                          borderRadius: BorderRadius.circular(
+                            AppRadius.control,
+                          ),
+                        ),
+                        child: Icon(
+                          summary.$1,
+                          size: 20,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.x3),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              summary.$2,
+                              style: Theme.of(context).textTheme.titleLarge,
+                            ),
+                            Text(
+                              summary.$3,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+Map<String, Object?> _connectionRequestData(WorkspaceItem item) {
+  final nested = item.data['data'];
+  return {
+    ...item.data,
+    if (nested is Map) ...Map<String, Object?>.from(nested),
+  };
+}
+
+List<CareNotification> collapseNotificationThreads(
+  List<CareNotification> notifications,
+) {
+  final newestFirst = notifications.toList()
+    ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+  final groups = <String, List<CareNotification>>{};
+  for (final notification in newestFirst) {
+    final conversationId = notification.type == 'message'
+        ? notification.data['conversation_id']?.toString().trim() ?? ''
+        : '';
+    final key = conversationId.isEmpty
+        ? 'notification:${notification.id}'
+        : 'message:$conversationId';
+    groups.putIfAbsent(key, () => []).add(notification);
+  }
+
+  return groups.values
+      .map((group) {
+        final latest = group.first;
+        if (group.length == 1) return latest;
+        return CareNotification(
+          id: latest.id,
+          title: 'New messages',
+          message:
+              'You received ${group.length} messages in this conversation.',
+          type: latest.type,
+          isRead: group.every((notification) => notification.isRead),
+          createdAt: latest.createdAt,
+          actionPath: latest.actionPath,
+          referenceId: latest.referenceId,
+          data: {
+            ...latest.data,
+            'notification_ids': group
+                .map((notification) => notification.id)
+                .toList(growable: false),
+            'message_count': group.length,
+          },
+        );
+      })
+      .toList(growable: false);
+}
+
+bool _isPatientConnectionRequest(WorkspaceItem item) =>
+    item.kind == 'notifications' &&
+    _connectionRequestData(item)['notification_type'] == 'access_request';
+
+class _ConnectionRequestCard extends StatelessWidget {
+  const _ConnectionRequestCard({
+    required this.item,
+    required this.busy,
+    this.onAccept,
+    this.onDecline,
+  });
+
+  final WorkspaceItem item;
+  final bool busy;
+  final VoidCallback? onAccept;
+  final VoidCallback? onDecline;
+
+  @override
+  Widget build(BuildContext context) {
+    final data = _connectionRequestData(item);
+    var status =
+        data['status']?.toString().trim().toLowerCase() ??
+        (item.status == 'read' ? 'requested' : item.status) ??
+        'requested';
+    final requestExpiry = DateTime.tryParse(
+      data['expires_at']?.toString() ?? '',
+    );
+    if (status == 'requested' &&
+        requestExpiry != null &&
+        !requestExpiry.isAfter(DateTime.now())) {
+      status = 'expired';
+    }
+    final isPending = status == 'requested';
+    final clinician = data['doctor_display_name']?.toString().trim();
+    final hospital = data['hospital_name']?.toString().trim();
+    final title = clinician?.isNotEmpty == true
+        ? '$clinician would like to connect'
+        : 'A verified clinician would like to connect';
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Material(
+      color: colorScheme.primaryContainer.withValues(alpha: 0.32),
+      shape: RoundedRectangleBorder(
+        side: BorderSide(color: colorScheme.primary.withValues(alpha: 0.28)),
+        borderRadius: BorderRadius.circular(AppRadius.panel),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.x4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CircleAvatar(
+                  backgroundColor: colorScheme.primary,
+                  foregroundColor: colorScheme.onPrimary,
+                  child: const Icon(Icons.health_and_safety_outlined),
+                ),
+                const SizedBox(width: AppSpacing.x3),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      if (hospital?.isNotEmpty == true) ...[
+                        const SizedBox(height: AppSpacing.x1),
+                        Text(
+                          hospital!,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.x3),
+            Text(
+              isPending
+                  ? 'Accepting lets this verified clinician view and add care information needed to support you for up to 90 days. Only accept if you recognize this request.'
+                  : status == 'approved'
+                  ? 'You accepted this request. The clinician can now support your care through CareNavigator PH.'
+                  : status == 'expired'
+                  ? 'This request expired before a decision was made. The clinician was not connected to your account.'
+                  : 'You declined this request. The clinician was not connected to your account.',
+            ),
+            if (isPending && (onAccept != null || onDecline != null)) ...[
+              const SizedBox(height: AppSpacing.x4),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final stackButtons = constraints.maxWidth < 340;
+                  final decline = OutlinedButton(
+                    onPressed: busy ? null : onDecline,
+                    child: const Text('Decline'),
+                  );
+                  final accept = FilledButton.icon(
+                    onPressed: busy ? null : onAccept,
+                    icon: busy
+                        ? const SizedBox.square(
+                            dimension: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.check, size: 18),
+                    label: Text(busy ? 'Saving…' : 'Accept request'),
+                  );
+                  if (stackButtons) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        accept,
+                        const SizedBox(height: AppSpacing.x2),
+                        decline,
+                      ],
+                    );
+                  }
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      decline,
+                      const SizedBox(width: AppSpacing.x2),
+                      accept,
+                    ],
+                  );
+                },
+              ),
+            ] else if (!isPending) ...[
+              const SizedBox(height: AppSpacing.x3),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Chip(
+                  avatar: Icon(
+                    status == 'approved'
+                        ? Icons.check_circle_outline
+                        : status == 'expired'
+                        ? Icons.schedule_outlined
+                        : Icons.block_outlined,
+                    size: 18,
+                  ),
+                  label: Text(
+                    status == 'approved'
+                        ? 'Accepted'
+                        : status == 'expired'
+                        ? 'Expired'
+                        : 'Declined',
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _LiveRecordDetails extends StatelessWidget {
   const _LiveRecordDetails({required this.item, this.role, this.topActions});
 
@@ -5055,18 +8615,67 @@ class _LiveRecordDetails extends StatelessWidget {
     if (item.kind == 'consultations') {
       return _ConsultationDetails(item: item, role: role);
     }
-    final entries = <(String, String)>[
-      for (final key in _detailKeys(item.kind))
-        if (_detailValue(item.data[key], key) case final value?)
-          (_detailLabel(key), value),
-    ];
-    if (entries.isEmpty && topActions == null) return const SizedBox.shrink();
+    final rawCheckups = item.data['checkup_history'];
+    final checkups = rawCheckups is List
+        ? rawCheckups
+              .whereType<Map>()
+              .map((record) => Map<String, Object?>.from(record))
+              .toList(growable: false)
+        : const <Map<String, Object?>>[];
+    final rawPrescriptions = item.data['prescription_history'];
+    final prescriptions = rawPrescriptions is List
+        ? rawPrescriptions
+              .whereType<Map>()
+              .map((record) => Map<String, Object?>.from(record))
+              .toList(growable: false)
+        : const <Map<String, Object?>>[];
+    final rawDiagnosticResults = item.data['diagnostic_result_history'];
+    final diagnosticResults = rawDiagnosticResults is List
+        ? rawDiagnosticResults
+              .whereType<Map>()
+              .map((record) => Map<String, Object?>.from(record))
+              .toList(growable: false)
+        : const <Map<String, Object?>>[];
+    final showCheckupHistory =
+        role == UserRole.doctor && item.kind == 'doctor_patient_assignments';
+    final rawPatientContext = item.data['patient_context'];
+    final patientContext = rawPatientContext is Map
+        ? Map<String, Object?>.from(rawPatientContext)
+        : null;
+    final patientContextUnavailable = item.data['patient_context_unavailable']
+        ?.toString();
+    final entries = item.kind == 'medical_documents'
+        ? _medicalDocumentDetailEntries(item.data)
+        : _isPatientConnectionRequest(item)
+        ? <(String, String)>[]
+        : <(String, String)>[
+            for (final key in _detailKeys(item.kind))
+              if (!(item.kind == 'prescriptions' &&
+                  key == 'dosage' &&
+                  _detailValue(item.data['exact_dose'], 'exact_dose') != null))
+                if (_detailValue(item.data[key], key) case final value?)
+                  (_detailLabel(key), value),
+          ];
+    if (entries.isEmpty && topActions == null && !showCheckupHistory) {
+      return const SizedBox.shrink();
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (topActions != null) ...[
           topActions!,
           const SizedBox(height: AppSpacing.x6),
+        ],
+        if (role == UserRole.doctor && patientContext != null) ...[
+          _AuthorizedPatientContext(contextData: patientContext),
+          const SizedBox(height: AppSpacing.x4),
+        ] else if (role == UserRole.doctor &&
+            patientContextUnavailable?.isNotEmpty == true) ...[
+          _PatientContextUnavailable(
+            message: patientContextUnavailable!,
+            assignmentHistoryAvailable: showCheckupHistory,
+          ),
+          const SizedBox(height: AppSpacing.x4),
         ],
         if (entries.isNotEmpty)
           Container(
@@ -5107,7 +8716,764 @@ class _LiveRecordDetails extends StatelessWidget {
               },
             ),
           ),
+        if (showCheckupHistory) ...[
+          const SizedBox(height: AppSpacing.x2),
+          _PatientCheckupHistory(records: checkups),
+          const SizedBox(height: AppSpacing.x6),
+          _PatientClinicalHistorySection(
+            title: 'Prescription History',
+            description:
+                'A chronological record of prescriptions issued for this patient.',
+            emptyMessage: 'No prescriptions recorded yet.',
+            records: prescriptions,
+            prescription: true,
+          ),
+          const SizedBox(height: AppSpacing.x6),
+          _PatientClinicalHistorySection(
+            title: 'Diagnostic Result History',
+            description:
+                'Laboratory and diagnostic results available through this care relationship.',
+            emptyMessage: 'No diagnostic results recorded yet.',
+            records: diagnosticResults,
+          ),
+        ],
       ],
+    );
+  }
+}
+
+class _AuthorizedPatientContext extends StatelessWidget {
+  const _AuthorizedPatientContext({required this.contextData});
+
+  final Map<String, Object?> contextData;
+
+  @override
+  Widget build(BuildContext context) {
+    const categoryLabels = <String, String>{
+      'medical_records': 'Medical records',
+      'diagnoses': 'Diagnoses',
+      'prescriptions': 'Prescriptions',
+      'laboratory_requests': 'Laboratory requests',
+      'laboratory_results': 'Diagnostic results',
+      'medical_documents': 'Medical documents',
+      'treatment_plans': 'Treatment plans',
+    };
+    final categories =
+        <({String key, String label, List<Map<String, Object?>> rows})>[
+          for (final entry in categoryLabels.entries)
+            if (contextData[entry.key] case final List<dynamic> rows)
+              (
+                key: entry.key,
+                label: entry.value,
+                rows: rows
+                    .whereType<Map>()
+                    .map((row) => Map<String, Object?>.from(row))
+                    .toList(growable: false),
+              ),
+        ];
+    final allergies = contextData['allergies_medications'];
+    final allergyData = allergies is Map
+        ? Map<String, Object?>.from(allergies)
+        : null;
+    final demographics = contextData['demographics'];
+    final demographicData = demographics is Map
+        ? Map<String, Object?>.from(demographics)
+        : null;
+
+    return Material(
+      color: AppColors.surfaceMuted,
+      shape: RoundedRectangleBorder(
+        side: const BorderSide(color: AppColors.border),
+        borderRadius: BorderRadius.circular(AppRadius.panel),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.x4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.folder_shared_outlined),
+                const SizedBox(width: AppSpacing.x2),
+                Expanded(
+                  child: Text(
+                    'Authorized patient context',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.x1),
+            Text(
+              'Only categories authorized for this active consultation are queried. External records keep their source and are read-only.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            if (demographicData != null) ...[
+              const SizedBox(height: AppSpacing.x3),
+              _ConsultationFieldGrid(
+                fields: [
+                  if (_firstText(demographicData, const ['first_name'])
+                      case final firstName?)
+                    _ConsultationField(
+                      'Patient',
+                      '$firstName ${_firstText(demographicData, const ['last_name']) ?? ''}'
+                          .trim(),
+                    ),
+                  if (_detailValue(
+                        demographicData['patient_number'],
+                        'patient_number',
+                      )
+                      case final value?)
+                    _ConsultationField('Patient number', value),
+                  if (_detailValue(demographicData['birth_date'], 'birth_date')
+                      case final value?)
+                    _ConsultationField('Birth date', value),
+                  if (_detailValue(demographicData['sex'], 'sex')
+                      case final value?)
+                    _ConsultationField('Sex', value),
+                  if (_detailValue(
+                        demographicData['mobile_number'],
+                        'mobile_number',
+                      )
+                      case final value?)
+                    _ConsultationField('Registered phone', value),
+                  if (_detailValue(demographicData['address'], 'address')
+                      case final value?)
+                    _ConsultationField('Address', value),
+                ],
+              ),
+            ],
+            if (allergyData != null) ...[
+              const SizedBox(height: AppSpacing.x3),
+              _ConsultationFieldGrid(
+                fields: [
+                  _ConsultationField(
+                    'Allergies',
+                    _detailValue(allergyData['allergies'], 'allergies') ??
+                        'None recorded',
+                  ),
+                  _ConsultationField(
+                    'Current medications',
+                    _detailValue(
+                          allergyData['current_medications'],
+                          'current_medications',
+                        ) ??
+                        'None recorded',
+                  ),
+                ],
+              ),
+            ],
+            for (final category in categories)
+              if (category.rows.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.x3),
+                ExpansionTile(
+                  tilePadding: EdgeInsets.zero,
+                  childrenPadding: EdgeInsets.zero,
+                  title: Text(category.label),
+                  subtitle: Text(
+                    '${category.rows.length} authorized record${category.rows.length == 1 ? '' : 's'}',
+                  ),
+                  children: [
+                    for (final record in category.rows)
+                      _AuthorizedPatientContextRecord(
+                        category: category.key,
+                        categoryLabel: category.label,
+                        record: record,
+                      ),
+                  ],
+                ),
+              ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AuthorizedPatientContextRecord extends ConsumerStatefulWidget {
+  const _AuthorizedPatientContextRecord({
+    required this.category,
+    required this.categoryLabel,
+    required this.record,
+  });
+
+  final String category;
+  final String categoryLabel;
+  final Map<String, Object?> record;
+
+  @override
+  ConsumerState<_AuthorizedPatientContextRecord> createState() =>
+      _AuthorizedPatientContextRecordState();
+}
+
+class _AuthorizedPatientContextRecordState
+    extends ConsumerState<_AuthorizedPatientContextRecord> {
+  bool _opening = false;
+
+  Future<void> _open() async {
+    if (_opening) return;
+    final rawRecord = widget.record['record'];
+    final clinicalRecord = rawRecord is Map
+        ? Map<String, Object?>.from(rawRecord)
+        : const <String, Object?>{};
+    if (widget.category != 'medical_documents') {
+      await showRootDialog<void>(
+        builder: (context) => _AuthorizedClinicalRecordDialog(
+          categoryLabel: widget.categoryLabel,
+          record: widget.record,
+        ),
+      );
+      return;
+    }
+
+    final documentId = clinicalRecord['id']?.toString() ?? '';
+    if (documentId.isEmpty) {
+      showRootMessage('This medical document is missing its secure file link.');
+      return;
+    }
+    setState(() => _opening = true);
+    try {
+      final repository = ref.read(careRepositoryProvider);
+      if (repository == null) throw StateError('Care service is unavailable.');
+      final url = await repository.createSignedFileUrl(documentId);
+      if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+        throw StateError('The secure medical document could not be opened.');
+      }
+    } catch (error) {
+      showRootMessage(_friendlyError(error));
+    } finally {
+      if (mounted) setState(() => _opening = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final rawRecord = widget.record['record'];
+    final clinicalRecord = rawRecord is Map
+        ? Map<String, Object?>.from(rawRecord)
+        : const <String, Object?>{};
+    final title =
+        _firstText(clinicalRecord, const [
+          'title',
+          'diagnosis',
+          'medication_name',
+          'test_name',
+          'plan',
+          'record_type',
+        ]) ??
+        'Clinical record';
+    final source =
+        _firstText(widget.record, const ['originating_hospital']) ??
+        'Source hospital unavailable';
+    final author =
+        _firstText(widget.record, const ['authoring_doctor']) ??
+        'Author unavailable';
+    final recordDate =
+        _detailValue(widget.record['record_date'], 'record_date') ??
+        'Date unavailable';
+    final recordStatus =
+        _detailValue(widget.record['record_status'], 'record_status') ??
+        'Status unavailable';
+    final isExternal = widget.record['external_read_only'] == true;
+    final isDocument = widget.category == 'medical_documents';
+    return Card(
+      margin: const EdgeInsets.only(bottom: AppSpacing.x2),
+      child: ListTile(
+        onTap: _opening ? null : _open,
+        leading: Icon(
+          isExternal ? Icons.lock_outline : Icons.description_outlined,
+        ),
+        title: Text(title),
+        subtitle: Text(
+          '$source | $author | $recordDate | $recordStatus${isExternal ? ' | External read-only' : ''}',
+        ),
+        trailing: _opening
+            ? const SizedBox.square(
+                dimension: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : TextButton.icon(
+                onPressed: _open,
+                icon: Icon(
+                  isDocument ? Icons.open_in_new : Icons.visibility_outlined,
+                  size: 18,
+                ),
+                label: Text(isDocument ? 'Open file' : 'View'),
+              ),
+        isThreeLine: true,
+      ),
+    );
+  }
+}
+
+class _AuthorizedClinicalRecordDialog extends StatelessWidget {
+  const _AuthorizedClinicalRecordDialog({
+    required this.categoryLabel,
+    required this.record,
+  });
+
+  final String categoryLabel;
+  final Map<String, Object?> record;
+
+  @override
+  Widget build(BuildContext context) {
+    final rawRecord = record['record'];
+    final clinicalRecord = rawRecord is Map
+        ? Map<String, Object?>.from(rawRecord)
+        : const <String, Object?>{};
+    final title =
+        _firstText(clinicalRecord, const [
+          'title',
+          'diagnosis',
+          'medication_name',
+          'test_name',
+          'plan',
+          'record_type',
+        ]) ??
+        categoryLabel;
+    final preferredKeys = _detailKeys(
+      categoryLabel == 'Medical records'
+          ? 'medical_records'
+          : categoryLabel == 'Prescriptions'
+          ? 'prescriptions'
+          : categoryLabel == 'Laboratory requests'
+          ? 'laboratory_requests'
+          : categoryLabel == 'Diagnostic results'
+          ? 'laboratory_results'
+          : '',
+    );
+    const hiddenKeys = {
+      'id',
+      'patient_id',
+      'doctor_id',
+      'hospital_id',
+      'consultation_id',
+      'uploaded_by',
+      'author_doctor_id',
+      'storage_bucket',
+      'storage_path',
+      'checksum',
+    };
+    final keys = preferredKeys.isNotEmpty
+        ? preferredKeys
+        : clinicalRecord.keys
+              .where((key) => !hiddenKeys.contains(key))
+              .toList(growable: false);
+    final fields = <_ConsultationField>[
+      if (_firstText(record, const ['originating_hospital']) case final value?)
+        _ConsultationField('Source facility', value),
+      if (_firstText(record, const ['authoring_doctor']) case final value?)
+        _ConsultationField('Author', value),
+      if (_detailValue(record['record_date'], 'record_date') case final value?)
+        _ConsultationField('Record date', value),
+      if (_detailValue(record['record_status'], 'record_status')
+          case final value?)
+        _ConsultationField('Status', value),
+      for (final key in keys)
+        if (_detailValue(clinicalRecord[key], key) case final value?)
+          _ConsultationField(_detailLabel(key), value),
+    ];
+
+    return AlertDialog(
+      icon: const Icon(Icons.description_outlined),
+      title: Text(title),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 680),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                categoryLabel,
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
+              if (record['external_read_only'] == true) ...[
+                const SizedBox(height: AppSpacing.x2),
+                const Text(
+                  'This record comes from another facility and is available read-only.',
+                ),
+              ],
+              const SizedBox(height: AppSpacing.x4),
+              if (fields.isEmpty)
+                const Text('No additional record details are available.')
+              else
+                for (var index = 0; index < fields.length; index++) ...[
+                  Text(
+                    fields[index].label,
+                    style: Theme.of(context).textTheme.labelMedium,
+                  ),
+                  const SizedBox(height: AppSpacing.x1),
+                  SelectableText(fields[index].value),
+                  if (index != fields.length - 1)
+                    const SizedBox(height: AppSpacing.x3),
+                ],
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Close'),
+        ),
+      ],
+    );
+  }
+}
+
+class _PatientContextUnavailable extends StatelessWidget {
+  const _PatientContextUnavailable({
+    required this.message,
+    this.assignmentHistoryAvailable = false,
+  });
+
+  final String message;
+  final bool assignmentHistoryAvailable;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(AppSpacing.x4),
+    decoration: BoxDecoration(
+      color: AppColors.surfaceMuted,
+      border: Border.all(color: AppColors.border),
+      borderRadius: BorderRadius.circular(AppRadius.panel),
+    ),
+    child: Row(
+      children: [
+        const Icon(Icons.lock_outline),
+        const SizedBox(width: AppSpacing.x3),
+        Expanded(
+          child: Text(
+            assignmentHistoryAvailable
+                ? 'Consultation-specific patient context is unavailable. $message Checkup, prescription, and diagnostic result histories authorized by this assignment remain available below.'
+                : 'Patient context is unavailable because no active authorized care relationship covers it. $message',
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _PatientCheckupHistory extends StatelessWidget {
+  const _PatientCheckupHistory({required this.records});
+
+  final List<Map<String, Object?>> records;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Text('Checkup History', style: Theme.of(context).textTheme.titleLarge),
+      const SizedBox(height: AppSpacing.x1),
+      Text(
+        'A chronological record of this patient\'s saved checkups.',
+        style: Theme.of(context).textTheme.bodySmall,
+      ),
+      const SizedBox(height: AppSpacing.x3),
+      if (records.isEmpty)
+        Container(
+          padding: const EdgeInsets.all(AppSpacing.x4),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceMuted,
+            border: Border.all(color: AppColors.border),
+            borderRadius: BorderRadius.circular(AppRadius.control),
+          ),
+          child: const Text('No checkups recorded yet.'),
+        )
+      else
+        for (var index = 0; index < records.length; index++) ...[
+          _CheckupHistoryEntry(record: records[index]),
+          if (index != records.length - 1)
+            const SizedBox(height: AppSpacing.x2),
+        ],
+    ],
+  );
+}
+
+class _CheckupHistoryEntry extends StatelessWidget {
+  const _CheckupHistoryEntry({required this.record});
+
+  final Map<String, Object?> record;
+
+  @override
+  Widget build(BuildContext context) {
+    final title =
+        _firstText(record, const ['title', 'reason_for_visit']) ??
+        'Patient checkup';
+    final recordedAt =
+        _detailValue(record['vitals_recorded_at'], 'vitals_recorded_at') ??
+        _detailValue(record['created_at'], 'created_at') ??
+        _detailValue(record['record_date'], 'record_date') ??
+        'Date not recorded';
+    final doctor =
+        _firstText(record, const ['doctor_display_name']) ?? 'Care team';
+    final details = <(String, String)>[
+      for (final key in _detailKeys('medical_records'))
+        if (!{'title', 'created_at'}.contains(key))
+          if (_detailValue(record[key], key) case final value?)
+            (_detailLabel(key), value),
+    ];
+
+    return Material(
+      color: AppColors.surface,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        side: const BorderSide(color: AppColors.border),
+        borderRadius: BorderRadius.circular(AppRadius.control),
+      ),
+      child: ExpansionTile(
+        leading: const Icon(Icons.monitor_heart_outlined),
+        title: Text(title),
+        subtitle: Text('$recordedAt — $doctor'),
+        childrenPadding: const EdgeInsets.fromLTRB(
+          AppSpacing.x4,
+          0,
+          AppSpacing.x4,
+          AppSpacing.x4,
+        ),
+        children: [
+          const Divider(),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final fieldWidth = constraints.maxWidth >= 720
+                  ? (constraints.maxWidth - AppSpacing.x4) / 2
+                  : constraints.maxWidth;
+              return Wrap(
+                spacing: AppSpacing.x4,
+                runSpacing: AppSpacing.x3,
+                children: [
+                  for (final detail in details)
+                    SizedBox(
+                      width: fieldWidth,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            detail.$1,
+                            style: Theme.of(context).textTheme.labelMedium,
+                          ),
+                          const SizedBox(height: AppSpacing.x1),
+                          SelectableText(detail.$2),
+                        ],
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PatientClinicalHistorySection extends StatelessWidget {
+  const _PatientClinicalHistorySection({
+    required this.title,
+    required this.description,
+    required this.emptyMessage,
+    required this.records,
+    this.prescription = false,
+  });
+
+  final String title;
+  final String description;
+  final String emptyMessage;
+  final List<Map<String, Object?>> records;
+  final bool prescription;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Text(title, style: Theme.of(context).textTheme.titleLarge),
+      const SizedBox(height: AppSpacing.x1),
+      Text(description, style: Theme.of(context).textTheme.bodySmall),
+      const SizedBox(height: AppSpacing.x3),
+      if (records.isEmpty)
+        Container(
+          padding: const EdgeInsets.all(AppSpacing.x4),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceMuted,
+            border: Border.all(color: AppColors.border),
+            borderRadius: BorderRadius.circular(AppRadius.control),
+          ),
+          child: Text(emptyMessage),
+        )
+      else
+        for (var index = 0; index < records.length; index++) ...[
+          _PatientClinicalHistoryEntry(
+            record: records[index],
+            prescription: prescription,
+          ),
+          if (index != records.length - 1)
+            const SizedBox(height: AppSpacing.x2),
+        ],
+    ],
+  );
+}
+
+class _PatientClinicalHistoryEntry extends ConsumerStatefulWidget {
+  const _PatientClinicalHistoryEntry({
+    required this.record,
+    required this.prescription,
+  });
+
+  final Map<String, Object?> record;
+  final bool prescription;
+
+  @override
+  ConsumerState<_PatientClinicalHistoryEntry> createState() =>
+      _PatientClinicalHistoryEntryState();
+}
+
+class _PatientClinicalHistoryEntryState
+    extends ConsumerState<_PatientClinicalHistoryEntry> {
+  bool _opening = false;
+
+  Future<void> _openFile() async {
+    final documentId = widget.record['id']?.toString() ?? '';
+    if (_opening || documentId.isEmpty) return;
+    setState(() => _opening = true);
+    try {
+      final repository = ref.read(careRepositoryProvider);
+      if (repository == null) throw StateError('Care service is unavailable.');
+      final url = await repository.createSignedFileUrl(documentId);
+      if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+        throw StateError('The secure clinical file could not be opened.');
+      }
+    } catch (error) {
+      showRootMessage(_friendlyError(error));
+    } finally {
+      if (mounted) setState(() => _opening = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final record = widget.record;
+    final source = record['history_source']?.toString() ?? '';
+    final isFile = source == 'medical_documents';
+    final title = widget.prescription
+        ? _firstText(record, const ['medication_name', 'title']) ??
+              'Prescription'
+        : _firstText(record, const [
+                'test_procedure_name',
+                'test_name',
+                'title',
+              ]) ??
+              'Diagnostic result';
+    final recordedAt = widget.prescription
+        ? _detailValue(
+                record['electronically_signed_at'],
+                'electronically_signed_at',
+              ) ??
+              _detailValue(record['created_at'], 'created_at') ??
+              'Date not recorded'
+        : _detailValue(record['result_date'], 'result_date') ??
+              _detailValue(record['uploaded_at'], 'uploaded_at') ??
+              _detailValue(record['created_at'], 'created_at') ??
+              'Date not recorded';
+    final author = widget.prescription
+        ? _firstText(record, const ['prescriber_name'])
+        : _firstText(record, const ['requesting_doctor']);
+    final keys = widget.prescription
+        ? source == 'prescriptions'
+              ? _detailKeys('prescriptions')
+              : _detailKeys('medical_documents')
+        : source == 'laboratory_results'
+        ? _detailKeys('laboratory_results')
+        : const [
+            'result_category',
+            'test_procedure_name',
+            'performed_or_collected_date',
+            'result_date',
+            'facility',
+            'requesting_doctor',
+            'findings_impression',
+            'notes',
+            'ai_analysis_status',
+            'ai_summary',
+            'ai_analysis_error',
+            'created_at',
+          ];
+    final details = isFile
+        ? _medicalDocumentDetailEntries(record)
+        : <(String, String)>[
+            for (final key in keys)
+              if (_detailValue(record[key], key) case final value?)
+                (_detailLabel(key), value),
+          ];
+
+    return Material(
+      color: AppColors.surface,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        side: const BorderSide(color: AppColors.border),
+        borderRadius: BorderRadius.circular(AppRadius.control),
+      ),
+      child: ExpansionTile(
+        leading: Icon(
+          widget.prescription
+              ? Icons.medication_outlined
+              : Icons.biotech_outlined,
+        ),
+        title: Text(title),
+        subtitle: Text(author == null ? recordedAt : '$recordedAt | $author'),
+        childrenPadding: const EdgeInsets.fromLTRB(
+          AppSpacing.x4,
+          0,
+          AppSpacing.x4,
+          AppSpacing.x4,
+        ),
+        children: [
+          const Divider(),
+          if (isFile) ...[
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                onPressed: _opening ? null : _openFile,
+                icon: _opening
+                    ? const SizedBox.square(
+                        dimension: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.open_in_new, size: 18),
+                label: Text(_opening ? 'Opening...' : 'Open secure file'),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.x3),
+          ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final fieldWidth = constraints.maxWidth >= 720
+                  ? (constraints.maxWidth - AppSpacing.x4) / 2
+                  : constraints.maxWidth;
+              return Wrap(
+                spacing: AppSpacing.x4,
+                runSpacing: AppSpacing.x3,
+                children: [
+                  for (final detail in details)
+                    SizedBox(
+                      width: fieldWidth,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            detail.$1,
+                            style: Theme.of(context).textTheme.labelMedium,
+                          ),
+                          const SizedBox(height: AppSpacing.x1),
+                          SelectableText(detail.$2),
+                        ],
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 }
@@ -5160,6 +9526,12 @@ class _ConsultationDetails extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final data = item.data;
+    final rawPatientContext = data['patient_context'];
+    final patientContext = rawPatientContext is Map
+        ? Map<String, Object?>.from(rawPatientContext)
+        : null;
+    final patientContextUnavailable = data['patient_context_unavailable']
+        ?.toString();
     final facility =
         _firstText(data, const ['hospital_name', 'facility_name']) ??
         'Not listed';
@@ -5168,6 +9540,10 @@ class _ConsultationDetails extends StatelessWidget {
         'Not assigned';
     final overview = <_ConsultationField>[
       _ConsultationField('Facility', facility),
+      if (_firstText(data, const ['department_name']) case final value?)
+        _ConsultationField('Department', value),
+      if (_firstText(data, const ['hospital_location']) case final value?)
+        _ConsultationField('Location', value),
       _ConsultationField(
         'Type',
         _consultationTypeLabel(data['consultation_type']),
@@ -5237,6 +9613,14 @@ class _ConsultationDetails extends StatelessWidget {
           SelectableText(
             _firstText(data, const ['chief_complaint']) ?? 'Not provided',
           ),
+          if (role == UserRole.doctor && patientContext != null) ...[
+            const Divider(height: AppSpacing.x8),
+            _AuthorizedPatientContext(contextData: patientContext),
+          ] else if (role == UserRole.doctor &&
+              patientContextUnavailable?.isNotEmpty == true) ...[
+            const Divider(height: AppSpacing.x8),
+            _PatientContextUnavailable(message: patientContextUnavailable!),
+          ],
           const Divider(height: AppSpacing.x8),
           Text(
             'Clinical Summary',
@@ -5264,7 +9648,7 @@ class _ConsultationDetails extends StatelessWidget {
             ),
             const Divider(height: 1),
             _ConsultationRelatedLink(
-              label: role == UserRole.patient ? 'Lab Results' : 'Laboratory',
+              label: role == UserRole.patient ? 'Diagnostics' : 'Laboratory',
               actionLabel: 'View',
               onPressed: () => context.go(
                 '${role!.homeLocation}/${role == UserRole.patient ? 'labs' : 'laboratory'}',
@@ -5615,10 +9999,27 @@ List<String> _detailKeys(String kind) => switch (kind) {
     'symptoms',
     'symptom_duration',
     'consultation_reason',
+    'preferred_consultation_type',
     'preferred_schedule',
     'request_status',
     'identity_review_status',
     'rejection_reason',
+  ],
+  'online_consultation_requests' => const [
+    'reference_number',
+    'profile_first_name',
+    'profile_last_name',
+    'phone_number_snapshot',
+    'medical_concern',
+    'symptom_duration',
+    'preferred_schedule',
+    'proposed_schedule',
+    'confirmed_schedule',
+    'consultation_channel',
+    'request_status',
+    'additional_information_request',
+    'rejection_reason',
+    'cancellation_reason',
   ],
   'notifications' => const [
     'notification_type',
@@ -5628,11 +10029,26 @@ List<String> _detailKeys(String kind) => switch (kind) {
     'created_at',
   ],
   'prescriptions' => const [
+    'diagnosis_reason',
     'medication_name',
+    'medication_form_strength',
+    'route',
+    'exact_dose',
     'dosage',
     'frequency',
     'duration',
+    'quantity_to_dispense',
+    'refills',
+    'start_date',
+    'end_date',
+    'is_prn',
+    'prn_reason',
+    'maximum_daily_dose',
     'instructions',
+    'prescriber_name',
+    'prescriber_specialization',
+    'prescriber_license_number',
+    'electronically_signed_at',
     'created_at',
   ],
   'laboratory_results' => const [
@@ -5656,6 +10072,10 @@ List<String> _detailKeys(String kind) => switch (kind) {
   'medical_documents' => const [
     'title',
     'document_type',
+    'ai_analysis_status',
+    'ai_summary',
+    'ai_analysis_error',
+    'ai_analyzed_at',
     'mime_type',
     'size_bytes',
     'created_at',
@@ -5744,6 +10164,7 @@ List<String> _detailKeys(String kind) => switch (kind) {
     'license_number',
     'license_verification_status',
     'availability_status',
+    'record_status',
   ],
   'hospital_beds' => const [
     'bed_type',
@@ -5763,8 +10184,14 @@ List<String> _detailKeys(String kind) => switch (kind) {
   'emergency_room_status' => const [
     'status',
     'maximum_capacity',
-    'current_patient_count',
+    'occupied_beds',
+    'closed_or_unstaffed_beds',
+    'reserved_beds',
     'available_beds',
+    'current_patient_count',
+    'status_override',
+    'override_reason',
+    'capacity_source',
     'last_updated',
   ],
   'hospital_services' => const [
@@ -5878,7 +10305,25 @@ String _detailLabel(String key) => switch (key) {
   'hospital_name' => 'Facility',
   'doctor_notes' => 'Clinical Notes',
   'confirmed_diagnosis' => 'Diagnosis / Assessment',
+  'diagnosis_reason' => 'Diagnosis / Reason for Medication',
+  'medication_form_strength' => 'Medication Form and Strength',
+  'exact_dose' => 'Dose per Intake',
+  'quantity_to_dispense' => 'Quantity to Dispense',
+  'is_prn' => 'As Needed (PRN)',
+  'prn_reason' => 'PRN Reason',
+  'maximum_daily_dose' => 'Maximum Daily Dose',
+  'prescriber_license_number' => 'Prescriber License Number',
+  'electronically_signed_at' => 'Electronically Signed',
   'treatment_plan' => 'Follow-up',
+  'ai_summary' => 'AI Summary',
+  'ai_analysis_status' => 'AI Summary Status',
+  'ai_analysis_error' => 'AI Summary Note',
+  'ai_analyzed_at' => 'AI Summary Generated',
+  'result_category' => 'Diagnostic Type',
+  'test_procedure_name' => 'Test or Procedure',
+  'performed_or_collected_date' => 'Performed or Collected',
+  'result_date' => 'Result Issued',
+  'findings_impression' => 'Findings and Impression',
   _ =>
     key
         .split('_')
@@ -5912,6 +10357,7 @@ String? _detailValue(Object? raw, [String? key]) {
     'account_status',
     'profile_status',
     'availability_status',
+    'record_status',
     'record_type',
     'document_type',
     'notification_type',
@@ -5923,10 +10369,72 @@ String? _detailValue(Object? raw, [String? key]) {
     return _humanizeEnum(value);
   }
   if (date == null || !_isDateField(key)) return value;
-  if (key == 'birth_date' || key == 'record_date') {
+  if ({
+    'birth_date',
+    'record_date',
+    'start_date',
+    'end_date',
+    'result_date',
+    'performed_or_collected_date',
+  }.contains(key)) {
     return DateFormat('MMMM d, y').format(date.toLocal());
   }
   return DateFormat('MMMM d, y · h:mm a').format(date.toLocal());
+}
+
+List<(String, String)> _medicalDocumentDetailEntries(
+  Map<String, Object?> data,
+) {
+  final documentType = data['document_type']?.toString() ?? '';
+  final rawExtracted = data['ai_extracted_data'];
+  final extracted = rawExtracted is Map
+      ? Map<String, Object?>.from(rawExtracted)
+      : const <String, Object?>{};
+  String? value(Map<String, Object?> source, String key) =>
+      _detailValue(source[key], key);
+  final entries = <(String, String)>[];
+
+  void add(String label, String? fieldValue) {
+    if (fieldValue != null) entries.add((label, fieldValue));
+  }
+
+  if (documentType == 'prescription') {
+    add('Patient', value(extracted, 'patient_name'));
+    add('Prescription date', value(extracted, 'document_date'));
+    add('Prescriber', value(extracted, 'provider_name'));
+    add('Medication and directions', value(extracted, 'medications'));
+    add('Instructions', value(extracted, 'instructions'));
+    add('Important note', value(extracted, 'limitations'));
+    add('Summary', value(data, 'ai_summary'));
+    add('Summary generated', value(data, 'ai_analyzed_at'));
+    return entries;
+  }
+
+  if (documentType == 'diagnostic_result' || documentType == 'lab_result') {
+    for (final key in const [
+      'result_category',
+      'test_procedure_name',
+      'performed_or_collected_date',
+      'result_date',
+      'facility',
+      'requesting_doctor',
+      'findings_impression',
+      'notes',
+    ]) {
+      add(_detailLabel(key), value(data, key));
+    }
+    add('Reported findings', value(extracted, 'test_results'));
+    add('Important note', value(extracted, 'limitations'));
+    add('Summary', value(data, 'ai_summary'));
+    add('Summary generated', value(data, 'ai_analyzed_at'));
+    return entries;
+  }
+
+  for (final key in _detailKeys('medical_documents')) {
+    if (key == 'ai_analysis_status' && data[key] == 'completed') continue;
+    add(_detailLabel(key), value(data, key));
+  }
+  return entries;
 }
 
 String _consultationCountLabel(int count) =>
@@ -6003,6 +10511,10 @@ bool _isPastConsultation(WorkspaceItem item) {
     'rejected',
     'no_show',
     'no show',
+    'patient_unreachable',
+    'patient unreachable',
+    'face_to_face_recommended',
+    'face to face recommended',
   }.contains(status);
 }
 
@@ -6042,6 +10554,10 @@ bool _isDateField(String? key) =>
     key == 'requested_at' ||
     key == 'uploaded_at' ||
     key == 'reviewed_at' ||
+    key == 'ai_analyzed_at' ||
+    key == 'electronically_signed_at' ||
+    key == 'result_date' ||
+    key == 'performed_or_collected_date' ||
     key == 'assigned_at' ||
     key == 'ended_at' ||
     key == 'vitals_recorded_at' ||
@@ -6093,86 +10609,469 @@ class _LiveRecordRow extends StatelessWidget {
         trailing: trailing,
       );
     }
+    if (item.kind == 'doctor_schedules') {
+      return _ScheduleRecordRow(item: item, busy: busy, trailing: trailing);
+    }
     final status = item.status;
+    final statusTag = status != null && status.isNotEmpty
+        ? StatusTag(
+            label: _statusLabel(status),
+            icon: _statusIcon(status),
+            color: _statusColor(status),
+          )
+        : null;
+    final rowAction = trailing != null
+        ? busy
+              ? const SizedBox.square(
+                  dimension: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : trailing!
+        : item.kind == 'prescriptions' && onOpen != null
+        ? TextButton(
+            onPressed: busy ? null : onOpen,
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.visibility_outlined, size: 18),
+                SizedBox(width: AppSpacing.x1),
+                Text('View details'),
+              ],
+            ),
+          )
+        : onOpen != null
+        ? const Icon(Icons.chevron_right)
+        : null;
     return Semantics(
       button: onOpen != null,
       child: InkWell(
         onTap: busy ? null : onOpen,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.x4),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 680;
+            final summary = Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: item.isUnread
+                        ? AppColors.selected
+                        : AppColors.surfaceMuted,
+                    borderRadius: BorderRadius.circular(AppRadius.control),
+                  ),
+                  child: Icon(
+                    _iconFor(item.kind),
+                    size: 20,
+                    color: item.isUnread
+                        ? AppColors.primary
+                        : AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.x3),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.title.isEmpty ? 'Untitled record' : item.title,
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                      if (item.subtitle.isNotEmpty) ...[
+                        const SizedBox(height: AppSpacing.x1),
+                        Text(
+                          item.subtitle,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                      if (item.timestamp != null) ...[
+                        const SizedBox(height: AppSpacing.x1),
+                        Text(
+                          DateFormat(
+                            'MMM d, y · h:mm a',
+                          ).format(item.timestamp!.toLocal()),
+                          style: Theme.of(context).textTheme.labelSmall,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                if (!compact && statusTag != null) ...[
+                  const SizedBox(width: AppSpacing.x3),
+                  statusTag,
+                ],
+                if (!compact && rowAction != null) ...[
+                  const SizedBox(width: AppSpacing.x2),
+                  rowAction,
+                ],
+              ],
+            );
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.x4),
+              child: compact
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        summary,
+                        if (statusTag != null || rowAction != null) ...[
+                          const SizedBox(height: AppSpacing.x2),
+                          Padding(
+                            padding: const EdgeInsets.only(left: 50),
+                            child: Wrap(
+                              spacing: AppSpacing.x2,
+                              runSpacing: AppSpacing.x2,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [?statusTag, ?rowAction],
+                            ),
+                          ),
+                        ],
+                      ],
+                    )
+                  : summary,
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _ScheduleRecordRow extends StatelessWidget {
+  const _ScheduleRecordRow({
+    required this.item,
+    required this.busy,
+    this.trailing,
+    this.showDay = true,
+  });
+
+  final WorkspaceItem item;
+  final bool busy;
+  final Widget? trailing;
+  final bool showDay;
+
+  @override
+  Widget build(BuildContext context) {
+    final active = item.data['is_active'] == true;
+    final reservedCount =
+        int.tryParse(
+          item.data['reserved_consultation_count']?.toString() ?? '',
+        ) ??
+        0;
+    final consultationType = _humanizeEnum(
+      item.data['consultation_type']?.toString() ??
+          item.subtitle.split(' · ').last,
+    );
+    final startsAt = item.data['starts_at']?.toString() ?? '';
+    final endsAt = item.data['ends_at']?.toString() ?? '';
+    final time = startsAt.isNotEmpty && endsAt.isNotEmpty
+        ? '$startsAt – $endsAt'
+        : item.subtitle;
+    final stateLabel = reservedCount > 0
+        ? 'Reserved'
+        : active
+        ? 'Open'
+        : 'Hidden';
+    final stateColor = reservedCount > 0
+        ? AppColors.information
+        : active
+        ? AppColors.success
+        : AppColors.textMuted;
+    final action = busy
+        ? const SizedBox.square(
+            dimension: 24,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          )
+        : trailing;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 680;
+        final details = Row(
+          children: [
+            Icon(
+              consultationType.toLowerCase().contains('online')
+                  ? Icons.videocam_outlined
+                  : Icons.local_hospital_outlined,
+              size: 17,
+              color: AppColors.textMuted,
+            ),
+            const SizedBox(width: AppSpacing.x1),
+            Flexible(
+              child: Text(
+                consultationType,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+          ],
+        );
+        final status = Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          decoration: BoxDecoration(
+            color: stateColor.withValues(alpha: .09),
+            borderRadius: BorderRadius.circular(999),
+          ),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 38,
-                height: 38,
+                width: 7,
+                height: 7,
                 decoration: BoxDecoration(
-                  color: item.isUnread
-                      ? AppColors.selected
-                      : AppColors.surfaceMuted,
-                  borderRadius: BorderRadius.circular(AppRadius.control),
-                ),
-                child: Icon(
-                  _iconFor(item.kind),
-                  size: 20,
-                  color: item.isUnread
-                      ? AppColors.primary
-                      : AppColors.textSecondary,
+                  color: stateColor,
+                  shape: BoxShape.circle,
                 ),
               ),
+              const SizedBox(width: 6),
+              Text(
+                stateLabel,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: stateColor,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        );
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.x4),
+          child: compact
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (showDay) ...[
+                          _ScheduleDayTile(day: item.title),
+                          const SizedBox(width: AppSpacing.x3),
+                        ],
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                time,
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                              const SizedBox(height: AppSpacing.x1),
+                              details,
+                            ],
+                          ),
+                        ),
+                        status,
+                      ],
+                    ),
+                    if (action != null) ...[
+                      const SizedBox(height: AppSpacing.x2),
+                      Padding(
+                        padding: EdgeInsets.only(left: showDay ? 54 : 0),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: action,
+                        ),
+                      ),
+                    ],
+                  ],
+                )
+              : Row(
+                  children: [
+                    if (showDay) ...[
+                      _ScheduleDayTile(day: item.title),
+                      const SizedBox(width: AppSpacing.x4),
+                      Expanded(
+                        flex: 2,
+                        child: Text(
+                          item.title,
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                      ),
+                    ],
+                    Expanded(
+                      flex: 2,
+                      child: Text(
+                        time,
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                    ),
+                    Expanded(flex: 2, child: details),
+                    status,
+                    if (action != null) ...[
+                      const SizedBox(width: AppSpacing.x3),
+                      action,
+                    ],
+                  ],
+                ),
+        );
+      },
+    );
+  }
+}
+
+class _ScheduleWeekView extends StatelessWidget {
+  const _ScheduleWeekView({
+    required this.items,
+    required this.busyItems,
+    required this.actionsFor,
+  });
+
+  static const days = [
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday',
+  ];
+
+  final List<WorkspaceItem> items;
+  final Set<String> busyItems;
+  final Widget? Function(WorkspaceItem item) actionsFor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        for (var dayIndex = 0; dayIndex < days.length; dayIndex++) ...[
+          _ScheduleDayGroup(
+            day: days[dayIndex],
+            items: _itemsForDay(days[dayIndex]),
+            busyItems: busyItems,
+            actionsFor: actionsFor,
+          ),
+          if (dayIndex != days.length - 1) const Divider(height: 1),
+        ],
+      ],
+    );
+  }
+
+  List<WorkspaceItem> _itemsForDay(String day) {
+    final matches = items
+        .where(
+          (item) =>
+              item.title.trim().toLowerCase().startsWith(day.toLowerCase()),
+        )
+        .toList(growable: false);
+    matches.sort(
+      (left, right) => (left.data['starts_at']?.toString() ?? '').compareTo(
+        right.data['starts_at']?.toString() ?? '',
+      ),
+    );
+    return matches;
+  }
+}
+
+class _ScheduleDayGroup extends StatelessWidget {
+  const _ScheduleDayGroup({
+    required this.day,
+    required this.items,
+    required this.busyItems,
+    required this.actionsFor,
+  });
+
+  final String day;
+  final List<WorkspaceItem> items;
+  final Set<String> busyItems;
+  final Widget? Function(WorkspaceItem item) actionsFor;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasSlots = items.isNotEmpty;
+    final availableCount = items
+        .where((item) => item.data['is_active'] == true)
+        .length;
+    final hasAvailability = availableCount > 0;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.x4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              _ScheduleDayTile(day: day),
               const SizedBox(width: AppSpacing.x3),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Text(day, style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 2),
                     Text(
-                      item.title.isEmpty ? 'Untitled record' : item.title,
-                      style: Theme.of(context).textTheme.titleSmall,
+                      hasAvailability
+                          ? '$availableCount ${availableCount == 1 ? 'time slot' : 'time slots'} open for reservation'
+                          : hasSlots
+                          ? 'No time slots open for reservation'
+                          : 'No available time slots',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: hasAvailability
+                            ? AppColors.success
+                            : AppColors.textMuted,
+                      ),
                     ),
-                    if (item.subtitle.isNotEmpty) ...[
-                      const SizedBox(height: AppSpacing.x1),
-                      Text(
-                        item.subtitle,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
-                    if (item.timestamp != null) ...[
-                      const SizedBox(height: AppSpacing.x1),
-                      Text(
-                        DateFormat(
-                          'MMM d, y · h:mm a',
-                        ).format(item.timestamp!.toLocal()),
-                        style: Theme.of(context).textTheme.labelSmall,
-                      ),
-                    ],
                   ],
                 ),
               ),
-              if (status != null && status.isNotEmpty) ...[
-                const SizedBox(width: AppSpacing.x3),
-                StatusTag(
-                  label: _statusLabel(status),
-                  icon: _statusIcon(status),
-                  color: _statusColor(status),
-                ),
-              ],
-              if (trailing != null) ...[
-                const SizedBox(width: AppSpacing.x3),
-                if (busy)
-                  const SizedBox.square(
-                    dimension: 24,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                else
-                  trailing!,
-              ] else if (onOpen != null) ...[
-                const SizedBox(width: AppSpacing.x2),
-                const Icon(Icons.chevron_right),
-              ],
+              Icon(
+                hasAvailability
+                    ? Icons.check_circle_outline
+                    : Icons.remove_circle_outline,
+                color: hasAvailability ? AppColors.success : AppColors.disabled,
+                size: 21,
+              ),
             ],
           ),
+          if (hasSlots) ...[
+            const SizedBox(height: AppSpacing.x2),
+            Padding(
+              padding: const EdgeInsets.only(left: 54),
+              child: Column(
+                children: [
+                  for (var index = 0; index < items.length; index++) ...[
+                    _ScheduleRecordRow(
+                      item: items[index],
+                      busy: busyItems.contains(items[index].id),
+                      trailing: actionsFor(items[index]),
+                      showDay: false,
+                    ),
+                    if (index != items.length - 1) const Divider(height: 1),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ScheduleDayTile extends StatelessWidget {
+  const _ScheduleDayTile({required this.day});
+
+  final String day;
+
+  @override
+  Widget build(BuildContext context) {
+    final shortDay = day.length >= 3 ? day.substring(0, 3).toUpperCase() : day;
+    return Container(
+      width: 42,
+      height: 42,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: AppColors.selected,
+        borderRadius: BorderRadius.circular(AppRadius.control),
+      ),
+      child: Text(
+        shortDay,
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+          color: AppColors.primary,
+          fontWeight: FontWeight.w800,
+          letterSpacing: .4,
         ),
       ),
     );
@@ -6216,6 +11115,7 @@ class _LiveErrorState extends StatelessWidget {
 IconData _iconFor(String kind) => switch (kind) {
   'consultations' => Icons.medical_information_outlined,
   'guest_consultation_requests' => Icons.person_add_alt_outlined,
+  'online_consultation_requests' => Icons.fact_check_outlined,
   'notifications' => Icons.notifications_outlined,
   'prescriptions' => Icons.medication_outlined,
   'laboratory_results' || 'laboratory_requests' => Icons.science_outlined,
@@ -6274,287 +11174,3 @@ String _friendlyError(Object error) {
 
 int _intValue(dynamic value) =>
     value is int ? value : int.tryParse('$value') ?? 0;
-
-class _BookAppointmentDialog extends StatefulWidget {
-  const _BookAppointmentDialog({required this.patient});
-
-  final Map<String, Object?> patient;
-
-  @override
-  State<_BookAppointmentDialog> createState() => _BookAppointmentDialogState();
-}
-
-class _BookAppointmentDialogState extends State<_BookAppointmentDialog> {
-  final _formKey = GlobalKey<FormState>();
-  final _complaintController = TextEditingController();
-  DateTime _date = DateTime.now().add(const Duration(days: 1));
-  String _type = 'online';
-  ({List<int> bytes, String name})? _attachment;
-
-  Future<void> _pickAttachment() async {
-    const acceptedTypes = XTypeGroup(
-      label: 'Medical files',
-      extensions: ['pdf', 'jpg', 'jpeg', 'png'],
-      mimeTypes: ['application/pdf', 'image/jpeg', 'image/png'],
-    );
-    final selected = await openFile(acceptedTypeGroups: const [acceptedTypes]);
-    if (selected == null) return;
-    final bytes = await selected.readAsBytes();
-    if (mounted) {
-      setState(() => _attachment = (bytes: bytes, name: selected.name));
-    }
-  }
-
-  @override
-  void dispose() {
-    _complaintController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      icon: const Icon(Icons.calendar_month_outlined),
-      title: const Text('Book appointment'),
-      content: Form(
-        key: _formKey,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 520),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                DropdownButtonFormField<String>(
-                  initialValue: _type,
-                  decoration: const InputDecoration(
-                    labelText: 'Consultation type',
-                  ),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'online',
-                      child: Text('Online consultation'),
-                    ),
-                    DropdownMenuItem(
-                      value: ConsultationType.faceToFace,
-                      child: Text('In-person visit'),
-                    ),
-                  ],
-                  onChanged: (value) =>
-                      setState(() => _type = value ?? 'online'),
-                ),
-                const SizedBox(height: AppSpacing.x4),
-                TextFormField(
-                  controller: _complaintController,
-                  autofocus: true,
-                  textCapitalization: TextCapitalization.sentences,
-                  decoration: const InputDecoration(
-                    labelText: 'Chief complaint',
-                  ),
-                  validator: _requiredClinicalValue,
-                ),
-                const SizedBox(height: AppSpacing.x4),
-                InkWell(
-                  onTap: () async {
-                    final date = await showDatePicker(
-                      context: context,
-                      initialDate: _date,
-                      firstDate: DateTime.now(),
-                      lastDate: DateTime.now().add(const Duration(days: 365)),
-                    );
-                    if (date == null || !context.mounted) return;
-                    final time = await showTimePicker(
-                      context: context,
-                      initialTime: TimeOfDay.fromDateTime(_date),
-                    );
-                    if (time == null || !mounted) return;
-                    setState(() {
-                      _date = DateTime(
-                        date.year,
-                        date.month,
-                        date.day,
-                        time.hour,
-                        time.minute,
-                      );
-                    });
-                  },
-                  child: InputDecorator(
-                    decoration: const InputDecoration(
-                      labelText: 'Appointment date',
-                      suffixIcon: Icon(Icons.calendar_today),
-                    ),
-                    child: Text(
-                      DateFormat.yMMMd().add_jm().format(_date),
-                      style: Theme.of(context).textTheme.bodyLarge,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.x4),
-                if (_attachment != null) ...[
-                  Row(
-                    children: [
-                      const Icon(Icons.attachment, size: 16),
-                      const SizedBox(width: AppSpacing.x2),
-                      Expanded(
-                        child: Text(
-                          _attachment!.name,
-                          style: Theme.of(context).textTheme.bodySmall,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close, size: 16),
-                        onPressed: () => setState(() => _attachment = null),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.x2),
-                ],
-                OutlinedButton.icon(
-                  onPressed: _pickAttachment,
-                  icon: const Icon(Icons.attach_file, size: 18),
-                  label: Text(
-                    _attachment == null ? 'Attach File' : 'Change Attachment',
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: () {
-            if (!(_formKey.currentState?.validate() ?? false)) return;
-            Navigator.of(context).pop((
-              date: _date,
-              type: _type,
-              complaint: _complaintController.text.trim(),
-              attachment: _attachment,
-            ));
-          },
-          child: const Text('Book'),
-        ),
-      ],
-    );
-  }
-}
-
-class _MessagePatientDialog extends StatefulWidget {
-  const _MessagePatientDialog({required this.patient});
-
-  final Map<String, Object?> patient;
-
-  @override
-  State<_MessagePatientDialog> createState() => _MessagePatientDialogState();
-}
-
-class _MessagePatientDialogState extends State<_MessagePatientDialog> {
-  final _formKey = GlobalKey<FormState>();
-  final _messageController = TextEditingController();
-  ({List<int> bytes, String name})? _attachment;
-
-  Future<void> _pickAttachment() async {
-    const acceptedTypes = XTypeGroup(
-      label: 'Medical files',
-      extensions: ['pdf', 'jpg', 'jpeg', 'png'],
-      mimeTypes: ['application/pdf', 'image/jpeg', 'image/png'],
-    );
-    final selected = await openFile(acceptedTypeGroups: const [acceptedTypes]);
-    if (selected == null) return;
-    final bytes = await selected.readAsBytes();
-    if (mounted) {
-      setState(() => _attachment = (bytes: bytes, name: selected.name));
-    }
-  }
-
-  @override
-  void dispose() {
-    _messageController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      icon: const Icon(Icons.chat_bubble_outline),
-      title: const Text('Message patient'),
-      content: Form(
-        key: _formKey,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 520),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                TextFormField(
-                  controller: _messageController,
-                  autofocus: true,
-                  textCapitalization: TextCapitalization.sentences,
-                  minLines: 2,
-                  maxLines: 5,
-                  decoration: const InputDecoration(
-                    labelText: 'Message body',
-                    alignLabelWithHint: true,
-                  ),
-                  validator: _requiredClinicalValue,
-                ),
-                const SizedBox(height: AppSpacing.x4),
-                if (_attachment != null) ...[
-                  Row(
-                    children: [
-                      const Icon(Icons.attachment, size: 16),
-                      const SizedBox(width: AppSpacing.x2),
-                      Expanded(
-                        child: Text(
-                          _attachment!.name,
-                          style: Theme.of(context).textTheme.bodySmall,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close, size: 16),
-                        onPressed: () => setState(() => _attachment = null),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.x2),
-                ],
-                OutlinedButton.icon(
-                  onPressed: _pickAttachment,
-                  icon: const Icon(Icons.attach_file, size: 18),
-                  label: Text(
-                    _attachment == null ? 'Attach File' : 'Change Attachment',
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: () {
-            if (!(_formKey.currentState?.validate() ?? false)) return;
-            Navigator.of(context).pop((
-              message: _messageController.text.trim(),
-              attachment: _attachment,
-            ));
-          },
-          child: const Text('Send'),
-        ),
-      ],
-    );
-  }
-}

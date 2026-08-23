@@ -32,7 +32,7 @@ void main() {
     expect(drawerDestinations.map((destination) => destination.label), const [
       'Consultations',
       'Medical Overview',
-      'Lab Results',
+      'Diagnostics',
       'Prescriptions',
     ]);
     expect(workspaceMessagesLocation(UserRole.patient), '/patient/messages');
@@ -49,14 +49,10 @@ void main() {
   });
 
   for (final page in const [
-    (section: 'labs', title: 'Lab Results', upload: 'Upload Lab Result'),
-    (
-      section: 'prescriptions',
-      title: 'Prescriptions',
-      upload: 'Upload Prescription',
-    ),
+    (section: 'labs', title: 'Diagnostics'),
+    (section: 'prescriptions', title: 'Prescriptions'),
   ]) {
-    testWidgets('${page.title} has a contextual upload and no Refresh', (
+    testWidgets('${page.title} is read-only and has no Refresh', (
       tester,
     ) async {
       final request = (
@@ -91,7 +87,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text(page.upload), findsOneWidget);
+      expect(find.text('Upload diagnostic result'), findsNothing);
+      expect(find.text('Upload Prescription'), findsNothing);
       expect(find.text('Refresh'), findsNothing);
       expect(find.byTooltip('Refresh consultations'), findsNothing);
     });

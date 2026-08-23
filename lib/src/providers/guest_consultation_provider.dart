@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../models/consultation_scheduling.dart';
 import '../models/guest_consultation_models.dart';
 import '../models/shared/patient_identity.dart';
 import '../repositories/consultation_repository.dart' as consultation;
@@ -112,11 +113,11 @@ class GuestConsultationController extends Notifier<GuestConsultationState> {
   void saveSchedule(DateTime preferredStart) {
     _ensureDrafting();
     final now = DateTime.now();
-    if (!preferredStart.isAfter(now)) {
+    if (!meetsReservationLeadTime(preferredStart, now: now)) {
       throw ArgumentError.value(
         preferredStart,
         'preferredStart',
-        'Preferred schedule must be in the future.',
+        reservationLeadTimeMessage,
       );
     }
     if (preferredStart.isAfter(now.add(const Duration(days: 180)))) {
@@ -211,6 +212,9 @@ class GuestConsultationController extends Notifier<GuestConsultationState> {
           symptomDuration: draft.symptomDuration,
           hospitalId: draft.hospitalId,
           departmentId: draft.departmentId,
+          consultationType: draft.careMode == GuestCareMode.online
+              ? 'guest_online'
+              : 'face_to_face',
           preferredStart: draft.preferredStart,
         ),
       );

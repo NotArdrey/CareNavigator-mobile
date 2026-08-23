@@ -1,5 +1,6 @@
 import 'package:supabase/supabase.dart';
 
+import '../models/consultation_scheduling.dart';
 import '../models/consultation_type.dart';
 import 'repository_failure.dart';
 
@@ -17,6 +18,7 @@ class GuestConsultationDraft {
     this.hospitalId,
     this.departmentId,
     this.preferredStart,
+    this.consultationType = 'guest_online',
   });
 
   final String firstName;
@@ -31,11 +33,47 @@ class GuestConsultationDraft {
   final String? hospitalId;
   final String? departmentId;
   final DateTime? preferredStart;
+  final String consultationType;
 
   String get fullName => [
     firstName.trim(),
     lastName.trim(),
   ].where((part) => part.isNotEmpty).join(' ');
+}
+
+class GuestReviewDoctor {
+  const GuestReviewDoctor({
+    required this.id,
+    required this.displayName,
+    required this.specialization,
+    this.departmentId,
+  });
+
+  final String id;
+  final String displayName;
+  final String specialization;
+  final String? departmentId;
+}
+
+class AvailableConsultationSlot {
+  const AvailableConsultationSlot({
+    required this.startsAt,
+    required this.endsAt,
+  });
+
+  final DateTime startsAt;
+  final DateTime endsAt;
+
+  factory AvailableConsultationSlot.fromJson(Map<String, dynamic> json) {
+    final startsAt = DateTime.tryParse(json['starts_at']?.toString() ?? '');
+    final endsAt = DateTime.tryParse(json['ends_at']?.toString() ?? '');
+    if (startsAt == null || endsAt == null) {
+      throw const FormatException(
+        'The available consultation slot is invalid.',
+      );
+    }
+    return AvailableConsultationSlot(startsAt: startsAt, endsAt: endsAt);
+  }
 }
 
 abstract interface class ConsultationRepository {
@@ -48,12 +86,27 @@ abstract interface class ConsultationRepository {
 
   Future<String> createGuestRequest(GuestConsultationDraft draft);
 
-  Future<String> bookConsultation({
+  Future<List<GuestReviewDoctor>> listGuestReviewDoctors({
+    required String hospitalId,
+    String? departmentId,
+  });
+
+  Future<List<AvailableConsultationSlot>> listAvailableSlots({
+    required String doctorId,
+    required String consultationType,
+    int horizonDays = 30,
+  });
+
+  Future<String> reserveConsultation({
     required String doctorId,
     required String hospitalId,
     required String consultationType,
     required DateTime appointmentDate,
     required String chiefComplaint,
+    String symptomDuration = 'Not specified',
+    List<String> sharedCategories = const [],
+    List<Map<String, Object?>> selectedRecords = const [],
+    List<String> supportingDocumentIds = const [],
   });
 
   Future<void> verifyGuestEmail({
@@ -86,6 +139,20 @@ abstract interface class ConsultationRepository {
     String? notes,
   });
 
+  Future<void> reviewOnlineRequest({
+    required String requestId,
+    required String decision,
+    String? doctorId,
+    DateTime? confirmedSchedule,
+    String? channel,
+    String? notes,
+  });
+
+  Future<void> cancelOnlineRequest({
+    required String requestId,
+    required String reason,
+  });
+
   Future<Uri> getApprovedVideoRoom(String consultationId);
 }
 
@@ -93,6 +160,46 @@ final class SupabaseConsultationRepository implements ConsultationRepository {
   SupabaseConsultationRepository(this._client);
 
   final SupabaseClient _client;
+
+  @override
+  Future<List<AvailableConsultationSlot>> listAvailableSlots({
+    required String doctorId,
+    required String consultationType,
+    int horizonDays = 30,
+  }) async {
+    final normalizedDoctorId = doctorId.trim();
+    if (normalizedDoctorId.isEmpty) {
+      throw ArgumentError('Choose a clinician to view available times.');
+    }
+    if (horizonDays < 1 || horizonDays > 60) {
+      throw ArgumentError('The availability window must be 1 to 60 days.');
+    }
+    final normalizedType = ConsultationType.normalize(consultationType);
+    try {
+      final response = await _client.rpc<List<dynamic>>(
+        'list_available_consultation_slots',
+        params: {
+          'target_doctor_id': normalizedDoctorId,
+          'target_type': normalizedType,
+          'horizon_days': horizonDays,
+        },
+      );
+      return response
+          .whereType<Map>()
+          .map(
+            (row) => AvailableConsultationSlot.fromJson(
+              Map<String, dynamic>.from(row),
+            ),
+          )
+          .where((slot) => meetsReservationLeadTime(slot.startsAt))
+          .toList(growable: false);
+    } on PostgrestException catch (error) {
+      throw UnexpectedRepositoryFailure(
+        'Available appointment times could not be loaded.',
+        cause: error,
+      );
+    }
+  }
 
   @override
   Future<void> sendGuestVerificationCode(String email) async {
@@ -111,12 +218,16 @@ final class SupabaseConsultationRepository implements ConsultationRepository {
   }
 
   @override
-  Future<String> bookConsultation({
+  Future<String> reserveConsultation({
     required String doctorId,
     required String hospitalId,
     required String consultationType,
     required DateTime appointmentDate,
     required String chiefComplaint,
+    String symptomDuration = 'Not specified',
+    List<String> sharedCategories = const [],
+    List<Map<String, Object?>> selectedRecords = const [],
+    List<String> supportingDocumentIds = const [],
   }) async {
     final complaint = chiefComplaint.trim();
     final normalizedDoctorId = doctorId.trim();
@@ -127,8 +238,8 @@ final class SupabaseConsultationRepository implements ConsultationRepository {
     final normalizedConsultationType = ConsultationType.normalize(
       consultationType,
     );
-    if (!appointmentDate.toUtc().isAfter(DateTime.now().toUtc())) {
-      throw ArgumentError('Choose a future appointment time.');
+    if (!meetsReservationLeadTime(appointmentDate)) {
+      throw ArgumentError(reservationLeadTimeMessage);
     }
     if (complaint.length < 5) {
       throw ArgumentError(
@@ -145,12 +256,18 @@ final class SupabaseConsultationRepository implements ConsultationRepository {
             'consultation_type': normalizedConsultationType,
             'appointment_date': appointmentDate.toUtc().toIso8601String(),
             'chief_complaint': complaint,
+            'symptom_duration': symptomDuration.trim().isEmpty
+                ? 'Not specified'
+                : symptomDuration.trim(),
+            'shared_categories': sharedCategories,
+            'selected_records': selectedRecords,
+            'supporting_document_ids': supportingDocumentIds,
           },
         },
       );
     } on PostgrestException catch (error) {
       throw PermissionFailure(
-        'The appointment could not be booked. Confirm that the slot is still published and available.',
+        'The appointment could not be reserved. Confirm that the slot is still published and available at least 24 hours in advance.',
         cause: error,
       );
     }
@@ -186,8 +303,9 @@ final class SupabaseConsultationRepository implements ConsultationRepository {
         draft.symptomDuration.trim().isEmpty ||
         draft.hospitalId == null ||
         draft.departmentId == null ||
+        !{'face_to_face', 'guest_online'}.contains(draft.consultationType) ||
         draft.preferredStart == null ||
-        !draft.preferredStart!.toUtc().isAfter(DateTime.now().toUtc())) {
+        !meetsReservationLeadTime(draft.preferredStart!)) {
       throw ArgumentError(
         'Complete the consultation request before submitting.',
       );
@@ -216,6 +334,7 @@ final class SupabaseConsultationRepository implements ConsultationRepository {
             'consultation_reason': draft.concern.trim(),
             'preferred_hospital_id': draft.hospitalId,
             'preferred_department_id': draft.departmentId,
+            'preferred_consultation_type': draft.consultationType,
             'preferred_schedule': draft.preferredStart
                 ?.toUtc()
                 .toIso8601String(),
@@ -231,6 +350,39 @@ final class SupabaseConsultationRepository implements ConsultationRepository {
         cause: error,
       );
     }
+  }
+
+  @override
+  Future<List<GuestReviewDoctor>> listGuestReviewDoctors({
+    required String hospitalId,
+    String? departmentId,
+  }) async {
+    final normalizedHospitalId = hospitalId.trim();
+    if (normalizedHospitalId.isEmpty) {
+      throw ArgumentError('A hospital is required to assign a doctor.');
+    }
+    dynamic query = _client
+        .from('doctors')
+        .select('id,display_name,specialization,department_id')
+        .eq('hospital_id', normalizedHospitalId)
+        .neq('availability_status', 'unavailable')
+        .order('display_name');
+    final normalizedDepartmentId = departmentId?.trim();
+    if (normalizedDepartmentId != null && normalizedDepartmentId.isNotEmpty) {
+      query = query.eq('department_id', normalizedDepartmentId);
+    }
+    final rows = await query;
+    return (rows as List)
+        .cast<Map<String, dynamic>>()
+        .map(
+          (row) => GuestReviewDoctor(
+            id: row['id'].toString(),
+            displayName: row['display_name']?.toString() ?? 'Doctor',
+            specialization: row['specialization']?.toString() ?? 'General care',
+            departmentId: row['department_id']?.toString(),
+          ),
+        )
+        .toList(growable: false);
   }
 
   @override
@@ -273,8 +425,8 @@ final class SupabaseConsultationRepository implements ConsultationRepository {
         'A consultation is required to reschedule an appointment.',
       );
     }
-    if (!scheduledFor.toUtc().isAfter(DateTime.now().toUtc())) {
-      throw ArgumentError('Choose a future appointment time.');
+    if (!meetsReservationLeadTime(scheduledFor)) {
+      throw ArgumentError(reservationLeadTimeMessage);
     }
     try {
       await _client.rpc<Map<String, dynamic>>(
@@ -358,6 +510,11 @@ final class SupabaseConsultationRepository implements ConsultationRepository {
         'Unsupported review decision.',
       );
     }
+    if (decision == 'approved' &&
+        appointmentDate != null &&
+        !meetsReservationLeadTime(appointmentDate)) {
+      throw ArgumentError(reservationLeadTimeMessage);
+    }
     try {
       await _client.rpc<Map<String, dynamic>>(
         'review_guest_consultation',
@@ -372,6 +529,101 @@ final class SupabaseConsultationRepository implements ConsultationRepository {
     } on PostgrestException catch (error) {
       throw PermissionFailure(
         'The guest consultation review could not be completed.',
+        cause: error,
+      );
+    }
+  }
+
+  @override
+  Future<void> reviewOnlineRequest({
+    required String requestId,
+    required String decision,
+    String? doctorId,
+    DateTime? confirmedSchedule,
+    String? channel,
+    String? notes,
+  }) async {
+    final normalizedRequestId = requestId.trim();
+    final normalizedDecision = decision.trim().toLowerCase();
+    final normalizedChannel = channel?.trim().toLowerCase();
+    if (normalizedRequestId.isEmpty) {
+      throw ArgumentError('An online request is required for this review.');
+    }
+    if (!{
+      'under_review',
+      'more_information_required',
+      'schedule_proposed',
+      'confirmed',
+      'rejected',
+      'cancelled',
+      'patient_unreachable',
+      'face_to_face_recommended',
+    }.contains(normalizedDecision)) {
+      throw ArgumentError.value(
+        decision,
+        'decision',
+        'Unsupported online request decision.',
+      );
+    }
+    if (normalizedChannel != null &&
+        normalizedChannel.isNotEmpty &&
+        !{'call', 'email', 'video'}.contains(normalizedChannel)) {
+      throw ArgumentError.value(
+        channel,
+        'channel',
+        'Choose call, email, or video consultation.',
+      );
+    }
+    if (normalizedDecision == 'confirmed' &&
+        (normalizedChannel == null || normalizedChannel.isEmpty)) {
+      throw ArgumentError('A confirmed request requires a contact channel.');
+    }
+    if ({'schedule_proposed', 'confirmed'}.contains(normalizedDecision) &&
+        confirmedSchedule != null &&
+        !meetsReservationLeadTime(confirmedSchedule)) {
+      throw ArgumentError(reservationLeadTimeMessage);
+    }
+    try {
+      await _client.rpc<Map<String, dynamic>>(
+        'review_online_consultation_request',
+        params: {
+          'target_request_id': normalizedRequestId,
+          'decision': normalizedDecision,
+          'target_doctor_id': doctorId,
+          'target_confirmed_schedule': confirmedSchedule
+              ?.toUtc()
+              .toIso8601String(),
+          'target_channel': normalizedChannel,
+          'review_notes': notes?.trim(),
+        },
+      );
+    } on PostgrestException catch (error) {
+      throw PermissionFailure(
+        'The online consultation review could not be completed.',
+        cause: error,
+      );
+    }
+  }
+
+  @override
+  Future<void> cancelOnlineRequest({
+    required String requestId,
+    required String reason,
+  }) async {
+    if (requestId.trim().isEmpty || reason.trim().isEmpty) {
+      throw ArgumentError('A request and cancellation reason are required.');
+    }
+    try {
+      await _client.rpc<Map<String, dynamic>>(
+        'cancel_online_consultation_request',
+        params: {
+          'target_request_id': requestId.trim(),
+          'cancellation_reason': reason.trim(),
+        },
+      );
+    } on PostgrestException catch (error) {
+      throw PermissionFailure(
+        'This online consultation request can no longer be cancelled.',
         cause: error,
       );
     }

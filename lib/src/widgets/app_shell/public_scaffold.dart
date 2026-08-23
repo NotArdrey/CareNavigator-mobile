@@ -36,12 +36,19 @@ class PublicScaffold extends ConsumerWidget {
         identity.role == UserRole.patient &&
         (currentLocation?.startsWith('/hospitals') ?? false);
     if (isPatientCareDirectory) {
+      final unreadMessageCount =
+          ref.watch(unreadMessageCountProvider).asData?.value ?? 0;
+      final unreadNotificationCount = ref.watch(
+        unreadNotificationCountProvider,
+      );
       return WorkspaceShell(
         identity: identity,
         location: currentLocation!,
         title: 'Find care',
         body: body,
         onNotifications: () => context.go('/patient/notifications'),
+        unreadMessageCount: unreadMessageCount,
+        unreadNotificationCount: unreadNotificationCount,
         onSignOut: () async {
           await ref.read(appIdentityProvider.notifier).signOut();
           if (context.mounted) context.go('/');
@@ -107,6 +114,9 @@ class PublicScaffold extends ConsumerWidget {
                         NavigationDestination(
                           icon: Icon(destination.icon, size: 20),
                           label: destination.label,
+                          // Avoid stale Tooltip OverlayPortals during Flutter
+                          // web route transitions. Labels remain visible.
+                          tooltip: '',
                         ),
                     ],
                   ),
@@ -159,7 +169,7 @@ class PublicScaffold extends ConsumerWidget {
                       onTap: () => context.go('/doctors'),
                     ),
                     _HeaderLink(
-                      label: 'Book consultation',
+                      label: 'Reserve consultation',
                       selected:
                           currentLocation?.startsWith('/consultation') ?? false,
                       onTap: () => context.go('/consultation/request'),

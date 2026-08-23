@@ -49,7 +49,8 @@ class HospitalDirectoryState {
           doctor.specialtyLabel,
         ],
       ].join(' ').toLowerCase();
-      return (normalizedQuery.isEmpty || searchable.contains(normalizedQuery)) &&
+      return (normalizedQuery.isEmpty ||
+              searchable.contains(normalizedQuery)) &&
           (filters.province == null || entry.province == filters.province) &&
           (filters.careLevel == null || entry.careLevel == filters.careLevel) &&
           (filters.service == null ||
@@ -97,17 +98,21 @@ class HospitalDirectoryState {
   );
 
   static List<String> _uniqueSorted(Iterable<String> values) {
-    final result = values
-        .map((value) => value.trim())
-        .where((value) => value.isNotEmpty)
-        .toSet()
-        .toList()
-      ..sort();
+    final result =
+        values
+            .map((value) => value.trim())
+            .where((value) => value.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort();
     return result;
   }
 }
 
 class HospitalDirectoryController extends Notifier<HospitalDirectoryState> {
+  bool _refreshInProgress = false;
+  StreamSubscription<void>? _directoryUpdateSubscription;
+
   @override
   HospitalDirectoryState build() {
     final repository = ref.watch(hospitalRepositoryProvider);
@@ -119,6 +124,18 @@ class HospitalDirectoryController extends Notifier<HospitalDirectoryState> {
       );
     }
     unawaited(Future<void>.microtask(() => _load(repository)));
+    try {
+      _directoryUpdateSubscription = repository
+          .watchDirectoryUpdates()
+          .skip(1)
+          .listen(
+            (_) => unawaited(_load(repository, showLoading: false)),
+            onError: (_) {},
+          );
+      ref.onDispose(() => _directoryUpdateSubscription?.cancel());
+    } catch (_) {
+      // Test and offline repositories may not expose a live database stream.
+    }
     return const HospitalDirectoryState(
       entries: [],
       filters: HospitalDirectoryFilters(),
@@ -138,8 +155,15 @@ class HospitalDirectoryController extends Notifier<HospitalDirectoryState> {
     await _load(repository);
   }
 
-  Future<void> _load(HospitalRepository repository) async {
-    state = state.copyWith(isLoading: true, clearError: true);
+  Future<void> _load(
+    HospitalRepository repository, {
+    bool showLoading = true,
+  }) async {
+    if (_refreshInProgress) return;
+    _refreshInProgress = true;
+    if (showLoading) {
+      state = state.copyWith(isLoading: true, clearError: true);
+    }
     try {
       final entries = await repository.loadPublicDirectory();
       state = state.copyWith(
@@ -154,6 +178,8 @@ class HospitalDirectoryController extends Notifier<HospitalDirectoryState> {
         isLoading: false,
         errorMessage: 'Hospital information could not be loaded. Try again.',
       );
+    } finally {
+      _refreshInProgress = false;
     }
   }
 
@@ -204,11 +230,9 @@ class HospitalDirectoryController extends Notifier<HospitalDirectoryState> {
     filters: state.filters.copyWith(onlyAvailable: value),
   );
 
-  void setSort(HospitalDirectorySort sort) => state = state.copyWith(
-    filters: state.filters.copyWith(sort: sort),
-  );
+  void setSort(HospitalDirectorySort sort) =>
+      state = state.copyWith(filters: state.filters.copyWith(sort: sort));
 
-  void clearFilters() => state = state.copyWith(
-    filters: const HospitalDirectoryFilters(),
-  );
+  void clearFilters() =>
+      state = state.copyWith(filters: const HospitalDirectoryFilters());
 }

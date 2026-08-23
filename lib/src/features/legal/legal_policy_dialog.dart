@@ -222,7 +222,7 @@ const _documents = <LegalDocument, _PolicyDocument>{
         title: 'How we use information',
         bullets: [
           'Create and manage your account and provide the features you request.',
-          'Route consultation requests, support bookings, and deliver authorized care-workspace functions.',
+          'Route consultation requests, support reservations, and deliver authorized care-workspace functions.',
           'Protect security, prevent abuse, audit important changes, and resolve service problems.',
           'Send verification, service, and operational notifications when needed.',
           'Maintain and improve the service.',

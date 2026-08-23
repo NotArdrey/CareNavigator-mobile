@@ -1,5 +1,7 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
 
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,6 +11,7 @@ import '../../models/hospitals/hospital_models.dart';
 import '../../providers/care_assistant_provider.dart';
 import '../../providers/core_providers.dart';
 import '../../providers/hospital_directory_provider.dart';
+import '../../repositories/care_assistant_repository.dart';
 import '../../routing/root_overlay.dart';
 import '../../theme/app_tokens.dart';
 import '../branding/brand_mark.dart';
@@ -27,11 +30,6 @@ class _CareNavigatorAssistantState
 
   @override
   Widget build(BuildContext context) {
-    final isAuthenticated = ref.watch(appIdentityProvider).isAuthenticated;
-    if (!isAuthenticated) {
-      return const SizedBox.shrink();
-    }
-
     final mobile = MediaQuery.sizeOf(context).width < 720;
     if (mobile) {
       return SafeArea(
@@ -70,6 +68,7 @@ class _CareNavigatorAssistantState
   Widget _assistantButton({required bool compact}) {
     if (compact) {
       return FloatingActionButton(
+        key: const Key('care-assistant-launcher'),
         heroTag: 'care-navigator-assistant',
         tooltip: 'Open CareNavigator assistant',
         backgroundColor: AppColors.surface,
@@ -80,6 +79,7 @@ class _CareNavigatorAssistantState
       );
     }
     return FloatingActionButton.extended(
+      key: const Key('care-assistant-launcher'),
       heroTag: 'care-navigator-assistant',
       backgroundColor: AppColors.surface,
       foregroundColor: AppColors.textPrimary,
@@ -124,6 +124,7 @@ class _CareAssistantPanelState extends ConsumerState<_CareAssistantPanel> {
   final _inputController = TextEditingController();
   final _scrollController = ScrollController();
   var _isHistoryOpen = false;
+  List<CareAssistantImage> _selectedImages = const [];
 
   @override
   void dispose() {
@@ -237,7 +238,15 @@ class _CareAssistantPanelState extends ConsumerState<_CareAssistantPanel> {
                   _MessageComposer(
                     controller: _inputController,
                     enabled: !state.isBusy && !state.showEmergencyActions,
+                    selectedImages: _selectedImages,
                     onChanged: (_) => setState(() {}),
+                    onAttach: _pickImages,
+                    onRemoveImage: (index) => setState(
+                      () => _selectedImages = [
+                        ..._selectedImages.take(index),
+                        ..._selectedImages.skip(index + 1),
+                      ],
+                    ),
                     onSend: _send,
                   ),
                 ],
@@ -284,10 +293,66 @@ class _CareAssistantPanelState extends ConsumerState<_CareAssistantPanel> {
 
   Future<void> _send() async {
     final text = _inputController.text.trim();
-    if (text.isEmpty) return;
+    final images = _selectedImages;
+    if (text.isEmpty && images.isEmpty) return;
     _inputController.clear();
-    setState(() {});
-    await ref.read(careAssistantProvider.notifier).submit(text);
+    setState(() => _selectedImages = const []);
+    await ref.read(careAssistantProvider.notifier).submit(text, images: images);
+  }
+
+  Future<void> _pickImages() async {
+    if (_selectedImages.length >= 5) {
+      showRootMessage('You can attach up to 5 images per message.');
+      return;
+    }
+    const imageTypes = XTypeGroup(
+      label: 'Health concern images',
+      extensions: ['jpg', 'jpeg', 'png', 'webp'],
+      mimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
+    );
+    final selected = await openFiles(acceptedTypeGroups: const [imageTypes]);
+    if (selected.isEmpty) return;
+
+    final remainingSlots = 5 - _selectedImages.length;
+    final candidates = selected.take(remainingSlots);
+    final additions = <CareAssistantImage>[];
+    var combinedBytes = _selectedImages.fold<int>(
+      0,
+      (total, image) => total + image.bytes.length,
+    );
+    for (final file in candidates) {
+      final bytes = await file.readAsBytes();
+      if (!mounted) return;
+      if (bytes.isEmpty) continue;
+      final extension = file.name.split('.').last.toLowerCase();
+      final mimeType = switch (extension) {
+        'jpg' || 'jpeg' => 'image/jpeg',
+        'png' => 'image/png',
+        'webp' => 'image/webp',
+        _ => null,
+      };
+      if (mimeType == null) continue;
+      if (combinedBytes + bytes.length > 2 * 1024 * 1024) {
+        showRootMessage(
+          'The combined size of all attached images must be smaller than 2 MB.',
+        );
+        break;
+      }
+      combinedBytes += bytes.length;
+      additions.add(
+        CareAssistantImage(bytes: bytes, mimeType: mimeType, name: file.name),
+      );
+    }
+    if (!mounted || additions.isEmpty) {
+      if (selected.length > remainingSlots && mounted) {
+        showRootMessage('You can attach up to 5 images per message.');
+      }
+      return;
+    }
+    setState(() => _selectedImages = [..._selectedImages, ...additions]);
+    if (selected.length > remainingSlots) {
+      showRootMessage('Only the first 5 images were attached.');
+    }
   }
 
   void _navigateTo(String location) {
@@ -602,7 +667,36 @@ class _MessageBubble extends StatelessWidget {
             color: isUser ? AppColors.secondary : AppColors.border,
           ),
         ),
-        child: Text(message.text),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (message.images.isNotEmpty) ...[
+              SizedBox(
+                width: 230,
+                height: message.images.length == 1 ? 150 : 112,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: message.images.length,
+                  separatorBuilder: (_, _) => const SizedBox(width: 6),
+                  itemBuilder: (context, index) => ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.memory(
+                      Uint8List.fromList(message.images[index].bytes),
+                      width: message.images.length == 1 ? 230 : 108,
+                      height: message.images.length == 1 ? 150 : 112,
+                      fit: BoxFit.cover,
+                      semanticLabel:
+                          'Attached health concern image ${index + 1}',
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+            Text(message.text),
+          ],
+        ),
       ),
     );
   }
@@ -635,34 +729,129 @@ class _MessageComposer extends StatelessWidget {
   const _MessageComposer({
     required this.controller,
     required this.enabled,
+    required this.selectedImages,
     required this.onChanged,
+    required this.onAttach,
+    required this.onRemoveImage,
     required this.onSend,
   });
 
   final TextEditingController controller;
   final bool enabled;
+  final List<CareAssistantImage> selectedImages;
   final ValueChanged<String> onChanged;
+  final VoidCallback onAttach;
+  final ValueChanged<int> onRemoveImage;
   final VoidCallback onSend;
 
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-    child: TextField(
-      controller: controller,
-      enabled: enabled,
-      minLines: 1,
-      maxLines: 3,
-      textInputAction: TextInputAction.send,
-      onSubmitted: (_) => onSend(),
-      onChanged: onChanged,
-      decoration: InputDecoration(
-        hintText: 'Describe what you’re experiencing',
-        suffixIcon: IconButton(
-          tooltip: 'Send message',
-          onPressed: enabled ? onSend : null,
-          icon: const Icon(Icons.send_outlined),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (selectedImages.isNotEmpty) ...[
+          Container(
+            key: const Key('care-assistant-image-preview'),
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceMuted,
+              borderRadius: BorderRadius.circular(AppRadius.control),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${selectedImages.length} image${selectedImages.length == 1 ? '' : 's'} attached',
+                  style: const TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                SizedBox(
+                  height: 68,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: selectedImages.length,
+                    separatorBuilder: (_, _) => const SizedBox(width: 7),
+                    itemBuilder: (context, index) => SizedBox(
+                      width: 64,
+                      child: Stack(
+                        children: [
+                          Positioned.fill(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(6),
+                              child: Image.memory(
+                                Uint8List.fromList(selectedImages[index].bytes),
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            top: 1,
+                            right: 1,
+                            child: Material(
+                              color: Colors.black54,
+                              shape: const CircleBorder(),
+                              child: InkWell(
+                                customBorder: const CircleBorder(),
+                                onTap: enabled
+                                    ? () => onRemoveImage(index)
+                                    : null,
+                                child: const Padding(
+                                  padding: EdgeInsets.all(3),
+                                  child: Icon(
+                                    Icons.close,
+                                    color: Colors.white,
+                                    size: 15,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 5),
+                const Text(
+                  'Combined limit: 2 MB • For guidance only—not a diagnosis',
+                  style: TextStyle(color: AppColors.textMuted, fontSize: 10),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+        TextField(
+          controller: controller,
+          enabled: enabled,
+          minLines: 1,
+          maxLines: 3,
+          textInputAction: TextInputAction.send,
+          onSubmitted: (_) => onSend(),
+          onChanged: onChanged,
+          decoration: InputDecoration(
+            hintText: 'Describe what you’re experiencing',
+            prefixIcon: IconButton(
+              key: const Key('care-assistant-attach-image'),
+              tooltip: 'Attach injury, rash, or allergy images',
+              onPressed: enabled ? onAttach : null,
+              icon: const Icon(Icons.add_photo_alternate_outlined),
+            ),
+            suffixIcon: IconButton(
+              tooltip: 'Send message',
+              onPressed: enabled ? onSend : null,
+              icon: const Icon(Icons.send_outlined),
+            ),
+          ),
         ),
-      ),
+      ],
     ),
   );
 }
@@ -992,6 +1181,10 @@ String _emergencyHours(HospitalDirectoryEntry hospital) {
 String _bedAvailabilityLabel(HospitalDirectoryEntry hospital) {
   final available = hospital.availableBeds;
   final total = hospital.totalBeds;
+  if (!hospital.hasCurrentEmergencyCapacity() &&
+      (available != null || total != null)) {
+    return 'ER bed count is stale · Call the hospital to confirm';
+  }
   if (available != null && total != null) {
     return 'ER beds: $available available / $total total';
   }

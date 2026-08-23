@@ -3,12 +3,16 @@ import 'package:care_navigator_ph/src/config/public_config.dart';
 import 'package:care_navigator_ph/src/models/auth/user_role.dart';
 import 'package:care_navigator_ph/src/providers/core_providers.dart';
 import 'package:care_navigator_ph/src/routing/app_router.dart';
+import 'package:care_navigator_ph/src/repositories/auth_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  ProviderContainer createContainer() => ProviderContainer(
+  ProviderContainer createContainer({
+    bool authenticated = false,
+    AuthRepository? authRepository,
+  }) => ProviderContainer(
     overrides: [
       publicConfigProvider.overrideWithValue(
         const PublicConfig(
@@ -17,6 +21,12 @@ void main() {
           appBaseUrl: '',
         ),
       ),
+      if (authRepository != null)
+        authRepositoryProvider.overrideWithValue(authRepository),
+      if (authenticated)
+        appIdentityProvider.overrideWith(
+          _AuthenticatedPatientIdentityController.new,
+        ),
     ],
   );
 
@@ -36,6 +46,24 @@ void main() {
     );
     await tester.pumpAndSettle();
   }
+
+  testWidgets('authenticated patients leave every authentication route', (
+    tester,
+  ) async {
+    final container = createContainer(authenticated: true);
+    addTearDown(container.dispose);
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    for (final route in const [
+      '/sign-in',
+      '/register',
+      '/verify-otp',
+      '/forgot-password',
+    ]) {
+      await pumpRoute(tester, container, route);
+      expect(container.read(appRouterProvider).state.path, '/patient');
+    }
+  });
 
   testWidgets('registration uses the mobile width and compact field layout', (
     tester,
@@ -77,6 +105,57 @@ void main() {
     );
     expect(createButton.onPressed, isNotNull);
   });
+
+  testWidgets(
+    'successful registration redirects to sign-in with confirmation',
+    (tester) async {
+      final container = createContainer(
+        authRepository: _SuccessfulRegistrationRepository(),
+      );
+      addTearDown(container.dispose);
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await pumpRoute(
+        tester,
+        container,
+        '/register',
+        size: const Size(375, 812),
+      );
+
+      final fields = find.byType(TextFormField);
+      await tester.enterText(fields.at(0), 'Patient');
+      await tester.enterText(fields.at(1), 'Test');
+      await tester.tap(find.text('Select date of birth'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('15').last);
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Male').last);
+      await tester.enterText(fields.at(2), '09171234567');
+      await tester.enterText(
+        fields.at(3),
+        'Unit 4B, 123 Mabini Street, Poblacion, Quezon City',
+      );
+      await tester.enterText(fields.at(4), 'patient@example.com');
+      await tester.enterText(fields.at(5), 'PatientPass1');
+      await tester.enterText(fields.at(6), 'PatientPass1');
+      tester.widget<Checkbox>(find.byType(Checkbox)).onChanged!(true);
+      await tester.pump();
+
+      tester
+          .widget<FilledButton>(
+            find.widgetWithText(FilledButton, 'Create account'),
+          )
+          .onPressed!();
+      await tester.pumpAndSettle();
+
+      final state = container.read(appRouterProvider).state;
+      expect(state.uri.path, '/sign-in');
+      expect(state.uri.queryParameters['status'], 'account-created');
+      expect(find.text('Account created. Check your email.'), findsOneWidget);
+    },
+  );
 
   testWidgets('sign-in keeps the production CTA and does not authenticate', (
     tester,
@@ -194,6 +273,38 @@ void main() {
     },
   );
 
+  testWidgets('enter moves focus from password to password confirmation', (
+    tester,
+  ) async {
+    final container = createContainer();
+    addTearDown(container.dispose);
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await pumpRoute(tester, container, '/register');
+
+    final fields = find.byType(TextFormField);
+    final password = fields.at(5);
+    final confirmation = fields.at(6);
+
+    await tester.tap(password);
+    await tester.enterText(password, 'PatientPass1');
+    await tester.testTextInput.receiveAction(TextInputAction.next);
+    await tester.pump();
+
+    final confirmationEditable = find.descendant(
+      of: confirmation,
+      matching: find.byType(EditableText),
+    );
+    expect(
+      tester.widget<EditableText>(confirmationEditable).focusNode.hasFocus,
+      isTrue,
+    );
+    await tester.enterText(confirmation, 'PatientPass1');
+    expect(
+      tester.widget<TextFormField>(confirmation).controller?.text,
+      'PatientPass1',
+    );
+  });
+
   testWidgets('OTP accepts six digits without claiming identity verification', (
     tester,
   ) async {
@@ -249,4 +360,54 @@ void main() {
     expect(find.textContaining('temporarily unavailable'), findsOneWidget);
     expect(container.read(appIdentityProvider).isAuthenticated, isFalse);
   });
+}
+
+class _AuthenticatedPatientIdentityController extends AppIdentityController {
+  @override
+  AppIdentity build() => const AppIdentity(
+    role: UserRole.patient,
+    status: AccountStatus.active,
+    userId: 'test-patient-user',
+    displayName: 'Test Patient',
+  );
+}
+
+class _SuccessfulRegistrationRepository implements AuthRepository {
+  @override
+  Stream<AppIdentity> watchIdentity() =>
+      Stream.value(const AppIdentity.guest());
+
+  @override
+  Future<AppIdentity> signInAnonymously() async => const AppIdentity.guest();
+
+  @override
+  Future<AppIdentity> signInWithPassword({
+    required String email,
+    required String password,
+  }) async => const AppIdentity.guest();
+
+  @override
+  Future<void> register({
+    required String email,
+    required String password,
+    required Map<String, Object?> profileInput,
+  }) async {}
+
+  @override
+  Future<void> sendEmailOtp(String email) async {}
+
+  @override
+  Future<AppIdentity> verifyEmailOtp({
+    required String email,
+    required String token,
+  }) async => const AppIdentity.guest();
+
+  @override
+  Future<void> requestPasswordReset(String email) async {}
+
+  @override
+  Future<void> updatePassword(String password) async {}
+
+  @override
+  Future<void> signOut() async {}
 }

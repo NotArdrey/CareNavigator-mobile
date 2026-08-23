@@ -9,14 +9,14 @@ CareNavigator PH is a greenfield Flutter application for mobile and web. It comb
 - Riverpod for identity, view state, asynchronous data, and Realtime streams
 - Typed Dart repositories as the only Supabase boundary
 - Supabase Auth, PostgreSQL with RLS, Realtime, private Storage, RPCs, Edge Functions, triggers, Cron, and pg_net
-- Groq preliminary analysis behind doctor-review states, opt-in Gmail SMTP notifications, approved Jitsi rooms, and external Google Maps directions
+- Groq preliminary analysis behind doctor-review states, opt-in Gmail SMTP notifications, approved Jitsi rooms, and in-app OpenStreetMap/OSRM hospital routing
 - Central clinical design tokens plus shared Flutter-native Card, Alert, Badge, Table/List, Dialog, Sheet, loading, empty, and error compositions
 
 The component composition follows the clear, restrained patterns associated with shadcn/ui, translated into the required native Flutter system. React shadcn/ui is deliberately not installed.
 
 ## Live data behavior
 
-With valid public Supabase configuration, public directories and authenticated workspaces use the live CareNavigator project. Public queries explicitly constrain verified, operating hospitals and published clinician schedules. Signed-in identities receive RLS-scoped data and connected actions for booking/rescheduling/cancellation, messaging, notifications, private files, clinical documentation, prescriptions, laboratory workflows, schedules, hospital operations, staff provisioning, governance, and maintenance.
+With valid public Supabase configuration, public directories and authenticated workspaces use the live CareNavigator project. Public queries explicitly constrain verified, operating hospitals and published clinician schedules. Signed-in identities receive RLS-scoped data and connected actions for reservations/rescheduling/cancellation, messaging, notifications, private files, clinical documentation, prescriptions, laboratory workflows, schedules, hospital operations, staff provisioning, governance, and maintenance.
 
 Without public configuration, data-backed screens show explicit loading, empty, or unavailable states. The app does not substitute identities, facilities, schedules, clinical records, metrics, or mutations that were not returned by the backend.
 

@@ -27,33 +27,47 @@ class ContentPanel extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (title != null || action != null) ...[
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (title != null)
-                          Semantics(
-                            header: true,
-                            child: Text(
-                              title!,
-                              style: Theme.of(context).textTheme.titleLarge,
-                            ),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final compact = action != null && constraints.maxWidth < 620;
+                  final heading = Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (title != null)
+                        Semantics(
+                          header: true,
+                          child: Text(
+                            title!,
+                            style: Theme.of(context).textTheme.titleLarge,
                           ),
-                        if (subtitle != null) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            subtitle!,
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        ],
+                        ),
+                      if (subtitle != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          subtitle!,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
                       ],
-                    ),
-                  ),
-                  ?action,
-                ],
+                    ],
+                  );
+                  if (compact) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        heading,
+                        const SizedBox(height: AppSpacing.x3),
+                        action!,
+                      ],
+                    );
+                  }
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: heading),
+                      ?action,
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: AppSpacing.x4),
             ],

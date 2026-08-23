@@ -7,6 +7,94 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  testWidgets('doctor appointments separate current records from history', (
+    tester,
+  ) async {
+    final request = (
+      role: UserRole.doctor,
+      section: 'appointments',
+      itemId: null,
+    );
+    final snapshot = WorkspaceSnapshot(
+      title: 'Appointments',
+      description: 'Assigned consultations',
+      metrics: const [
+        WorkspaceMetric(label: 'Visible consultations', value: '2'),
+      ],
+      items: [
+        WorkspaceItem(
+          id: 'request-1',
+          kind: 'online_consultation_requests',
+          title: 'ONL-20260823-000030',
+          subtitle: 'New consultation request',
+          status: 'submitted',
+          timestamp: DateTime.parse('2026-08-23T15:05:00+08:00'),
+          data: const {'request_status': 'submitted'},
+        ),
+        WorkspaceItem(
+          id: 'consultation-1',
+          kind: 'consultations',
+          title: 'Completed follow-up',
+          subtitle: 'Online consultation',
+          status: 'completed',
+          timestamp: DateTime.parse('2026-08-22T15:05:00+08:00'),
+          data: const {
+            'status': 'completed',
+            'appointment_date': '2026-08-22T15:05:00+08:00',
+          },
+        ),
+      ],
+      loadedAt: DateTime.parse('2026-08-23T15:05:00+08:00'),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          workspaceSnapshotProvider(
+            request,
+          ).overrideWith((ref) async => snapshot),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: LiveWorkspaceView(
+              role: UserRole.doctor,
+              section: 'appointments',
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Active appointments'), findsOneWidget);
+    expect(find.text('Current appointments'), findsOneWidget);
+    expect(find.text('History'), findsOneWidget);
+    expect(find.text('ONL-20260823-000030'), findsOneWidget);
+    expect(find.text('Completed Follow-up'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('doctor-current-appointments-panel')),
+        matching: find.text('ONL-20260823-000030'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('doctor-current-appointments-panel')),
+        matching: find.text('Completed Follow-up'),
+      ),
+      findsNothing,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('doctor-appointment-history-panel')),
+        matching: find.text('Completed Follow-up'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Current records'), findsNothing);
+  });
+
   testWidgets('consultation detail uses patient-friendly presentation', (
     tester,
   ) async {

@@ -82,8 +82,8 @@ List<AppDestination> workspaceDestinations(UserRole role) => switch (role) {
       location: '/patient/medical-records',
     ),
     AppDestination(
-      label: 'Lab Results',
-      icon: Icons.science_outlined,
+      label: 'Diagnostics',
+      icon: Icons.biotech_outlined,
       location: '/patient/labs',
     ),
     AppDestination(

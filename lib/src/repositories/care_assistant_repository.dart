@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:supabase/supabase.dart';
 
 import '../models/hospitals/hospital_models.dart';
@@ -8,6 +10,24 @@ enum CareAssistantMessageRole { user, assistant }
 enum CareAssistantIntent { medical, emergency, nonMedical, unclear }
 
 enum CareAssistantUrgency { routine, soon, urgent, emergency }
+
+class CareAssistantImage {
+  const CareAssistantImage({
+    required this.bytes,
+    required this.mimeType,
+    required this.name,
+  });
+
+  final List<int> bytes;
+  final String mimeType;
+  final String name;
+
+  Map<String, String> toJson() => {
+    'data': base64Encode(bytes),
+    'mime_type': mimeType,
+    'name': name,
+  };
+}
 
 class CareAssistantTurn {
   const CareAssistantTurn({required this.role, required this.content});
@@ -47,8 +67,13 @@ class CareAssistantFacilitySnapshot {
     careLevel: hospital.careLevel,
     services: hospital.services,
     departments: hospital.departments,
-    isAvailable: hospital.isAvailable,
-    availableBeds: hospital.availableBeds,
+    isAvailable:
+        hospital.isAvailable &&
+        (hospital.availableBeds == null ||
+            hospital.hasCurrentEmergencyCapacity()),
+    availableBeds: hospital.hasCurrentEmergencyCapacity()
+        ? hospital.availableBeds
+        : null,
     totalBeds: hospital.totalBeds,
     distanceKm: null,
     hasCoordinates: hospital.hasCoordinates,
@@ -185,6 +210,7 @@ abstract interface class CareAssistantRepository {
   Future<CareAssistantReply> respond({
     required List<CareAssistantTurn> messages,
     required List<CareAssistantFacilitySnapshot> facilities,
+    List<CareAssistantImage> images = const [],
   });
 }
 
@@ -197,23 +223,21 @@ final class SupabaseCareAssistantRepository implements CareAssistantRepository {
   Future<CareAssistantReply> respond({
     required List<CareAssistantTurn> messages,
     required List<CareAssistantFacilitySnapshot> facilities,
+    List<CareAssistantImage> images = const [],
   }) async {
     await _ensureAnonymousSession();
+    final body = {
+      'messages': messages.map((message) => message.toJson()).toList(),
+      'facilities': facilities.map((facility) => facility.toJson()).toList(),
+      if (images.isNotEmpty)
+        'images': images.map((image) => image.toJson()).toList(),
+    };
     try {
-      final response = await _client.functions.invoke(
-        'care-navigator-chat',
-        body: {
-          'messages': messages.map((message) => message.toJson()).toList(),
-          'facilities': facilities
-              .map((facility) => facility.toJson())
-              .toList(),
-        },
-      );
+      final response = await _invokeWithTransientRetry(body);
       return CareAssistantReply.fromMap(_map(response.data));
     } on FunctionException catch (error) {
       throw UnexpectedRepositoryFailure(
-        error.details?.toString() ??
-            'The care assistant is temporarily unavailable.',
+        careAssistantFunctionErrorMessage(error),
         cause: error,
       );
     } on AuthException catch (error) {
@@ -228,6 +252,26 @@ final class SupabaseCareAssistantRepository implements CareAssistantRepository {
         'The care assistant is temporarily unavailable.',
         cause: error,
       );
+    }
+  }
+
+  Future<FunctionResponse> _invokeWithTransientRetry(
+    Map<String, Object?> body,
+  ) async {
+    const retryDelays = [Duration(milliseconds: 350), Duration(seconds: 1)];
+    for (var attempt = 0; ; attempt++) {
+      try {
+        return await _client.functions.invoke(
+          'care-navigator-chat',
+          body: body,
+        );
+      } on FunctionException catch (error) {
+        if (attempt >= retryDelays.length ||
+            !isRetriableCareAssistantFunctionError(error)) {
+          rethrow;
+        }
+        await Future<void>.delayed(retryDelays[attempt]);
+      }
     }
   }
 
@@ -251,3 +295,29 @@ final class SupabaseCareAssistantRepository implements CareAssistantRepository {
     );
   }
 }
+
+String careAssistantFunctionErrorMessage(FunctionException error) {
+  if (error.status == 413) {
+    return 'The attached image is too large. Choose an image smaller than 2 MB.';
+  }
+  final details = error.details;
+  if (details is Map) {
+    final message = details['error']?.toString().trim() ?? '';
+    if (message.isNotEmpty) return message;
+  }
+  final message = details?.toString().trim() ?? '';
+  if (message.isEmpty ||
+      error.status == 0 ||
+      message.toLowerCase().contains('failed to fetch') ||
+      message.toLowerCase().contains('clientexception')) {
+    return 'The care assistant could not connect. Check your connection and try again.';
+  }
+  return message;
+}
+
+bool isRetriableCareAssistantFunctionError(FunctionException error) =>
+    error.status == 0 ||
+    error is FunctionsRelayException ||
+    error.status == 502 ||
+    error.status == 503 ||
+    error.status == 504;

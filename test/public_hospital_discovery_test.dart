@@ -90,6 +90,48 @@ void main() {
     expect(find.text('Hospital directory unavailable'), findsOneWidget);
   });
 
+  testWidgets('request care opens the patient reservation flow', (
+    tester,
+  ) async {
+    final container = ProviderContainer(
+      overrides: [
+        publicConfigProvider.overrideWithValue(
+          const PublicConfig(
+            supabaseUrl: '',
+            supabasePublishableKey: '',
+            appBaseUrl: '',
+          ),
+        ),
+        appIdentityProvider.overrideWith(
+          _TestAuthenticatedIdentityController.new,
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const CareNavigatorApp(),
+      ),
+    );
+
+    container
+        .read(appRouterProvider)
+        .go('/consultation/request?hospitalId=hospital-id&doctorId=doctor-id');
+    await tester.pumpAndSettle();
+
+    final location = container
+        .read(appRouterProvider)
+        .routeInformationProvider
+        .value
+        .uri;
+    expect(location.path, '/patient/appointments');
+    expect(location.queryParameters['reserve'], 'true');
+    expect(location.queryParameters['hospitalId'], 'hospital-id');
+    expect(location.queryParameters['doctorId'], 'doctor-id');
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('map and unknown detail routes retain clear states', (
     tester,
   ) async {
@@ -167,7 +209,7 @@ void main() {
     expect(find.text('List'), findsOneWidget);
     expect(find.text('Map'), findsOneWidget);
     expect(find.text('View details'), findsOneWidget);
-    expect(find.byTooltip('Directions'), findsOneWidget);
+    expect(find.byTooltip('View on hospital map'), findsOneWidget);
 
     await tester.tap(find.byType(FloatingActionButton).last);
     await tester.pumpAndSettle();
@@ -274,13 +316,14 @@ void main() {
       ),
       findsOneWidget,
     );
+    expect(find.text('Navigate'), findsOneWidget);
 
     container.read(appRouterProvider).go('/hospitals/${hospital.id}');
     await tester.pumpAndSettle();
 
     expect(find.text('Back to hospitals'), findsOneWidget);
     expect(find.text('Back to map'), findsOneWidget);
-    expect(find.text('Get directions'), findsOneWidget);
+    expect(find.text('View on map'), findsOneWidget);
     expect(find.text('Request care'), findsOneWidget);
     expect(find.text('Current status'), findsOneWidget);
     expect(find.text('Emergency beds'), findsOneWidget);
@@ -300,51 +343,102 @@ void main() {
     expect(find.text('Payment and insurance'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
-    await tester.ensureVisible(find.text('Get directions'));
-    await tester.tap(find.text('Get directions'));
+    await tester.ensureVisible(find.text('View on map'));
+    await tester.tap(find.text('View on map'));
     await tester.pumpAndSettle();
     expect(find.text('Hospital map'), findsOneWidget);
     expect(find.textContaining('Showing ${hospital.name}'), findsOneWidget);
     expect(find.byTooltip('Show my live location'), findsOneWidget);
   });
+
+  testWidgets('expired emergency capacity is clearly marked stale', (
+    tester,
+  ) async {
+    final hospital = _publishedHospital(
+      emergencyLastUpdated: DateTime(2026, 7, 19, 20, 27),
+    );
+    final container = ProviderContainer(
+      overrides: [
+        publicConfigProvider.overrideWithValue(
+          const PublicConfig(
+            supabaseUrl: '',
+            supabasePublishableKey: '',
+            appBaseUrl: '',
+          ),
+        ),
+        hospitalRepositoryProvider.overrideWithValue(
+          _PublishedHospitalRepository(hospital),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.binding.setSurfaceSize(const Size(480, 900));
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const CareNavigatorApp(),
+      ),
+    );
+
+    container.read(appRouterProvider).go('/hospitals/${hospital.id}');
+    await tester.pumpAndSettle();
+
+    expect(find.text('ER capacity stale'), findsOneWidget);
+    expect(find.text('Status unconfirmed'), findsOneWidget);
+    expect(find.text('6 / 26 last reported'), findsOneWidget);
+    expect(find.text('Stale information'), findsOneWidget);
+    expect(
+      find.textContaining(
+        'Emergency capacity has not been confirmed in the last 15 minutes',
+      ),
+      findsOneWidget,
+    );
+  });
 }
 
-HospitalDirectoryEntry _publishedHospital() => HospitalDirectoryEntry(
-  id: 'bataan-general',
-  name: 'Bataan General Hospital and Medical Center',
-  city: 'Balanga City',
-  province: 'Bataan',
-  careLevel: 'Tertiary Hospital',
-  services: const ['Emergency Room', 'CT Scan', 'X-ray'],
-  departments: const ['Emergency Medicine', 'Pediatrics', 'Surgery'],
-  doctors: const [],
-  isAvailable: true,
-  estimatedWaitMinutes: null,
-  availableBeds: 6,
-  totalBeds: 26,
-  latitude: 14.6762,
-  longitude: 120.5364,
-  address: 'Manahan Street, Tenejero, Balanga City, Bataan',
-  emergencyContactNumber: '911',
-  operatingHours: const {'emergency': '24/7', 'outpatient': 'Monday-Friday'},
-  operatingStatus: 'open',
-  emergencyStatus: 'available',
-  currentEmergencyPatients: 12,
-  updatedAt: DateTime(2026, 8, 10, 14, 31),
-  emergencyLastUpdated: DateTime(2026, 8, 10, 14, 31),
-  facilities: const [
-    HospitalFacilityAvailability(
-      type: 'icu',
-      status: 'available',
-      availableUnits: 3,
-    ),
-    HospitalFacilityAvailability(
-      type: 'laboratory',
-      status: 'available',
-      availableUnits: 1,
-    ),
-  ],
-);
+HospitalDirectoryEntry _publishedHospital({DateTime? emergencyLastUpdated}) =>
+    HospitalDirectoryEntry(
+      id: 'bataan-general',
+      name: 'Bataan General Hospital and Medical Center',
+      city: 'Balanga City',
+      province: 'Bataan',
+      careLevel: 'Tertiary Hospital',
+      services: const ['Emergency Room', 'CT Scan', 'X-ray'],
+      departments: const ['Emergency Medicine', 'Pediatrics', 'Surgery'],
+      doctors: const [],
+      isAvailable: true,
+      estimatedWaitMinutes: null,
+      availableBeds: 6,
+      totalBeds: 26,
+      latitude: 14.6762,
+      longitude: 120.5364,
+      address: 'Manahan Street, Tenejero, Balanga City, Bataan',
+      emergencyContactNumber: '911',
+      operatingHours: const {
+        'emergency': '24/7',
+        'outpatient': 'Monday-Friday',
+      },
+      operatingStatus: 'open',
+      emergencyStatus: 'available',
+      currentEmergencyPatients: 12,
+      updatedAt: DateTime(2026, 8, 10, 14, 31),
+      emergencyLastUpdated:
+          emergencyLastUpdated ??
+          DateTime.now().subtract(const Duration(minutes: 2)),
+      facilities: const [
+        HospitalFacilityAvailability(
+          type: 'icu',
+          status: 'available',
+          availableUnits: 3,
+        ),
+        HospitalFacilityAvailability(
+          type: 'laboratory',
+          status: 'available',
+          availableUnits: 1,
+        ),
+      ],
+    );
 
 class _PublishedHospitalRepository implements HospitalRepository {
   const _PublishedHospitalRepository(this.hospital);
@@ -367,6 +461,9 @@ class _PublishedHospitalRepository implements HospitalRepository {
   Future<List<HospitalDirectoryEntry>> loadPublicDirectory() async => [
     hospital,
   ];
+
+  @override
+  Stream<void> watchDirectoryUpdates() => const Stream.empty();
 
   @override
   Future<PageResult<HospitalSummary>> searchHospitals({
