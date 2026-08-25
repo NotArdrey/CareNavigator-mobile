@@ -150,6 +150,17 @@ abstract interface class CareRepository {
     ({List<int> bytes, String name})? attachment,
   });
 
+  Future<void> sendPrescriptionNotificationEmail({
+    required ClinicalRelationship relationship,
+    required List<PrescriptionNotificationMedication> medications,
+    String? diagnosisReason,
+  });
+
+  Future<void> sendDailyMedicationReminderEmail({
+    String? patientId,
+    String slot = 'all',
+  });
+
   Future<void> createLaboratoryRequest({
     required ClinicalRelationship relationship,
     required String testName,
@@ -270,9 +281,30 @@ class PrescriptionScanDraft {
       if (drafts.isNotEmpty) return drafts;
     }
 
+    final topMedications = payload['medications'] ??
+        payload['medicines'] ??
+        payload['drugs'] ??
+        payload['orders'];
+    if (topMedications is List) {
+      final diagnosisReason = payload['diagnosis_reason'];
+      final drafts = topMedications
+          .whereType<Map>()
+          .map((medication) {
+            return PrescriptionScanDraft.fromPayload({
+              'diagnosis_reason': diagnosisReason,
+              ...medication,
+            });
+          })
+          .toList(growable: false);
+      if (drafts.isNotEmpty) return drafts;
+    }
+
     final prescription = payload['prescription'];
     if (prescription is! Map) return const [];
-    final medications = prescription['medications'];
+    final medications = prescription['medications'] ??
+        prescription['medicines'] ??
+        prescription['drugs'] ??
+        prescription['orders'];
     if (medications is List) {
       final diagnosisReason = prescription['diagnosis_reason'];
       final drafts = medications
@@ -1938,6 +1970,53 @@ class SupabaseCareRepository implements CareRepository {
   }
 
   @override
+  Future<void> sendPrescriptionNotificationEmail({
+    required ClinicalRelationship relationship,
+    required List<PrescriptionNotificationMedication> medications,
+    String? diagnosisReason,
+  }) async {
+    if (medications.isEmpty) return;
+    try {
+      final doctor = await _currentDoctor();
+      final prescriberName = doctor['display_name']?.toString().trim() ?? '';
+      final prescriberLicense = doctor['license_number']?.toString().trim() ?? '';
+      final prescriberSpecialization = doctor['specialization']?.toString().trim();
+      final hospitalName = doctor['hospital_name']?.toString().trim();
+
+      await _client.functions.invoke(
+        'care-navigator-chat',
+        body: {
+          'action': 'send_prescription_notification_email',
+          'patient_id': relationship.patientId,
+          'prescriber_name': prescriberName,
+          'prescriber_license_number': prescriberLicense,
+          'prescriber_specialization': prescriberSpecialization,
+          'hospital_name': hospitalName,
+          'diagnosis_reason': diagnosisReason,
+          'medications': medications.map((m) => m.toJson()).toList(growable: false),
+        },
+      );
+    } catch (_) {
+      // Non-fatal if email service is temporarily unreachable
+    }
+  }
+
+  @override
+  Future<void> sendDailyMedicationReminderEmail({
+    String? patientId,
+    String slot = 'all',
+  }) async {
+    await _client.functions.invoke(
+      'care-navigator-chat',
+      body: {
+        'action': 'send_daily_medication_reminder_email',
+        if (patientId != null && patientId.isNotEmpty) 'patient_id': patientId,
+        'slot': slot,
+      },
+    );
+  }
+
+  @override
   Future<void> createLaboratoryRequest({
     required ClinicalRelationship relationship,
     required String testName,
@@ -2328,3 +2407,52 @@ String? _nullableText(String? value) {
   final normalized = value?.trim() ?? '';
   return normalized.isEmpty ? null : normalized;
 }
+
+class PrescriptionNotificationMedication {
+  const PrescriptionNotificationMedication({
+    required this.medicationName,
+    this.medicationFormStrength,
+    this.exactDose,
+    this.dosage,
+    required this.frequency,
+    required this.duration,
+    this.quantityToDispense,
+    this.refills = 0,
+    this.instructions,
+    this.isPrn = false,
+    this.prnReason,
+    this.startDate,
+    this.endDate,
+  });
+
+  final String medicationName;
+  final String? medicationFormStrength;
+  final String? exactDose;
+  final String? dosage;
+  final String frequency;
+  final String duration;
+  final String? quantityToDispense;
+  final int refills;
+  final String? instructions;
+  final bool isPrn;
+  final String? prnReason;
+  final DateTime? startDate;
+  final DateTime? endDate;
+
+  Map<String, Object?> toJson() => {
+    'medication_name': medicationName,
+    'medication_form_strength': medicationFormStrength,
+    'exact_dose': exactDose,
+    'dosage': dosage,
+    'frequency': frequency,
+    'duration': duration,
+    'quantity_to_dispense': quantityToDispense,
+    'refills': refills,
+    'instructions': instructions,
+    'is_prn': isPrn,
+    'prn_reason': prnReason,
+    'start_date': startDate == null ? null : _dateOnly(startDate!),
+    'end_date': endDate == null ? null : _dateOnly(endDate!),
+  };
+}
+

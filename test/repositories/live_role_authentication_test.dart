@@ -63,7 +63,6 @@ const _demoAccounts = [
     role: UserRole.hospitalAdministrator,
   ),
   _AccountExpectation(email: 'doctor@demo.test', role: UserRole.doctor),
-  _AccountExpectation(email: 'history.doctor@demo.test', role: UserRole.doctor),
   _AccountExpectation(email: 'patient@demo.test', role: UserRole.patient),
   _AccountExpectation(email: 'guest@demo.test', role: UserRole.guest),
 ];

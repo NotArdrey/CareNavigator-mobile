@@ -954,6 +954,19 @@ class _DialogCareRepository implements CareRepository {
   }
 
   @override
+  Future<void> sendPrescriptionNotificationEmail({
+    required ClinicalRelationship relationship,
+    required List<PrescriptionNotificationMedication> medications,
+    String? diagnosisReason,
+  }) async {}
+
+  @override
+  Future<void> sendDailyMedicationReminderEmail({
+    String? patientId,
+    String slot = 'all',
+  }) async {}
+
+  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 

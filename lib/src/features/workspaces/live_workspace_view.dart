@@ -590,6 +590,17 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
                       icon: const Icon(Icons.medication_outlined),
                       label: const Text('Issue prescription'),
                     ),
+                  if (widget.role == UserRole.patient &&
+                      widget.section == 'prescriptions' &&
+                      widget.itemId == null &&
+                      snapshot.items.isNotEmpty)
+                    FilledButton.icon(
+                      onPressed: _busyItems.contains('email-daily-reminders')
+                          ? null
+                          : _emailDailyMedicationSchedule,
+                      icon: const Icon(Icons.email_outlined),
+                      label: const Text('Email daily schedule'),
+                    ),
                   if (widget.role == UserRole.doctor &&
                       widget.section == 'laboratory' &&
                       widget.itemId == null)
@@ -738,6 +749,7 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
               _ScheduleSummary(items: snapshot.items),
             ] else if (!isPatientConsultationView &&
                 !isNotificationDetail &&
+                widget.itemId == null &&
                 snapshot.metrics.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.x5),
               _MetricGrid(
@@ -836,21 +848,24 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
                             index < items.length;
                             index++
                           ) ...[
-                            _LiveRecordRow(
-                              item: items[index],
-                              busy: _busyItems.contains(items[index].id),
-                              onOpen: _canOpen(items[index])
-                                  ? () => _open(items[index])
-                                  : null,
-                              trailing: _actionsFor(items[index]),
-                            ),
+                            if (widget.itemId == null ||
+                                items[index].kind != 'prescriptions')
+                              _LiveRecordRow(
+                                item: items[index],
+                                busy: _busyItems.contains(items[index].id),
+                                onOpen: _canOpen(items[index])
+                                    ? () => _open(items[index])
+                                    : null,
+                                trailing: _actionsFor(items[index]),
+                              ),
                             if (widget.itemId != null)
                               _LiveRecordDetails(
                                 item: items[index],
                                 role: widget.role,
                                 topActions: _buildDetailActions(items[index]),
                               ),
-                            if (index != items.length - 1)
+                            if (widget.itemId == null &&
+                                index != items.length - 1)
                               const Divider(height: 1),
                           ],
                           if (snapshot.hasMore &&
@@ -1823,14 +1838,49 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
         attachment: index == 0 ? draft.attachment : null,
       );
     }
+    await repository.sendPrescriptionNotificationEmail(
+      relationship: draft.relationship,
+      medications: draft.medications
+          .map(
+            (m) => PrescriptionNotificationMedication(
+              medicationName: m.medicationName,
+              medicationFormStrength: m.medicationFormStrength,
+              exactDose: m.exactDose,
+              dosage: m.exactDose,
+              frequency: m.frequency,
+              duration: m.duration,
+              quantityToDispense: m.quantityToDispense,
+              refills: m.refills,
+              instructions: m.instructions,
+              isPrn: m.isPrn,
+              prnReason: m.prnReason,
+              startDate: m.startDate,
+              endDate: m.endDate,
+            ),
+          )
+          .toList(growable: false),
+      diagnosisReason: draft.diagnosisReason,
+    );
     ref.invalidate(workspaceSnapshotProvider(_request));
     final medicationCount = draft.medications.length;
     showRootMessage(
       draft.attachment == null
-          ? '$medicationCount medication${medicationCount == 1 ? '' : 's'} issued to the selected patient.'
-          : '$medicationCount medication${medicationCount == 1 ? '' : 's'} issued. The attachment and its AI summary status are available to the patient and care team.',
+          ? '$medicationCount medication${medicationCount == 1 ? '' : 's'} issued to the selected patient. An email notification was sent.'
+          : '$medicationCount medication${medicationCount == 1 ? '' : 's'} issued and emailed. The attachment and its AI summary status are available to the patient and care team.',
     );
   });
+
+  Future<void> _emailDailyMedicationSchedule() => _runItemAction(
+    'email-daily-reminders',
+    () async {
+      final repository = ref.read(careRepositoryProvider);
+      if (repository == null) throw StateError('Care service is unavailable.');
+      await repository.sendDailyMedicationReminderEmail();
+      showRootMessage(
+        'Your daily medication intake reminder schedule was sent to your email.',
+      );
+    },
+  );
 
   Future<void> _createLaboratoryRequest() => _runItemAction(
     'laboratory-request-create',
@@ -10595,6 +10645,12 @@ class _LiveRecordDetails extends StatelessWidget {
     if (item.kind == 'consultations') {
       return _ConsultationDetails(item: item, role: role);
     }
+    if (item.kind == 'prescriptions') {
+      return _GroupedPrescriptionDetailView(
+        item: item,
+        topActions: topActions,
+      );
+    }
     final rawCheckups = item.data['checkup_history'];
     final checkups = rawCheckups is List
         ? rawCheckups
@@ -11276,34 +11332,896 @@ class _PatientClinicalHistorySection extends StatelessWidget {
   final bool prescription;
 
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      Text(title, style: Theme.of(context).textTheme.titleLarge),
-      const SizedBox(height: AppSpacing.x1),
-      Text(description, style: Theme.of(context).textTheme.bodySmall),
-      const SizedBox(height: AppSpacing.x3),
-      if (records.isEmpty)
+  Widget build(BuildContext context) {
+    final isPrescription = prescription;
+    final prescriptionGroups =
+        isPrescription ? _groupPrescriptions(records) : null;
+    final isEmpty = isPrescription
+        ? prescriptionGroups!.isEmpty
+        : records.isEmpty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(title, style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: AppSpacing.x1),
+        Text(description, style: Theme.of(context).textTheme.bodySmall),
+        const SizedBox(height: AppSpacing.x3),
+        if (isEmpty)
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.x4),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceMuted,
+              border: Border.all(color: AppColors.border),
+              borderRadius: BorderRadius.circular(AppRadius.control),
+            ),
+            child: Text(emptyMessage),
+          )
+        else if (isPrescription)
+          for (var index = 0; index < prescriptionGroups!.length; index++) ...[
+            if (prescriptionGroups[index].medications.isEmpty &&
+                prescriptionGroups[index].attachment != null)
+              _PatientClinicalHistoryEntry(
+                record: prescriptionGroups[index].attachment!,
+                prescription: true,
+              )
+            else
+              _PatientGroupedPrescriptionCard(
+                group: prescriptionGroups[index],
+              ),
+            if (index != prescriptionGroups.length - 1)
+              const SizedBox(height: AppSpacing.x2),
+          ]
+        else
+          for (var index = 0; index < records.length; index++) ...[
+            _PatientClinicalHistoryEntry(
+              record: records[index],
+              prescription: false,
+            ),
+            if (index != records.length - 1)
+              const SizedBox(height: AppSpacing.x2),
+          ],
+      ],
+    );
+  }
+}
+
+class _PrescriptionGroup {
+  const _PrescriptionGroup({
+    required this.id,
+    required this.date,
+    required this.formattedDate,
+    required this.recordedAtText,
+    required this.doctor,
+    required this.hospital,
+    required this.diagnosisReason,
+    required this.medications,
+    this.attachment,
+  });
+
+  final String id;
+  final DateTime date;
+  final String formattedDate;
+  final String recordedAtText;
+  final String? doctor;
+  final String? hospital;
+  final String? diagnosisReason;
+  final List<Map<String, Object?>> medications;
+  final Map<String, Object?>? attachment;
+}
+
+DateTime _clinicalHistoryDate(Map<String, Object?> record) {
+  for (final key in const [
+    'electronically_signed_at',
+    'created_at',
+    'start_date',
+    'result_date',
+    'uploaded_at',
+  ]) {
+    final value = record[key];
+    if (value is DateTime) return value;
+    if (value is String && value.isNotEmpty) {
+      final parsed = DateTime.tryParse(value);
+      if (parsed != null) return parsed;
+    }
+  }
+  return DateTime(1970);
+}
+
+List<_PrescriptionGroup> _groupPrescriptions(
+  List<Map<String, Object?>> records,
+) {
+  if (records.isEmpty) return const [];
+
+  final medicationRows = <Map<String, Object?>>[];
+  final documentRows = <Map<String, Object?>>[];
+
+  for (final record in records) {
+    if (record['history_source'] == 'medical_documents' ||
+        record['document_type'] == 'prescription') {
+      documentRows.add(record);
+    } else {
+      medicationRows.add(record);
+    }
+  }
+
+  medicationRows.sort(
+    (left, right) =>
+        _clinicalHistoryDate(right).compareTo(_clinicalHistoryDate(left)),
+  );
+
+  final clusters = <List<Map<String, Object?>>>[];
+  for (final med in medicationRows) {
+    final medTime = _clinicalHistoryDate(med);
+    final patientId = med['patient_id']?.toString() ?? '';
+    final doctorId = med['doctor_id']?.toString() ??
+        med['prescriber_name']?.toString() ??
+        med['doctor_display_name']?.toString() ??
+        '';
+    final consultationId = med['consultation_id']?.toString() ?? '';
+
+    List<Map<String, Object?>>? targetCluster;
+    for (final cluster in clusters) {
+      final leader = cluster.first;
+      final leaderTime = _clinicalHistoryDate(leader);
+      final leaderPatientId = leader['patient_id']?.toString() ?? '';
+      final leaderDoctorId = leader['doctor_id']?.toString() ??
+          leader['prescriber_name']?.toString() ??
+          leader['doctor_display_name']?.toString() ??
+          '';
+      final leaderConsultationId = leader['consultation_id']?.toString() ?? '';
+
+      final samePatient = patientId.isEmpty ||
+          leaderPatientId.isEmpty ||
+          patientId == leaderPatientId;
+      final sameDoctor = doctorId.isEmpty ||
+          leaderDoctorId.isEmpty ||
+          doctorId == leaderDoctorId;
+      final sameConsultation = consultationId.isNotEmpty &&
+          consultationId == leaderConsultationId;
+      final timeDifference = (medTime.difference(leaderTime).inSeconds).abs();
+
+      if (samePatient && sameDoctor && (sameConsultation || timeDifference <= 300)) {
+        targetCluster = cluster;
+        break;
+      }
+    }
+
+    if (targetCluster != null) {
+      targetCluster.add(med);
+    } else {
+      clusters.add([med]);
+    }
+  }
+
+  final availableDocs = List<Map<String, Object?>>.from(documentRows);
+  final groups = <_PrescriptionGroup>[];
+
+  for (final cluster in clusters) {
+    final leader = cluster.first;
+    final leaderTime = _clinicalHistoryDate(leader);
+    final leaderPatientId = leader['patient_id']?.toString() ?? '';
+    final leaderDoctorId = leader['doctor_id']?.toString() ?? '';
+
+    Map<String, Object?>? matchedDoc;
+    for (var i = 0; i < availableDocs.length; i++) {
+      final doc = availableDocs[i];
+      final docTime = _clinicalHistoryDate(doc);
+      final docPatientId = doc['patient_id']?.toString() ?? '';
+      final docDoctorId = doc['author_doctor_id']?.toString() ??
+          doc['doctor_id']?.toString() ??
+          '';
+
+      final samePatient = leaderPatientId.isEmpty ||
+          docPatientId.isEmpty ||
+          leaderPatientId == docPatientId;
+      final sameDoctor = leaderDoctorId.isEmpty ||
+          docDoctorId.isEmpty ||
+          leaderDoctorId == docDoctorId;
+      final timeDiff = (docTime.difference(leaderTime).inSeconds).abs();
+
+      if (samePatient && sameDoctor && timeDiff <= 300) {
+        matchedDoc = doc;
+        availableDocs.removeAt(i);
+        break;
+      }
+    }
+
+    final doctor = _firstText(
+      leader,
+      const ['prescriber_name', 'doctor_display_name'],
+    );
+    final hospital = _firstText(leader, const [
+      'originating_hospital',
+      'hospital_name',
+      'facility',
+    ]);
+    final diagnosis = _firstText(
+      leader,
+      const ['diagnosis_reason', 'diagnosis'],
+    );
+    final recordedAtText = _detailValue(
+          leader['electronically_signed_at'],
+          'electronically_signed_at',
+        ) ??
+        _detailValue(leader['created_at'], 'created_at') ??
+        _detailValue(leader['start_date'], 'start_date') ??
+        'Date not recorded';
+    final formattedDate = leaderTime.year > 1970
+        ? DateFormat('MMM d, y').format(leaderTime.toLocal())
+        : recordedAtText;
+
+    groups.add(
+      _PrescriptionGroup(
+        id: leader['id']?.toString() ?? '',
+        date: leaderTime,
+        formattedDate: formattedDate,
+        recordedAtText: recordedAtText,
+        doctor: doctor,
+        hospital: hospital,
+        diagnosisReason: diagnosis,
+        medications: cluster,
+        attachment: matchedDoc,
+      ),
+    );
+  }
+
+  for (final doc in availableDocs) {
+    final docTime = _clinicalHistoryDate(doc);
+    final doctor = _firstText(
+      doc,
+      const ['requesting_doctor', 'doctor_display_name', 'authoring_doctor'],
+    );
+    final hospital = _firstText(doc, const [
+      'originating_hospital',
+      'hospital_name',
+      'facility',
+    ]);
+    final recordedAtText = _detailValue(doc['result_date'], 'result_date') ??
+        _detailValue(doc['uploaded_at'], 'uploaded_at') ??
+        _detailValue(doc['created_at'], 'created_at') ??
+        'Date not recorded';
+    final formattedDate = docTime.year > 1970
+        ? DateFormat('MMM d, y').format(docTime.toLocal())
+        : recordedAtText;
+
+    groups.add(
+      _PrescriptionGroup(
+        id: doc['id']?.toString() ?? '',
+        date: docTime,
+        formattedDate: formattedDate,
+        recordedAtText: recordedAtText,
+        doctor: doctor,
+        hospital: hospital,
+        diagnosisReason: null,
+        medications: const [],
+        attachment: doc,
+      ),
+    );
+  }
+
+  groups.sort((a, b) => b.date.compareTo(a.date));
+  return groups;
+}
+
+class _PatientGroupedPrescriptionCard extends ConsumerStatefulWidget {
+  const _PatientGroupedPrescriptionCard({required this.group});
+
+  final _PrescriptionGroup group;
+
+  @override
+  ConsumerState<_PatientGroupedPrescriptionCard> createState() =>
+      _PatientGroupedPrescriptionCardState();
+}
+
+class _PatientGroupedPrescriptionCardState
+    extends ConsumerState<_PatientGroupedPrescriptionCard> {
+  bool _opening = false;
+
+  Future<void> _openFile(String documentId) async {
+    if (_opening || documentId.isEmpty) return;
+    setState(() => _opening = true);
+    try {
+      final repository = ref.read(careRepositoryProvider);
+      if (repository == null) throw StateError('Care service is unavailable.');
+      final url = await repository.createSignedFileUrl(documentId);
+      if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+        throw StateError('The secure clinical file could not be opened.');
+      }
+    } catch (error) {
+      showRootMessage(_friendlyError(error));
+    } finally {
+      if (mounted) setState(() => _opening = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final group = widget.group;
+    final medCount = group.medications.length;
+    final isStandaloneDoc = group.medications.isEmpty && group.attachment != null;
+
+    final subtitleParts = [
+      group.recordedAtText,
+      if (group.doctor != null && group.doctor!.isNotEmpty) group.doctor!,
+      if (group.hospital != null &&
+          group.hospital!.isNotEmpty &&
+          (group.doctor == null || !group.doctor!.contains(group.hospital!)))
+        group.hospital!,
+    ];
+
+    if (isStandaloneDoc) {
+      return Material(
+        color: AppColors.surface,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          side: const BorderSide(color: AppColors.border),
+          borderRadius: BorderRadius.circular(AppRadius.control),
+        ),
+        child: ExpansionTile(
+          leading: const Icon(Icons.description_outlined),
+          title: Text(
+            group.attachment!['title']?.toString() ?? 'Prescription Attachment',
+          ),
+          subtitle: Text(subtitleParts.join(' • ')),
+          childrenPadding: const EdgeInsets.fromLTRB(
+            AppSpacing.x4,
+            AppSpacing.x2,
+            AppSpacing.x4,
+            AppSpacing.x4,
+          ),
+          children: [
+            const Divider(),
+            if (group.attachment!['id'] != null)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: FilledButton.tonalIcon(
+                  onPressed: _opening
+                      ? null
+                      : () => _openFile(group.attachment!['id'].toString()),
+                  icon: _opening
+                      ? const SizedBox.square(
+                          dimension: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.file_open_outlined, size: 18),
+                  label: const Text('Open secure file'),
+                ),
+              ),
+          ],
+        ),
+      );
+    }
+
+    return Material(
+      color: AppColors.surface,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        side: const BorderSide(color: AppColors.border),
+        borderRadius: BorderRadius.circular(AppRadius.control),
+      ),
+      child: ExpansionTile(
+        initiallyExpanded: true,
+        leading: const Icon(
+          Icons.medication_outlined,
+          color: AppColors.primary,
+        ),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Prescription — ${group.formattedDate}',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.x2,
+                vertical: AppSpacing.x1 / 2,
+              ),
+              decoration: BoxDecoration(
+                color: AppColors.selected,
+                borderRadius: BorderRadius.circular(AppRadius.control),
+              ),
+              child: Text(
+                '$medCount medication${medCount == 1 ? '' : 's'}',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+            ),
+          ],
+        ),
+        subtitle: Text(subtitleParts.join(' • ')),
+        childrenPadding: const EdgeInsets.fromLTRB(
+          AppSpacing.x4,
+          AppSpacing.x1,
+          AppSpacing.x4,
+          AppSpacing.x4,
+        ),
+        children: [
+          const Divider(),
+          if (group.diagnosisReason != null &&
+              group.diagnosisReason!.isNotEmpty) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(AppSpacing.x2),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceMuted,
+                borderRadius: BorderRadius.circular(AppRadius.control),
+              ),
+              child: Text(
+                'Indication / Diagnosis: ${group.diagnosisReason}',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.x3),
+          ],
+          for (var index = 0; index < group.medications.length; index++) ...[
+            _buildMedicationRow(context, group.medications[index], index + 1),
+            if (index != group.medications.length - 1)
+              const SizedBox(height: AppSpacing.x2),
+          ],
+          if (group.attachment != null && group.attachment!['id'] != null) ...[
+            const SizedBox(height: AppSpacing.x3),
+            const Divider(),
+            const SizedBox(height: AppSpacing.x1),
+            Row(
+              children: [
+                const Icon(Icons.attachment, size: 18),
+                const SizedBox(width: AppSpacing.x2),
+                Expanded(
+                  child: Text(
+                    group.attachment!['title']?.toString() ??
+                        group.attachment!['file_name']?.toString() ??
+                        'Prescription Attachment',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ),
+                OutlinedButton.icon(
+                  onPressed: _opening
+                      ? null
+                      : () => _openFile(group.attachment!['id'].toString()),
+                  icon: _opening
+                      ? const SizedBox.square(
+                          dimension: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.file_open_outlined, size: 16),
+                  label: const Text('Open scan file'),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMedicationRow(
+    BuildContext context,
+    Map<String, Object?> med,
+    int number,
+  ) {
+    final name = med['medication_name']?.toString() ?? 'Medication';
+    final formStrength = med['medication_form_strength']?.toString();
+    final dose =
+        med['exact_dose']?.toString() ?? med['dosage']?.toString() ?? '';
+    final frequency = med['frequency']?.toString() ?? '';
+    final duration = med['duration']?.toString();
+    final quantity = med['quantity_to_dispense']?.toString();
+    final refills = med['refills'];
+    final instructions = med['instructions']?.toString();
+    final isPrn = med['is_prn'] == true;
+    final prnReason = med['prn_reason']?.toString();
+
+    final parts = [
+      if (dose.isNotEmpty) dose,
+      if (frequency.isNotEmpty) frequency,
+      if (duration != null && duration.isNotEmpty) duration,
+    ];
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.x3),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceMuted,
+        borderRadius: BorderRadius.circular(AppRadius.control),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '$number. ',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                    ),
+              ),
+              Expanded(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        name,
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleSmall
+                            ?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    if (formStrength != null && formStrength.isNotEmpty) ...[
+                      const SizedBox(width: AppSpacing.x1),
+                      Flexible(
+                        child: Text(
+                          '— $formStrength',
+                          style: TextStyle(
+                            color: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.color,
+                            fontWeight: FontWeight.normal,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              if (quantity != null && quantity.isNotEmpty)
+                Text(
+                  '# $quantity',
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+            ],
+          ),
+          if (parts.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.x1),
+            Padding(
+              padding: const EdgeInsets.only(left: 16),
+              child: Text(
+                'Sig: ${parts.join(' — ')}',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textPrimary,
+                    ),
+              ),
+            ),
+          ],
+          if (isPrn) ...[
+            const SizedBox(height: AppSpacing.x1 / 2),
+            Padding(
+              padding: const EdgeInsets.only(left: 16),
+              child: Text(
+                'Take as needed (PRN)${prnReason != null ? ': $prnReason' : ''}',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.primary,
+                      fontStyle: FontStyle.italic,
+                    ),
+              ),
+            ),
+          ],
+          if (instructions != null &&
+              instructions.isNotEmpty &&
+              instructions != frequency &&
+              instructions != parts.join(' — ')) ...[
+            const SizedBox(height: AppSpacing.x1 / 2),
+            Padding(
+              padding: const EdgeInsets.only(left: 16),
+              child: Text(
+                'Instructions: $instructions',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+          ],
+          if (refills != null && refills != 0) ...[
+            const SizedBox(height: AppSpacing.x1 / 2),
+            Padding(
+              padding: const EdgeInsets.only(left: 16),
+              child: Text(
+                'Refills: $refills',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _GroupedPrescriptionDetailView extends ConsumerStatefulWidget {
+  const _GroupedPrescriptionDetailView({required this.item, this.topActions});
+
+  final WorkspaceItem item;
+  final Widget? topActions;
+
+  @override
+  ConsumerState<_GroupedPrescriptionDetailView> createState() =>
+      _GroupedPrescriptionDetailViewState();
+}
+
+class _GroupedPrescriptionDetailViewState
+    extends ConsumerState<_GroupedPrescriptionDetailView> {
+  bool _opening = false;
+
+  Future<void> _openFile(String documentId) async {
+    if (_opening || documentId.isEmpty) return;
+    setState(() => _opening = true);
+    try {
+      final repository = ref.read(careRepositoryProvider);
+      if (repository == null) throw StateError('Care service is unavailable.');
+      final url = await repository.createSignedFileUrl(documentId);
+      if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+        throw StateError('The secure clinical file could not be opened.');
+      }
+    } catch (error) {
+      showRootMessage(_friendlyError(error));
+    } finally {
+      if (mounted) setState(() => _opening = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final item = widget.item;
+    final rawMeds = item.data['grouped_medications'];
+    final medications = rawMeds is List
+        ? rawMeds
+            .whereType<Map>()
+            .map((m) => Map<String, Object?>.from(m))
+            .toList(growable: false)
+        : [item.data];
+    final prescriberName = _firstText(
+      item.data,
+      const ['prescriber_name', 'doctor_display_name'],
+    );
+    final prescriberLicense =
+        item.data['prescriber_license_number']?.toString();
+    final prescriberSpecialization =
+        item.data['prescriber_specialization']?.toString();
+    final hospital = _firstText(
+      item.data,
+      const ['originating_hospital', 'hospital_name', 'facility'],
+    );
+    final diagnosis = _firstText(
+      item.data,
+      const ['diagnosis_reason', 'diagnosis'],
+    );
+    final rawAttachment = item.data['attachment_document'];
+    final attachment = rawAttachment is Map
+        ? Map<String, Object?>.from(rawAttachment)
+        : null;
+    final attachmentId = attachment?['id']?.toString();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (widget.topActions != null) ...[
+          widget.topActions!,
+          const SizedBox(height: AppSpacing.x6),
+        ],
         Container(
+          width: double.infinity,
+          margin: const EdgeInsets.only(bottom: AppSpacing.x4),
           padding: const EdgeInsets.all(AppSpacing.x4),
           decoration: BoxDecoration(
             color: AppColors.surfaceMuted,
             border: Border.all(color: AppColors.border),
             borderRadius: BorderRadius.circular(AppRadius.control),
           ),
-          child: Text(emptyMessage),
-        )
-      else
-        for (var index = 0; index < records.length; index++) ...[
-          _PatientClinicalHistoryEntry(
-            record: records[index],
-            prescription: prescription,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.badge_outlined, size: 20),
+                  const SizedBox(width: AppSpacing.x2),
+                  Expanded(
+                    child: Text(
+                      prescriberName ?? 'Licensed Prescriber',
+                      style:
+                          Theme.of(context).textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                    ),
+                  ),
+                ],
+              ),
+              if ((prescriberLicense != null &&
+                      prescriberLicense.isNotEmpty) ||
+                  (prescriberSpecialization != null &&
+                      prescriberSpecialization.isNotEmpty)) ...[
+                const SizedBox(height: AppSpacing.x1),
+                Text(
+                  [
+                    if (prescriberSpecialization != null &&
+                        prescriberSpecialization.isNotEmpty)
+                      prescriberSpecialization,
+                    if (prescriberLicense != null &&
+                        prescriberLicense.isNotEmpty)
+                      'License $prescriberLicense',
+                  ].join(' • '),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+              if (hospital != null && hospital.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.x1),
+                Text(
+                  hospital,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                ),
+              ],
+              if (diagnosis != null && diagnosis.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.x3),
+                const Divider(),
+                const SizedBox(height: AppSpacing.x2),
+                Text(
+                  'Diagnosis / Indication: $diagnosis',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                ),
+              ],
+            ],
           ),
-          if (index != records.length - 1)
-            const SizedBox(height: AppSpacing.x2),
+        ),
+        Text(
+          'Medications (${medications.length})',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: AppSpacing.x2),
+        for (var index = 0; index < medications.length; index++) ...[
+          _buildMedicationCard(context, medications[index], index + 1),
+          const SizedBox(height: AppSpacing.x3),
         ],
-    ],
-  );
+        if (attachmentId != null && attachmentId.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.x2),
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.x3),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceMuted,
+              border: Border.all(color: AppColors.border),
+              borderRadius: BorderRadius.circular(AppRadius.control),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.attachment, size: 20),
+                const SizedBox(width: AppSpacing.x2),
+                Expanded(
+                  child: Text(
+                    attachment?['title']?.toString() ??
+                        attachment?['file_name']?.toString() ??
+                        'Prescription Attachment',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ),
+                FilledButton.tonalIcon(
+                  onPressed: _opening ? null : () => _openFile(attachmentId),
+                  icon: _opening
+                      ? const SizedBox.square(
+                          dimension: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.file_open_outlined, size: 16),
+                  label: const Text('Open file'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildMedicationCard(
+    BuildContext context,
+    Map<String, Object?> med,
+    int number,
+  ) {
+    final name = med['medication_name']?.toString() ?? 'Medication';
+    final formStrength = med['medication_form_strength']?.toString();
+    final dose =
+        med['exact_dose']?.toString() ?? med['dosage']?.toString() ?? '';
+    final route = med['route']?.toString();
+    final frequency = med['frequency']?.toString() ?? '';
+    final duration = med['duration']?.toString();
+    final quantity = med['quantity_to_dispense']?.toString();
+    final refills = med['refills'];
+    final instructions = med['instructions']?.toString();
+    final startDate = med['start_date']?.toString();
+    final isPrn = med['is_prn'] == true;
+    final prnReason = med['prn_reason']?.toString();
+
+    final details = <(String, String)>[
+      if (formStrength != null && formStrength.isNotEmpty)
+        ('Form and strength', formStrength),
+      if (route != null && route.isNotEmpty) ('Route', route),
+      if (dose.isNotEmpty) ('Exact dose', dose),
+      if (frequency.isNotEmpty) ('Frequency', frequency),
+      if (duration != null && duration.isNotEmpty) ('Duration', duration),
+      if (quantity != null && quantity.isNotEmpty)
+        ('Quantity to dispense', quantity),
+      if (refills != null) ('Refills', refills.toString()),
+      if (startDate != null && startDate.isNotEmpty) ('Start date', startDate),
+      if (isPrn) ('PRN (as needed)', prnReason ?? 'Yes'),
+      if (instructions != null && instructions.isNotEmpty)
+        ('Instructions', instructions),
+    ];
+
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.x4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Text(
+                  '$number. ',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                      ),
+                ),
+                Expanded(
+                  child: Text(
+                    name,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                ),
+                if (quantity != null && quantity.isNotEmpty)
+                  Text(
+                    '# $quantity',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.x2),
+            Wrap(
+              spacing: AppSpacing.x4,
+              runSpacing: AppSpacing.x3,
+              children: [
+                for (final detail in details)
+                  SizedBox(
+                    width: 260,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          detail.$1,
+                          style: Theme.of(context).textTheme.labelSmall,
+                        ),
+                        const SizedBox(height: AppSpacing.x1 / 2),
+                        SelectableText(detail.$2),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _PatientClinicalHistoryEntry extends ConsumerStatefulWidget {

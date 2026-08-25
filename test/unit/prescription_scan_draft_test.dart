@@ -71,15 +71,95 @@ void main() {
     );
   });
 
-  test('legacy single-medication response remains supported', () {
+  test('top-level medications array extracts all distinct medications', () {
     final drafts = PrescriptionScanDraft.listFromPayload({
-      'prescription': {
-        'diagnosis_reason': 'Pain',
-        'medication_name': 'Paracetamol',
-      },
+      'diagnosis_reason': 'Post-operative care',
+      'medications': [
+        {
+          'medication_name': 'HMBB',
+          'medication_form_strength': '10mg tab',
+          'exact_dose': '1 tab',
+          'frequency': '3x a day',
+          'quantity_to_dispense': '10',
+          'refills': 0,
+          'start_date': '2023-03-02',
+          'instructions': '1 tab 3x a day',
+        },
+        {
+          'medication_name': 'Ciprofloxacin',
+          'medication_form_strength': '500mg tab',
+          'exact_dose': '1 tab',
+          'frequency': '2x a day for 1 week',
+          'quantity_to_dispense': '14',
+          'refills': 0,
+          'start_date': '2023-03-02',
+          'instructions': '1 tab 2x a day for 1 week',
+        },
+        {
+          'medication_name': 'Sambong',
+          'medication_form_strength': '500mg capsule',
+          'exact_dose': '1 capsule',
+          'frequency': '4x a day for 2 weeks',
+          'quantity_to_dispense': '56',
+          'refills': 0,
+          'start_date': '2023-03-02',
+          'instructions': '1 capsule 4x a day for 2 weeks',
+        },
+        {
+          'medication_name': 'Tamsulosine',
+          'medication_form_strength': '400mcg capsule',
+          'exact_dose': '1 capsule',
+          'frequency': 'once a day for 1 month',
+          'quantity_to_dispense': '30',
+          'refills': 0,
+          'start_date': '2023-03-02',
+          'instructions': '1 capsule once a day for 1 month',
+        },
+      ],
     });
 
-    expect(drafts, hasLength(1));
-    expect(drafts.single.medicationName, 'Paracetamol');
+    expect(drafts, hasLength(4));
+    expect(drafts.map((d) => d.medicationName), [
+      'HMBB',
+      'Ciprofloxacin',
+      'Sambong',
+      'Tamsulosine',
+    ]);
+    expect(drafts.map((d) => d.quantityToDispense), [
+      '10',
+      '14',
+      '56',
+      '30',
+    ]);
+    expect(drafts.map((d) => d.startDate), [
+      DateTime(2023, 3, 2),
+      DateTime(2023, 3, 2),
+      DateTime(2023, 3, 2),
+      DateTime(2023, 3, 2),
+    ]);
+    expect(
+      drafts.map((d) => d.diagnosisReason),
+      everyElement('Post-operative care'),
+    );
+  });
+
+  test('top-level prescriptions array preserves all drafts', () {
+    final drafts = PrescriptionScanDraft.listFromPayload({
+      'prescriptions': [
+        {
+          'medication_name': 'HMBB',
+          'medication_form_strength': '10mg tab',
+          'quantity_to_dispense': '10',
+        },
+        {
+          'medication_name': 'Ciprofloxacin',
+          'medication_form_strength': '500mg tab',
+          'quantity_to_dispense': '14',
+        },
+      ],
+    });
+
+    expect(drafts, hasLength(2));
+    expect(drafts.map((d) => d.medicationName), ['HMBB', 'Ciprofloxacin']);
   });
 }

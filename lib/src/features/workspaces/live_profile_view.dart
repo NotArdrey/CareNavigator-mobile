@@ -42,6 +42,7 @@ class _LiveProfileViewState extends ConsumerState<LiveProfileView> {
   bool _appointments = true;
   bool _results = true;
   bool _prescriptions = true;
+  bool _medicationReminders = true;
   bool _messages = true;
   bool _hospitalAlerts = true;
   bool _email = false;
@@ -84,6 +85,7 @@ class _LiveProfileViewState extends ConsumerState<LiveProfileView> {
     _appointments = preferences.appointmentReminders;
     _results = preferences.medicalResults;
     _prescriptions = preferences.prescriptions;
+    _medicationReminders = preferences.medicationReminders;
     _messages = preferences.messages;
     _hospitalAlerts = preferences.hospitalAlerts;
     _email = preferences.emailEnabled;
@@ -289,6 +291,11 @@ class _LiveProfileViewState extends ConsumerState<LiveProfileView> {
                       _prescriptions,
                       (v) => _prescriptions = v,
                     ),
+                    _switch(
+                      'Daily medication reminders',
+                      _medicationReminders,
+                      (v) => _medicationReminders = v,
+                    ),
                     _switch('Messages', _messages, (v) => _messages = v),
                     _switch(
                       'Hospital alerts',
@@ -369,6 +376,7 @@ class _LiveProfileViewState extends ConsumerState<LiveProfileView> {
             appointmentReminders: _appointments,
             medicalResults: _results,
             prescriptions: _prescriptions,
+            medicationReminders: _medicationReminders,
             messages: _messages,
             hospitalAlerts: _hospitalAlerts,
             emailEnabled: _email,

@@ -1,3 +1,4 @@
+import 'package:intl/intl.dart';
 import 'package:supabase/supabase.dart';
 
 import '../models/auth/user_role.dart';
@@ -212,16 +213,82 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
     if (hospitalId != null && spec.table == 'online_consultation_requests') {
       query = query.eq('hospital_id', hospitalId);
     }
-    if (recordId != null) query = query.eq(spec.idColumn, recordId);
-    if (spec.orderColumn != null) {
-      query = query.order(spec.orderColumn!, ascending: spec.ascending);
-    }
+    final prescriptionSection = section == 'prescriptions';
     final fetchLimit = itemId == null ? limit + 1 : 1;
-    final response = await query.limit(fetchLimit);
-    var rows = (response as List)
-        .cast<Map<String, dynamic>>()
-        .map((row) => _mapRow(spec.table, row))
-        .toList();
+    var rows = <WorkspaceItem>[];
+    if (prescriptionSection && itemId != null && recordId != null) {
+      final targetResp = await _client
+          .from(spec.table)
+          .select(spec.columns)
+          .eq(spec.idColumn, recordId)
+          .maybeSingle();
+
+      final targetData = targetResp != null
+          ? Map<String, dynamic>.from(targetResp as Map)
+          : null;
+      final effectivePatientId =
+          targetData?['patient_id']?.toString() ?? patientId;
+
+      dynamic clusterQuery = _client.from(spec.table).select(spec.columns);
+      if (effectivePatientId != null) {
+        clusterQuery = clusterQuery.eq('patient_id', effectivePatientId);
+      }
+      final clusterResp = await clusterQuery
+          .order(spec.orderColumn ?? 'created_at', ascending: spec.ascending)
+          .limit(100);
+
+      var clusterRows = (clusterResp as List)
+          .cast<Map<String, dynamic>>()
+          .map((row) => _mapRow(spec.table, row))
+          .toList();
+
+      clusterRows.addAll(
+        await _loadPatientCategoryDocuments(
+          documentTypes: const ['prescription'],
+          itemId: null,
+          currentUserId: currentUserId,
+          patientId: effectivePatientId,
+          limit: 20,
+        ),
+      );
+
+      final grouped = _groupPrescriptionWorkspaceItems(clusterRows);
+      final matched = grouped.firstWhere(
+        (g) =>
+            g.id == recordId ||
+            (g.data['grouped_medications'] as List?)?.any(
+                  (m) =>
+                      m is Map &&
+                      (m['id'] == recordId ||
+                          m['id']?.toString() == recordId),
+                ) ==
+                true ||
+            (g.data['attachment_document'] is Map &&
+                (g.data['attachment_document'] as Map)['id']?.toString() ==
+                    recordId),
+        orElse: () => grouped.isNotEmpty
+            ? grouped.first
+            : (targetData != null
+                ? _mapRow(spec.table, targetData)
+                : WorkspaceItem(
+                    id: recordId,
+                    kind: 'prescriptions',
+                    title: 'Prescription',
+                    subtitle: '',
+                  )),
+      );
+      rows = [matched];
+    } else {
+      if (recordId != null) query = query.eq(spec.idColumn, recordId);
+      if (spec.orderColumn != null) {
+        query = query.order(spec.orderColumn!, ascending: spec.ascending);
+      }
+      final response = await query.limit(fetchLimit);
+      rows = (response as List)
+          .cast<Map<String, dynamic>>()
+          .map((row) => _mapRow(spec.table, row))
+          .toList();
+    }
     if (spec.table == 'users') {
       rows = await _attachUserDetails(rows);
     } else if (spec.table == 'hospitals') {
@@ -300,13 +367,27 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
         role == UserRole.patient && {'labs', 'prescriptions'}.contains(section);
     final doctorLaboratoryDocuments =
         role == UserRole.doctor && section == 'results-review';
-    if (patientDocumentSection || doctorLaboratoryDocuments) {
+    if (!prescriptionSection &&
+        (patientDocumentSection || doctorLaboratoryDocuments)) {
       rows.addAll(
         await _loadPatientCategoryDocuments(
-          documentTypes: section == 'prescriptions'
-              ? const ['prescription']
-              : const ['lab_result', 'diagnostic_result'],
+          documentTypes: const ['lab_result', 'diagnostic_result'],
           itemId: itemId,
+          currentUserId: currentUserId,
+          patientId: role == UserRole.patient ? patientId : null,
+          limit: limit,
+        ),
+      );
+      rows.sort(
+        (left, right) => (right.timestamp ?? DateTime(1970)).compareTo(
+          left.timestamp ?? DateTime(1970),
+        ),
+      );
+    } else if (prescriptionSection && itemId == null) {
+      rows.addAll(
+        await _loadPatientCategoryDocuments(
+          documentTypes: const ['prescription'],
+          itemId: null,
           currentUserId: currentUserId,
           patientId: role == UserRole.patient ? patientId : null,
           limit: limit,
@@ -344,6 +425,9 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
           left.timestamp ?? DateTime(1970),
         ),
       );
+    }
+    if (section == 'prescriptions' && itemId == null) {
+      rows = _groupPrescriptionWorkspaceItems(rows);
     }
     final hasMore = itemId == null && rows.length > limit;
     if (hasMore) rows = rows.take(limit).toList(growable: false);
@@ -720,6 +804,178 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
           );
         }(),
     ];
+  }
+
+  List<WorkspaceItem> _groupPrescriptionWorkspaceItems(
+    List<WorkspaceItem> items,
+  ) {
+    if (items.isEmpty) return items;
+
+    final medicationItems = <WorkspaceItem>[];
+    final documentItems = <WorkspaceItem>[];
+    final otherItems = <WorkspaceItem>[];
+
+    for (final item in items) {
+      if (item.kind == 'prescriptions') {
+        medicationItems.add(item);
+      } else if (item.kind == 'medical_documents' &&
+          item.data['document_type'] == 'prescription') {
+        documentItems.add(item);
+      } else {
+        otherItems.add(item);
+      }
+    }
+
+    if (medicationItems.isEmpty) return items;
+
+    medicationItems.sort(
+      (a, b) => (b.timestamp ?? DateTime(1970)).compareTo(
+        a.timestamp ?? DateTime(1970),
+      ),
+    );
+
+    final groupedClusters = <List<WorkspaceItem>>[];
+    for (final med in medicationItems) {
+      final medTime = med.timestamp ?? DateTime(1970);
+      final patientId = med.data['patient_id']?.toString() ?? '';
+      final doctorId = med.data['doctor_id']?.toString() ??
+          med.data['prescriber_name']?.toString() ??
+          med.data['doctor_display_name']?.toString() ??
+          '';
+      final consultationId = med.data['consultation_id']?.toString() ?? '';
+
+      List<WorkspaceItem>? targetCluster;
+      for (final cluster in groupedClusters) {
+        final leader = cluster.first;
+        final leaderTime = leader.timestamp ?? DateTime(1970);
+        final leaderPatientId = leader.data['patient_id']?.toString() ?? '';
+        final leaderDoctorId = leader.data['doctor_id']?.toString() ??
+            leader.data['prescriber_name']?.toString() ??
+            leader.data['doctor_display_name']?.toString() ??
+            '';
+        final leaderConsultationId =
+            leader.data['consultation_id']?.toString() ?? '';
+
+        final samePatient = patientId.isEmpty ||
+            leaderPatientId.isEmpty ||
+            patientId == leaderPatientId;
+        final sameDoctor = doctorId.isEmpty ||
+            leaderDoctorId.isEmpty ||
+            doctorId == leaderDoctorId;
+        final sameConsultation = consultationId.isNotEmpty &&
+            consultationId == leaderConsultationId;
+        final timeDifference = (medTime.difference(leaderTime).inSeconds).abs();
+
+        if (samePatient && sameDoctor && (sameConsultation || timeDifference <= 300)) {
+          targetCluster = cluster;
+          break;
+        }
+      }
+
+      if (targetCluster != null) {
+        targetCluster.add(med);
+      } else {
+        groupedClusters.add([med]);
+      }
+    }
+
+    final availableDocs = List<WorkspaceItem>.from(documentItems);
+    final resultItems = <WorkspaceItem>[];
+
+    for (final cluster in groupedClusters) {
+      final leader = cluster.first;
+      final leaderTime = leader.timestamp ?? DateTime(1970);
+      final leaderPatientId = leader.data['patient_id']?.toString() ?? '';
+      final leaderDoctorId = leader.data['doctor_id']?.toString() ?? '';
+
+      WorkspaceItem? matchedDoc;
+      for (var i = 0; i < availableDocs.length; i++) {
+        final doc = availableDocs[i];
+        final docTime = doc.timestamp ?? DateTime(1970);
+        final docPatientId = doc.data['patient_id']?.toString() ?? '';
+        final docDoctorId = doc.data['author_doctor_id']?.toString() ??
+            doc.data['doctor_id']?.toString() ??
+            '';
+
+        final samePatient = leaderPatientId.isEmpty ||
+            docPatientId.isEmpty ||
+            leaderPatientId == docPatientId;
+        final sameDoctor = leaderDoctorId.isEmpty ||
+            docDoctorId.isEmpty ||
+            leaderDoctorId == docDoctorId;
+        final timeDiff = (docTime.difference(leaderTime).inSeconds).abs();
+
+        if (samePatient && sameDoctor && timeDiff <= 300) {
+          matchedDoc = doc;
+          availableDocs.removeAt(i);
+          break;
+        }
+      }
+
+      final dateStr = leader.timestamp != null
+          ? DateFormat('MMM d, y').format(leader.timestamp!.toLocal())
+          : 'Prescription';
+      final prescriber = leader.data['prescriber_name']?.toString() ??
+          leader.data['doctor_display_name']?.toString();
+      final hospital = leader.data['hospital_name']?.toString() ??
+          leader.data['originating_hospital']?.toString();
+      final count = cluster.length;
+      final countLabel = '$count medication${count == 1 ? '' : 's'}';
+
+      final medSummaries = cluster.map((m) {
+        final name = m.data['medication_name']?.toString() ?? m.title;
+        final dose = m.data['exact_dose']?.toString() ??
+            m.data['dosage']?.toString() ??
+            '';
+        final freq = m.data['frequency']?.toString() ?? '';
+        final dur = m.data['duration']?.toString() ?? '';
+        final parts = [
+          if (dose.isNotEmpty) dose,
+          if (freq.isNotEmpty) freq,
+          if (dur.isNotEmpty) dur,
+        ];
+        return parts.isEmpty ? name : '$name — ${parts.join(' — ')}';
+      }).toList(growable: false);
+
+      final headerParts = [
+        if (prescriber != null && prescriber.isNotEmpty) prescriber,
+        if (hospital != null &&
+            hospital.isNotEmpty &&
+            (prescriber == null || !prescriber.contains(hospital)))
+          hospital,
+        countLabel,
+      ];
+
+      resultItems.add(
+        WorkspaceItem(
+          id: leader.id,
+          kind: 'prescriptions',
+          title: 'Prescription — $dateStr',
+          subtitle: '${headerParts.join(' • ')}\n${medSummaries.join('\n')}',
+          status: countLabel,
+          timestamp: leader.timestamp,
+          data: {
+            ...leader.data,
+            'grouped_medications': cluster
+                .map((c) => {'id': c.id, ...c.data})
+                .toList(growable: false),
+            if (matchedDoc != null) 'attachment_document': matchedDoc.data,
+            'formatted_prescription_date': dateStr,
+          },
+        ),
+      );
+    }
+
+    resultItems.addAll(availableDocs);
+    resultItems.addAll(otherItems);
+
+    resultItems.sort(
+      (a, b) => (b.timestamp ?? DateTime(1970)).compareTo(
+        a.timestamp ?? DateTime(1970),
+      ),
+    );
+
+    return resultItems;
   }
 
   Future<String> _currentApplicationUserId() async {

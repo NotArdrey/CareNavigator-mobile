@@ -93,6 +93,7 @@ class NotificationPreferences {
     this.appointmentReminders = true,
     this.medicalResults = true,
     this.prescriptions = true,
+    this.medicationReminders = true,
     this.messages = true,
     this.hospitalAlerts = true,
     this.emailEnabled = false,
@@ -103,6 +104,7 @@ class NotificationPreferences {
   final bool appointmentReminders;
   final bool medicalResults;
   final bool prescriptions;
+  final bool medicationReminders;
   final bool messages;
   final bool hospitalAlerts;
   final bool emailEnabled;
@@ -114,6 +116,9 @@ class NotificationPreferences {
         appointmentReminders: json?['appointment_reminders'] as bool? ?? true,
         medicalResults: json?['medical_results'] as bool? ?? true,
         prescriptions: json?['prescriptions'] as bool? ?? true,
+        medicationReminders: json?['medication_reminders'] as bool? ??
+            json?['prescriptions'] as bool? ??
+            true,
         messages: json?['messages'] as bool? ?? true,
         hospitalAlerts: json?['hospital_alerts'] as bool? ?? true,
         emailEnabled: json?['email_enabled'] as bool? ?? false,
@@ -127,6 +132,7 @@ class NotificationPreferenceUpdate {
     required this.appointmentReminders,
     required this.medicalResults,
     required this.prescriptions,
+    this.medicationReminders = true,
     required this.messages,
     required this.hospitalAlerts,
     required this.emailEnabled,
@@ -137,6 +143,7 @@ class NotificationPreferenceUpdate {
   final bool appointmentReminders;
   final bool medicalResults;
   final bool prescriptions;
+  final bool medicationReminders;
   final bool messages;
   final bool hospitalAlerts;
   final bool emailEnabled;

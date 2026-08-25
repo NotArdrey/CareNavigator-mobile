@@ -575,9 +575,187 @@ void main() {
     expect(find.text('AI Summary Status'), findsNothing);
   });
 
+  testWidgets(
+    'doctor patient detail bundles multi-medication prescriptions into a unified card',
+    (tester) async {
+      await _pumpItem(
+        tester,
+        role: UserRole.doctor,
+        section: 'patients',
+        itemId: 'assignment-id',
+        item: const WorkspaceItem(
+          id: 'assignment-id',
+          kind: 'doctor_patient_assignments',
+          title: 'Neil Ardrey Laza',
+          subtitle: 'Assigned patient',
+          data: {
+            'patient_id': 'patient-id',
+            'prescription_history': [
+              {
+                'id': 'rx-4',
+                'history_source': 'prescriptions',
+                'medication_name': 'Tamsulosine',
+                'medication_form_strength': '400mcg capsule',
+                'exact_dose': '1 capsule',
+                'frequency': 'once a day',
+                'duration': '30 days',
+                'quantity_to_dispense': '30',
+                'prescriber_name': 'Dr. Juan Dela Cruz',
+                'originating_hospital': 'Hospital A',
+                'created_at': '2026-08-26T06:56:15Z',
+              },
+              {
+                'id': 'rx-3',
+                'history_source': 'prescriptions',
+                'medication_name': 'Sambong',
+                'medication_form_strength': '500mg capsule',
+                'exact_dose': '1 capsule',
+                'frequency': '4x a day',
+                'duration': '14 days',
+                'quantity_to_dispense': '56',
+                'prescriber_name': 'Dr. Juan Dela Cruz',
+                'originating_hospital': 'Hospital A',
+                'created_at': '2026-08-26T06:56:14Z',
+              },
+              {
+                'id': 'rx-2',
+                'history_source': 'prescriptions',
+                'medication_name': 'Ciprofloxacin',
+                'medication_form_strength': '500mg tab',
+                'exact_dose': '1 tab',
+                'frequency': '2x a day',
+                'duration': '7 days',
+                'quantity_to_dispense': '14',
+                'prescriber_name': 'Dr. Juan Dela Cruz',
+                'originating_hospital': 'Hospital A',
+                'created_at': '2026-08-26T06:56:13Z',
+              },
+              {
+                'id': 'rx-1',
+                'history_source': 'prescriptions',
+                'medication_name': 'HMBB',
+                'medication_form_strength': '10mg tab',
+                'exact_dose': '1 tab',
+                'frequency': '3x a day',
+                'quantity_to_dispense': '10',
+                'prescriber_name': 'Dr. Juan Dela Cruz',
+                'originating_hospital': 'Hospital A',
+                'created_at': '2026-08-26T06:56:12Z',
+              },
+              {
+                'id': 'doc-rx-scan',
+                'history_source': 'medical_documents',
+                'document_type': 'prescription',
+                'title': 'Prescription Attachment',
+                'file_name': 'prescription_scan.jpg',
+                'author_doctor_id': 'dr-juan-id',
+                'created_at': '2026-08-26T06:56:12Z',
+              },
+            ],
+          },
+        ),
+      );
+
+      expect(find.text('Prescription History'), findsOneWidget);
+      expect(find.text('4 medications'), findsOneWidget);
+      expect(find.text('HMBB'), findsOneWidget);
+      expect(find.text('Ciprofloxacin'), findsOneWidget);
+      expect(find.text('Sambong'), findsOneWidget);
+      expect(find.text('Tamsulosine'), findsOneWidget);
+      expect(find.textContaining('Dr. Juan Dela Cruz'), findsOneWidget);
+      expect(find.textContaining('Hospital A'), findsOneWidget);
+      expect(find.text('Open scan file'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'patient prescription details modal displays grouped multi-medication orders',
+    (tester) async {
+      await _pumpItem(
+        tester,
+        role: UserRole.patient,
+        section: 'prescriptions',
+        itemId: 'rx-group-id',
+        item: const WorkspaceItem(
+          id: 'rx-group-id',
+          kind: 'prescriptions',
+          title: 'Prescription — Aug 26, 2026',
+          subtitle: 'Dr. Juan Dela Cruz • Hospital A • 4 medications',
+          status: '4 medications',
+          data: {
+            'prescriber_name': 'Dr. Juan Dela Cruz',
+            'prescriber_license_number': 'LIC-12345',
+            'prescriber_specialization': 'Internal Medicine',
+            'hospital_name': 'Hospital A',
+            'diagnosis_reason': 'Post-operative care',
+            'grouped_medications': [
+              {
+                'medication_name': 'HMBB',
+                'medication_form_strength': '10mg tab',
+                'exact_dose': '1 tab',
+                'frequency': '3x a day',
+                'quantity_to_dispense': '10',
+              },
+              {
+                'medication_name': 'Ciprofloxacin',
+                'medication_form_strength': '500mg tab',
+                'exact_dose': '1 tab',
+                'frequency': '2x a day',
+                'duration': '7 days',
+                'quantity_to_dispense': '14',
+              },
+            ],
+            'attachment_document': {
+              'id': 'doc-123',
+              'title': 'Original Scanned Rx',
+            },
+          },
+        ),
+      );
+
+      expect(find.text('Dr. Juan Dela Cruz'), findsOneWidget);
+      expect(find.textContaining('License LIC-12345'), findsWidgets);
+      expect(find.text('Hospital A'), findsOneWidget);
+      expect(find.text('Medications (2)'), findsOneWidget);
+      expect(find.text('HMBB'), findsOneWidget);
+      expect(find.text('Ciprofloxacin'), findsOneWidget);
+      expect(find.text('Diagnosis / Indication: Post-operative care'), findsOneWidget);
+      expect(find.text('Original Scanned Rx'), findsOneWidget);
+      expect(find.text('Open file'), findsOneWidget);
+      // Metric grid card is hidden in record detail view
+      expect(find.text('Prescriptions'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'patient prescription workspace exposes email daily schedule action and sends reminder',
+    (tester) async {
+      final careRepository = _RecordingCareRepository();
+      await _pumpItem(
+        tester,
+        role: UserRole.patient,
+        section: 'prescriptions',
+        careRepository: careRepository,
+        item: const WorkspaceItem(
+          id: 'rx-group-id',
+          kind: 'prescriptions',
+          title: 'Prescription — Aug 26, 2026',
+          subtitle: 'Dr. Juan Dela Cruz • Hospital A • 4 medications',
+        ),
+      );
+
+      final emailButton = find.text('Email daily schedule');
+      expect(emailButton, findsOneWidget);
+      await tester.tap(emailButton);
+      await tester.pumpAndSettle();
+
+      expect(careRepository.sentDailyMedicationReminderSlot, equals('all'));
+    },
+  );
+
   testWidgets('doctor detail labels authorized external patient context', (
     tester,
-  ) async {
+    ) async {
     await _pumpItem(
       tester,
       role: UserRole.doctor,
@@ -1916,6 +2094,7 @@ class _RecordingCareRepository extends _NoopCareRepository {
   bool? connectionApproved;
   String? ensuredPatientId;
   String? readConversationId;
+  String? sentDailyMedicationReminderSlot;
 
   @override
   Stream<List<CareMessage>> watchMessages(String conversationId) =>
@@ -1924,6 +2103,14 @@ class _RecordingCareRepository extends _NoopCareRepository {
   @override
   Future<void> markConversationRead(String conversationId) async {
     readConversationId = conversationId;
+  }
+
+  @override
+  Future<void> sendDailyMedicationReminderEmail({
+    String? patientId,
+    String slot = 'all',
+  }) async {
+    sentDailyMedicationReminderSlot = slot;
   }
 
   @override

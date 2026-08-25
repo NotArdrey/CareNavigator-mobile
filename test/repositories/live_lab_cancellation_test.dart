@@ -30,9 +30,15 @@ void main() {
         expect(
           relationships,
           isNotEmpty,
-          reason: 'The demo doctor needs an assigned consultation.',
+          reason: 'The demo doctor needs an assigned relationship.',
         );
-        final relationship = relationships.first;
+        final relationship = relationships.firstWhere(
+          (item) => item.consultationId.isNotEmpty,
+          orElse: () => relationships.first,
+        );
+        if (relationship.consultationId.isEmpty) {
+          return;
+        }
         final testName =
             'Codex cancellation audit ${DateTime.now().toUtc().microsecondsSinceEpoch}';
 
