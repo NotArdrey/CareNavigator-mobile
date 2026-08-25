@@ -116,8 +116,17 @@ abstract interface class CareRepository {
     required ({List<int> bytes, String name}) attachment,
   });
 
+  Future<List<PrescriptionScanDraft>> extractPrescriptionsFromAttachment({
+    required ({List<int> bytes, String name}) attachment,
+  });
+
   Future<DiagnosticResultScanDraft> extractDiagnosticResultFromAttachment({
     required ({List<int> bytes, String name}) attachment,
+  });
+
+  Future<List<DiagnosticResultScanDraft>>
+  extractDiagnosticResultsFromAttachments({
+    required List<({List<int> bytes, String name})> attachments,
   });
 
   Future<void> createPrescription({
@@ -137,7 +146,6 @@ abstract interface class CareRepository {
     bool isPrn = false,
     String? prnReason,
     String? maximumDailyDose,
-    bool electronicSignatureAccepted = false,
     String? instructions,
     ({List<int> bytes, String name})? attachment,
   });
@@ -249,26 +257,82 @@ class PrescriptionScanDraft {
       instructions: text('instructions'),
     );
   }
+
+  static List<PrescriptionScanDraft> listFromPayload(
+    Map<dynamic, dynamic> payload,
+  ) {
+    final prescriptions = payload['prescriptions'];
+    if (prescriptions is List) {
+      final drafts = prescriptions
+          .whereType<Map>()
+          .map(PrescriptionScanDraft.fromPayload)
+          .toList(growable: false);
+      if (drafts.isNotEmpty) return drafts;
+    }
+
+    final prescription = payload['prescription'];
+    if (prescription is! Map) return const [];
+    final medications = prescription['medications'];
+    if (medications is List) {
+      final diagnosisReason = prescription['diagnosis_reason'];
+      final drafts = medications
+          .whereType<Map>()
+          .map((medication) {
+            return PrescriptionScanDraft.fromPayload({
+              'diagnosis_reason': diagnosisReason,
+              ...medication,
+            });
+          })
+          .toList(growable: false);
+      if (drafts.isNotEmpty) return drafts;
+    }
+    return [PrescriptionScanDraft.fromPayload(prescription)];
+  }
 }
 
 class DiagnosticResultScanDraft {
   const DiagnosticResultScanDraft({
+    this.sourceFileName,
+    this.patientName,
     this.category,
     this.testProcedureName,
+    this.testProcedureNameAiGenerated = false,
     this.performedOrCollectedDate,
+    this.performedOrCollectedDateText,
     this.resultDate,
+    this.resultDateText,
     this.facility,
     this.requestingDoctor,
+    this.procedureDetails,
+    this.resultDetails,
+    this.officialFindingsImpression,
+    this.recommendations,
+    this.technicalSummary,
+    this.patientFriendlySummary,
+    this.verificationNotes,
     this.findingsImpression,
     this.notes,
   });
 
+  final String? sourceFileName;
+  final String? patientName;
   final String? category;
   final String? testProcedureName;
+  final bool testProcedureNameAiGenerated;
   final DateTime? performedOrCollectedDate;
+  final String? performedOrCollectedDateText;
   final DateTime? resultDate;
+  final String? resultDateText;
   final String? facility;
   final String? requestingDoctor;
+  final String? procedureDetails;
+  final String? resultDetails;
+  final String? officialFindingsImpression;
+  final String? recommendations;
+  final String? technicalSummary;
+  final String? patientFriendlySummary;
+  final String? verificationNotes;
+  // Kept for compatibility with older scan responses and callers.
   final String? findingsImpression;
   final String? notes;
 
@@ -279,25 +343,294 @@ class DiagnosticResultScanDraft {
     }
 
     final parsedCategory = text('result_category');
+    final category =
+        parsedCategory != null &&
+            DiagnosticResultDetails.supportedCategories.contains(parsedCategory)
+        ? parsedCategory
+        : null;
+    final resultDetails =
+        text('results_text') ?? _formatDiagnosticResultRows(payload['results']);
+    final officialFindingsImpression =
+        text('official_findings_impression') ?? text('official_findings');
+    final extractedFindings = text('findings_impression');
+    final legacyLaboratorySummary =
+        category == 'laboratory' &&
+            extractedFindings != null &&
+            resultDetails == null &&
+            officialFindingsImpression == null &&
+            text('technical_summary') == null
+        ? _summarizeLaboratoryFindings(extractedFindings)
+        : null;
     return DiagnosticResultScanDraft(
-      category:
-          parsedCategory != null &&
-              DiagnosticResultDetails.supportedCategories.contains(
-                parsedCategory,
-              )
-          ? parsedCategory
-          : null,
+      sourceFileName: text('source_file_name'),
+      patientName: text('patient_name'),
+      category: category,
       testProcedureName: text('test_procedure_name'),
+      testProcedureNameAiGenerated:
+          payload['test_procedure_name_ai_generated'] == true,
       performedOrCollectedDate: DateTime.tryParse(
         text('performed_or_collected_date') ?? '',
       ),
+      performedOrCollectedDateText: text('performed_or_collected_date_text'),
       resultDate: DateTime.tryParse(text('result_date') ?? ''),
+      resultDateText: text('result_date_text'),
       facility: text('facility'),
       requestingDoctor: text('requesting_doctor'),
-      findingsImpression: text('findings_impression'),
+      procedureDetails: text('procedure_details'),
+      resultDetails: resultDetails,
+      officialFindingsImpression:
+          officialFindingsImpression ?? extractedFindings,
+      recommendations: text('recommendations'),
+      technicalSummary: text('technical_summary') ?? legacyLaboratorySummary,
+      patientFriendlySummary: text('patient_friendly_summary'),
+      verificationNotes: _formatVerificationNotes(
+        payload['needs_verification'],
+      ),
+      findingsImpression:
+          legacyLaboratorySummary ??
+          officialFindingsImpression ??
+          extractedFindings,
       notes: text('notes'),
     );
   }
+}
+
+String? _formatDiagnosticResultRows(Object? value) {
+  if (value is! Iterable) return null;
+  final rows = <String>[];
+  for (final item in value) {
+    if (item is! Map) continue;
+    String cell(String key) => item[key]?.toString().trim() ?? '';
+    final name = cell('test_or_measurement');
+    final result = cell('value');
+    if (name.isEmpty && result.isEmpty) continue;
+    rows.add(
+      [
+        name,
+        result,
+        cell('unit'),
+        cell('reference_range'),
+        cell('status'),
+      ].join(' | '),
+    );
+  }
+  if (rows.isEmpty) return null;
+  return 'Test or measurement | Result | Unit | Reference range | Status\n${rows.join('\n')}';
+}
+
+String? _formatVerificationNotes(Object? value) {
+  if (value is String) {
+    final normalized = value.trim();
+    return normalized.isEmpty ? null : normalized;
+  }
+  if (value is! Iterable) return null;
+  final notes = value
+      .map((item) => item?.toString().trim() ?? '')
+      .where((item) => item.isNotEmpty)
+      .toList(growable: false);
+  return notes.isEmpty ? null : notes.join('\n');
+}
+
+enum _LabResultStatus { low, high, withinRange }
+
+class _ComparableLabResult {
+  const _ComparableLabResult({
+    required this.name,
+    required this.value,
+    required this.unit,
+    required this.reference,
+    required this.status,
+  });
+
+  final String name;
+  final String value;
+  final String unit;
+  final String reference;
+  final _LabResultStatus status;
+}
+
+String _summarizeLaboratoryFindings(String source) {
+  if (RegExp(
+    r'^\s*key findings\s*:',
+    caseSensitive: false,
+    multiLine: true,
+  ).hasMatch(source)) {
+    return source;
+  }
+
+  final results = source
+      .split(RegExp(r'\r?\n'))
+      .map(_parseComparableLabResult)
+      .whereType<_ComparableLabResult>()
+      .toList(growable: false);
+  if (results.isEmpty) return source;
+
+  final abnormal = results
+      .where((result) => result.status != _LabResultStatus.withinRange)
+      .toList(growable: false);
+  final withinRange = results
+      .where((result) => result.status == _LabResultStatus.withinRange)
+      .map((result) => result.name)
+      .toList(growable: false);
+
+  final summaryParts = <String>[];
+  if (abnormal.isNotEmpty) {
+    summaryParts.add(
+      abnormal
+          .map((result) {
+            final status = result.status == _LabResultStatus.low
+                ? 'Low'
+                : 'High';
+            final measured = result.unit.isEmpty
+                ? result.value
+                : '${result.value} ${result.unit}';
+            return '$status ${result.name} ($measured; stated reference ${result.reference})';
+          })
+          .join('; '),
+    );
+  }
+  if (withinRange.isNotEmpty) {
+    final subject = _naturalLanguageList(withinRange);
+    summaryParts.add(
+      abnormal.isEmpty && withinRange.length == results.length
+          ? 'All comparable listed results ($subject) are within their stated reference ranges'
+          : '$subject ${withinRange.length == 1 ? 'is' : 'are'} within ${withinRange.length == 1 ? 'its' : 'their'} stated reference ${withinRange.length == 1 ? 'range' : 'ranges'}',
+    );
+  }
+
+  final summary = 'Key findings: ${summaryParts.join('. ')}.';
+  const supportingHeading = '\n\nSupporting results:\n';
+  final availableSourceLength =
+      4000 - summary.length - supportingHeading.length;
+  if (availableSourceLength <= 3) return summary.substring(0, 4000);
+  final supporting = source.length <= availableSourceLength
+      ? source
+      : '${source.substring(0, availableSourceLength - 3).trimRight()}...';
+  return '$summary$supportingHeading$supporting';
+}
+
+_ComparableLabResult? _parseComparableLabResult(String line) {
+  final trimmed = line.trim();
+  if (trimmed.isEmpty) return null;
+
+  String name;
+  String resultText;
+  String unit;
+  String reference;
+  String flagText;
+  if (trimmed.contains('|')) {
+    final cells = trimmed
+        .split('|')
+        .map((cell) => cell.trim())
+        .toList(growable: false);
+    if (cells.length < 3 ||
+        RegExp(
+          r'^(examination|test|analyte)$',
+          caseSensitive: false,
+        ).hasMatch(cells.first)) {
+      return null;
+    }
+    name = cells[0];
+    resultText = cells[1];
+    if (cells.length == 3) {
+      unit = '';
+      reference = cells[2];
+      flagText = '';
+    } else {
+      unit = cells[2];
+      reference = cells[3];
+      flagText = cells.skip(4).join(' ');
+    }
+  } else {
+    final match = RegExp(
+      r'^\s*([^:]+?)\s*:\s*([+-]?\d+(?:[.,]\d+)?)\s*([^([]*?)\s*[([]\s*(?:normal|reference(?:\s+range)?|ref\.?)\s*:?\s*([^\])]+)[\])]\s*$',
+      caseSensitive: false,
+    ).firstMatch(trimmed);
+    if (match == null) return null;
+    name = match.group(1)!.trim();
+    resultText = match.group(2)!.trim();
+    unit = match.group(3)!.trim();
+    reference = match.group(4)!.trim();
+    flagText = '';
+  }
+
+  if (name.isEmpty || reference.isEmpty) return null;
+  final value = _exactNumber(resultText);
+  if (value == null) return null;
+  final status = _labResultStatus(
+    value: value,
+    resultText: '$resultText $flagText',
+    reference: reference,
+  );
+  if (status == null) return null;
+  return _ComparableLabResult(
+    name: name,
+    value: resultText,
+    unit: unit,
+    reference: reference,
+    status: status,
+  );
+}
+
+double? _exactNumber(String value) {
+  final normalized = value.trim().replaceAll(',', '.');
+  if (!RegExp(r'^[+-]?\d+(?:\.\d+)?$').hasMatch(normalized)) return null;
+  return double.tryParse(normalized);
+}
+
+_LabResultStatus? _labResultStatus({
+  required double value,
+  required String resultText,
+  required String reference,
+}) {
+  if (RegExp(r'\b(?:h|high)\b', caseSensitive: false).hasMatch(resultText)) {
+    return _LabResultStatus.high;
+  }
+  if (RegExp(r'\b(?:l|low)\b', caseSensitive: false).hasMatch(resultText)) {
+    return _LabResultStatus.low;
+  }
+
+  final normalizedReference = reference
+      .replaceAll(',', '.')
+      .replaceAll('\u2264', '<=')
+      .replaceAll('\u2265', '>=')
+      .replaceAll('\u2013', '-')
+      .replaceAll('\u2014', '-')
+      .trim();
+  final range = RegExp(
+    r'^([+-]?\d+(?:\.\d+)?)\s*(?:-|to)\s*([+-]?\d+(?:\.\d+)?)$',
+    caseSensitive: false,
+  ).firstMatch(normalizedReference);
+  if (range != null) {
+    final first = double.parse(range.group(1)!);
+    final second = double.parse(range.group(2)!);
+    final lower = first <= second ? first : second;
+    final upper = first <= second ? second : first;
+    if (value < lower) return _LabResultStatus.low;
+    if (value > upper) return _LabResultStatus.high;
+    return _LabResultStatus.withinRange;
+  }
+
+  final comparator = RegExp(
+    r'^(<=|>=|<|>)\s*([+-]?\d+(?:\.\d+)?)$',
+  ).firstMatch(normalizedReference);
+  if (comparator == null) return null;
+  final limit = double.parse(comparator.group(2)!);
+  return switch (comparator.group(1)) {
+    '<' => value < limit ? _LabResultStatus.withinRange : _LabResultStatus.high,
+    '<=' =>
+      value <= limit ? _LabResultStatus.withinRange : _LabResultStatus.high,
+    '>' => value > limit ? _LabResultStatus.withinRange : _LabResultStatus.low,
+    '>=' =>
+      value >= limit ? _LabResultStatus.withinRange : _LabResultStatus.low,
+    _ => null,
+  };
+}
+
+String _naturalLanguageList(List<String> values) {
+  if (values.length == 1) return values.single;
+  if (values.length == 2) return '${values[0]} and ${values[1]}';
+  return '${values.take(values.length - 1).join(', ')}, and ${values.last}';
 }
 
 class CareMessage {
@@ -403,10 +736,21 @@ class DiagnosticResultDetails {
   const DiagnosticResultDetails({
     required this.category,
     required this.testProcedureName,
-    required this.performedOrCollectedDate,
-    required this.resultDate,
-    required this.facility,
-    required this.requestingDoctor,
+    this.testProcedureNameAiGenerated = false,
+    this.performedOrCollectedDate,
+    this.performedOrCollectedDateText,
+    this.resultDate,
+    this.resultDateText,
+    this.facility,
+    this.requestingDoctor,
+    this.patientNameOnReport,
+    this.procedureDetails,
+    this.resultDetails,
+    this.officialFindingsImpression,
+    this.recommendations,
+    this.technicalSummary,
+    this.patientFriendlySummary,
+    this.verificationNotes,
     this.findingsImpression,
     this.notes,
   });
@@ -424,10 +768,21 @@ class DiagnosticResultDetails {
 
   final String category;
   final String testProcedureName;
-  final DateTime performedOrCollectedDate;
-  final DateTime resultDate;
-  final String facility;
-  final String requestingDoctor;
+  final bool testProcedureNameAiGenerated;
+  final DateTime? performedOrCollectedDate;
+  final String? performedOrCollectedDateText;
+  final DateTime? resultDate;
+  final String? resultDateText;
+  final String? facility;
+  final String? requestingDoctor;
+  final String? patientNameOnReport;
+  final String? procedureDetails;
+  final String? resultDetails;
+  final String? officialFindingsImpression;
+  final String? recommendations;
+  final String? technicalSummary;
+  final String? patientFriendlySummary;
+  final String? verificationNotes;
   final String? findingsImpression;
   final String? notes;
 }
@@ -1323,6 +1678,12 @@ class SupabaseCareRepository implements CareRepository {
   @override
   Future<PrescriptionScanDraft> extractPrescriptionFromAttachment({
     required ({List<int> bytes, String name}) attachment,
+  }) async =>
+      (await extractPrescriptionsFromAttachment(attachment: attachment)).first;
+
+  @override
+  Future<List<PrescriptionScanDraft>> extractPrescriptionsFromAttachment({
+    required ({List<int> bytes, String name}) attachment,
   }) async {
     final mimeType = _medicalMimeType(attachment.name, attachment.bytes);
     if (!{'application/pdf', 'image/jpeg', 'image/png'}.contains(mimeType)) {
@@ -1367,27 +1728,50 @@ class SupabaseCareRepository implements CareRepository {
       );
     }
     final data = response.data;
-    final prescription = data is Map ? data['prescription'] : null;
-    if (prescription is! Map) {
-      throw StateError('The AI scan returned an invalid prescription draft.');
+    final drafts = data is Map
+        ? PrescriptionScanDraft.listFromPayload(data)
+        : const <PrescriptionScanDraft>[];
+    if (drafts.isEmpty) {
+      throw StateError('The AI scan returned no valid medication drafts.');
     }
-    return PrescriptionScanDraft.fromPayload(prescription);
+    return drafts;
   }
 
   @override
   Future<DiagnosticResultScanDraft> extractDiagnosticResultFromAttachment({
     required ({List<int> bytes, String name}) attachment,
+  }) async => (await extractDiagnosticResultsFromAttachments(
+    attachments: [attachment],
+  )).first;
+
+  @override
+  Future<List<DiagnosticResultScanDraft>>
+  extractDiagnosticResultsFromAttachments({
+    required List<({List<int> bytes, String name})> attachments,
   }) async {
-    final mimeType = _medicalMimeType(attachment.name, attachment.bytes);
-    if (!{'application/pdf', 'image/jpeg', 'image/png'}.contains(mimeType)) {
-      throw ArgumentError(
-        'Diagnostic result scanning supports PDF, JPG, and PNG files.',
-      );
+    if (attachments.isEmpty || attachments.length > 5) {
+      throw ArgumentError('Attach between 1 and 5 diagnostic result files.');
     }
-    final encoded = base64Encode(attachment.bytes);
-    if (encoded.length > 2800000) {
+    final encodedAttachments = <Map<String, String>>[];
+    var encodedLength = 0;
+    for (final attachment in attachments) {
+      final mimeType = _medicalMimeType(attachment.name, attachment.bytes);
+      if (!{'application/pdf', 'image/jpeg', 'image/png'}.contains(mimeType)) {
+        throw ArgumentError(
+          'Diagnostic result scanning supports PDF, JPG, and PNG files.',
+        );
+      }
+      final encoded = base64Encode(attachment.bytes);
+      encodedLength += encoded.length;
+      encodedAttachments.add({
+        'data': encoded,
+        'mime_type': mimeType,
+        'file_name': attachment.name,
+      });
+    }
+    if (encodedLength > 2800000) {
       throw ArgumentError(
-        'The selected file is too large to scan. Use a file under 2 MB.',
+        'The selected files are too large to scan together. Use up to 2 MB total.',
       );
     }
 
@@ -1397,13 +1781,7 @@ class SupabaseCareRepository implements CareRepository {
         'care-navigator-chat',
         body: {
           'action': 'extract_diagnostic_result',
-          'attachments': [
-            {
-              'data': encoded,
-              'mime_type': mimeType,
-              'file_name': attachment.name,
-            },
-          ],
+          'attachments': encodedAttachments,
         },
       );
     } on FunctionException catch (error) {
@@ -1423,13 +1801,21 @@ class SupabaseCareRepository implements CareRepository {
       );
     }
     final data = response.data;
+    final diagnosticResults = data is Map ? data['diagnostic_results'] : null;
+    if (diagnosticResults is List) {
+      final drafts = diagnosticResults
+          .whereType<Map>()
+          .map(DiagnosticResultScanDraft.fromPayload)
+          .toList(growable: false);
+      if (drafts.isNotEmpty) return drafts;
+    }
     final diagnosticResult = data is Map ? data['diagnostic_result'] : null;
     if (diagnosticResult is! Map) {
       throw StateError(
-        'The AI scan returned an invalid diagnostic result draft.',
+        'The AI scan returned no valid diagnostic result drafts.',
       );
     }
-    return DiagnosticResultScanDraft.fromPayload(diagnosticResult);
+    return [DiagnosticResultScanDraft.fromPayload(diagnosticResult)];
   }
 
   @override
@@ -1450,7 +1836,6 @@ class SupabaseCareRepository implements CareRepository {
     bool isPrn = false,
     String? prnReason,
     String? maximumDailyDose,
-    bool electronicSignatureAccepted = false,
     String? instructions,
     ({List<int> bytes, String name})? attachment,
   }) async {
@@ -1496,9 +1881,6 @@ class SupabaseCareRepository implements CareRepository {
         'PRN prescriptions require a reason and maximum daily dose.',
       );
     }
-    if (!electronicSignatureAccepted) {
-      throw ArgumentError('Electronic signature confirmation is required.');
-    }
     final doctor = await _currentDoctor();
     final prescriberName = doctor['display_name']?.toString().trim() ?? '';
     final prescriberLicense = doctor['license_number']?.toString().trim() ?? '';
@@ -1507,7 +1889,6 @@ class SupabaseCareRepository implements CareRepository {
         'Complete your prescriber name and license number in your profile before issuing a prescription.',
       );
     }
-    final signedAt = DateTime.now().toUtc();
     final result = await _client
         .from('prescriptions')
         .insert({
@@ -1538,9 +1919,6 @@ class SupabaseCareRepository implements CareRepository {
           'prescriber_specialization': _nullableText(
             doctor['specialization']?.toString(),
           ),
-          'electronically_signed_at': signedAt.toIso8601String(),
-          'electronically_signed_by': doctor['user_id'],
-          'signature_method': 'authenticated_account_attestation',
           'instructions': _nullableText(instructions),
         })
         .select('id')
@@ -1635,6 +2013,7 @@ class SupabaseCareRepository implements CareRepository {
     if (normalizedTitle.isEmpty || normalizedType.isEmpty) {
       throw ArgumentError('A title and document type are required.');
     }
+    DateTime? effectiveDiagnosticResultDate;
     if (normalizedType == 'diagnostic_result') {
       if (diagnosticResult == null) {
         throw ArgumentError('Diagnostic result details are required.');
@@ -1644,17 +2023,16 @@ class SupabaseCareRepository implements CareRepository {
       )) {
         throw ArgumentError('Unsupported diagnostic result category.');
       }
-      if (diagnosticResult.testProcedureName.trim().isEmpty ||
-          diagnosticResult.facility.trim().isEmpty ||
-          diagnosticResult.requestingDoctor.trim().isEmpty) {
-        throw ArgumentError(
-          'A test or procedure, facility, and requesting doctor are required.',
-        );
+      if (diagnosticResult.testProcedureName.trim().isEmpty) {
+        throw ArgumentError('A test or procedure name is required.');
       }
-      if (_dateOnly(
-            diagnosticResult.resultDate,
-          ).compareTo(_dateOnly(diagnosticResult.performedOrCollectedDate)) <
-          0) {
+      effectiveDiagnosticResultDate =
+          diagnosticResult.resultDate ?? DateTime.now();
+      if (diagnosticResult.performedOrCollectedDate != null &&
+          _dateOnly(effectiveDiagnosticResultDate).compareTo(
+                _dateOnly(diagnosticResult.performedOrCollectedDate!),
+              ) <
+              0) {
         throw ArgumentError(
           'The result date cannot be before the performed or collected date.',
         );
@@ -1698,12 +2076,45 @@ class SupabaseCareRepository implements CareRepository {
             if (diagnosticResult != null) ...{
               'result_category': diagnosticResult.category,
               'test_procedure_name': diagnosticResult.testProcedureName.trim(),
-              'performed_or_collected_date': _dateOnly(
-                diagnosticResult.performedOrCollectedDate,
+              'test_procedure_name_ai_generated':
+                  diagnosticResult.testProcedureNameAiGenerated,
+              'performed_or_collected_date':
+                  diagnosticResult.performedOrCollectedDate == null
+                  ? null
+                  : _dateOnly(diagnosticResult.performedOrCollectedDate!),
+              'performed_or_collected_date_text': _nullableText(
+                diagnosticResult.performedOrCollectedDateText,
               ),
-              'result_date': _dateOnly(diagnosticResult.resultDate),
-              'facility': diagnosticResult.facility.trim(),
-              'requesting_doctor': diagnosticResult.requestingDoctor.trim(),
+              'result_date': _dateOnly(effectiveDiagnosticResultDate!),
+              'result_date_text': _nullableText(
+                diagnosticResult.resultDateText,
+              ),
+              'facility': _nullableText(diagnosticResult.facility),
+              'requesting_doctor': _nullableText(
+                diagnosticResult.requestingDoctor,
+              ),
+              'patient_name_on_report': _nullableText(
+                diagnosticResult.patientNameOnReport,
+              ),
+              'procedure_details': _nullableText(
+                diagnosticResult.procedureDetails,
+              ),
+              'result_details': _nullableText(diagnosticResult.resultDetails),
+              'official_findings_impression': _nullableText(
+                diagnosticResult.officialFindingsImpression,
+              ),
+              'report_recommendations': _nullableText(
+                diagnosticResult.recommendations,
+              ),
+              'technical_summary': _nullableText(
+                diagnosticResult.technicalSummary,
+              ),
+              'patient_friendly_summary': _nullableText(
+                diagnosticResult.patientFriendlySummary,
+              ),
+              'verification_notes': _nullableText(
+                diagnosticResult.verificationNotes,
+              ),
               'findings_impression': _nullableText(
                 diagnosticResult.findingsImpression,
               ),
@@ -1715,9 +2126,14 @@ class SupabaseCareRepository implements CareRepository {
       if (_aiSummarizedDocumentTypes.contains(normalizedType)) {
         await _requestMedicalDocumentSummary(document['id'].toString());
       }
-    } catch (_) {
-      await _client.storage.from(_medicalBucket).remove([storagePath]);
-      rethrow;
+    } catch (error, stackTrace) {
+      try {
+        await _client.storage.from(_medicalBucket).remove([storagePath]);
+      } catch (_) {
+        // Preserve the original database failure if best-effort cleanup also
+        // fails. The first error identifies the actual upload problem.
+      }
+      Error.throwWithStackTrace(error, stackTrace);
     }
   }
 

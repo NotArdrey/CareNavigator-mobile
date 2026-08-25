@@ -181,7 +181,7 @@ final class SupabaseAuthRepository implements AuthRepository {
     final data = await _client
         .from('users')
         .select(
-          'id, first_name, last_name, account_status, roles!inner(role_name), hospital:hospitals(hospital_name)',
+          'id, first_name, last_name, account_status, roles!inner(role_name), hospital:hospitals!users_hospital_id_fkey(hospital_name)',
         )
         .eq('auth_user_id', authUser.id)
         .maybeSingle();

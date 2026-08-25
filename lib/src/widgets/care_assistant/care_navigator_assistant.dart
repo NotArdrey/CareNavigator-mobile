@@ -5,6 +5,7 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/hospitals/hospital_models.dart';
@@ -13,6 +14,7 @@ import '../../providers/core_providers.dart';
 import '../../providers/hospital_directory_provider.dart';
 import '../../repositories/care_assistant_repository.dart';
 import '../../routing/root_overlay.dart';
+import '../../services/emergency_location_service.dart';
 import '../../theme/app_tokens.dart';
 import '../branding/brand_mark.dart';
 
@@ -136,6 +138,7 @@ class _CareAssistantPanelState extends ConsumerState<_CareAssistantPanel> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(careAssistantProvider);
+    final identity = ref.watch(appIdentityProvider);
     final emergencyNumber =
         ref.watch(publicAppSettingsProvider).value?.emergencyNumber?.trim() ??
         '';
@@ -199,8 +202,13 @@ class _CareAssistantPanelState extends ConsumerState<_CareAssistantPanel> {
                         if (state.showEmergencyActions)
                           _EmergencyActions(
                             emergencyNumber: emergencyNumber,
+                            hospitals: directory.entries,
                             onOpenFacilities: () => context.go('/hospitals'),
                             onCall: _callEmergencyServices,
+                            onCallFacility: _callFacility,
+                            onOpenFacility: (hospital) => _navigateTo(
+                              '/hospitals/map?hospitalId=${hospital.id}',
+                            ),
                             onStartOver: ref
                                 .read(careAssistantProvider.notifier)
                                 .reset,
@@ -264,6 +272,7 @@ class _CareAssistantPanelState extends ConsumerState<_CareAssistantPanel> {
                     curve: Curves.easeOutCubic,
                     child: _ChatHistoryDrawer(
                       state: state,
+                      accountHistoryEnabled: identity.isAuthenticated,
                       onNewChat: () {
                         ref.read(careAssistantProvider.notifier).newChat();
                         setState(() => _isHistoryOpen = false);
@@ -280,6 +289,9 @@ class _CareAssistantPanelState extends ConsumerState<_CareAssistantPanel> {
                       onTogglePin: (conversationId) => ref
                           .read(careAssistantProvider.notifier)
                           .togglePinConversation(conversationId),
+                      onDelete: (conversationId) => ref
+                          .read(careAssistantProvider.notifier)
+                          .deleteConversation(conversationId),
                     ),
                   ),
                 ),
@@ -443,17 +455,21 @@ class _PanelHeader extends StatelessWidget {
 class _ChatHistoryDrawer extends StatelessWidget {
   const _ChatHistoryDrawer({
     required this.state,
+    required this.accountHistoryEnabled,
     required this.onNewChat,
     required this.onSelect,
     required this.onRename,
     required this.onTogglePin,
+    required this.onDelete,
   });
 
   final CareAssistantState state;
+  final bool accountHistoryEnabled;
   final VoidCallback onNewChat;
   final ValueChanged<String> onSelect;
   final void Function(String conversationId, String title) onRename;
   final ValueChanged<String> onTogglePin;
+  final Future<void> Function(String conversationId) onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -496,6 +512,28 @@ class _ChatHistoryDrawer extends StatelessWidget {
               icon: const Icon(Icons.add),
               label: const Text('New Chat'),
             ),
+            const SizedBox(height: 8),
+            Text(
+              accountHistoryEnabled
+                  ? 'Saved privately to your account. Attached images are not retained.'
+                  : 'Guest history is available only for this session.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
+            ),
+            if (state.historyIsLoading) ...[
+              const SizedBox(height: 8),
+              const LinearProgressIndicator(minHeight: 2),
+            ],
+            if (state.historyErrorMessage != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                state.historyErrorMessage!,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.warning),
+              ),
+            ],
             const SizedBox(height: 18),
             Text(
               'Recents',
@@ -542,7 +580,7 @@ class _ChatHistoryDrawer extends StatelessWidget {
                         ),
                       ),
                       trailing: SizedBox(
-                        width: 84,
+                        width: 120,
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
@@ -567,6 +605,16 @@ class _ChatHistoryDrawer extends StatelessWidget {
                               tooltip: 'Edit conversation title',
                               onPressed: () => _rename(context, conversation),
                               icon: const Icon(Icons.edit_outlined, size: 18),
+                            ),
+                            IconButton(
+                              visualDensity: VisualDensity.compact,
+                              tooltip: 'Delete conversation',
+                              onPressed: () => _delete(context, conversation),
+                              icon: const Icon(
+                                Icons.delete_outline,
+                                size: 18,
+                                color: AppColors.emergency,
+                              ),
                             ),
                           ],
                         ),
@@ -615,6 +663,36 @@ class _ChatHistoryDrawer extends StatelessWidget {
     if (title != null && title.trim().isNotEmpty) {
       onRename(conversation.id, title);
     }
+  }
+
+  Future<void> _delete(
+    BuildContext context,
+    CareAssistantConversation conversation,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete conversation?'),
+        content: Text(
+          '“${conversation.title}” will be permanently removed from your conversation history.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.emergency,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) await onDelete(conversation.id);
   }
 }
 
@@ -856,18 +934,89 @@ class _MessageComposer extends StatelessWidget {
   );
 }
 
-class _EmergencyActions extends StatelessWidget {
+class _EmergencyActions extends ConsumerStatefulWidget {
   const _EmergencyActions({
     required this.emergencyNumber,
+    required this.hospitals,
     required this.onOpenFacilities,
     required this.onCall,
+    required this.onCallFacility,
+    required this.onOpenFacility,
     required this.onStartOver,
   });
 
   final String emergencyNumber;
+  final List<HospitalDirectoryEntry> hospitals;
   final VoidCallback onOpenFacilities;
   final VoidCallback onCall;
+  final ValueChanged<HospitalDirectoryEntry> onCallFacility;
+  final ValueChanged<HospitalDirectoryEntry> onOpenFacility;
   final VoidCallback onStartOver;
+
+  @override
+  ConsumerState<_EmergencyActions> createState() => _EmergencyActionsState();
+}
+
+class _EmergencyActionsState extends ConsumerState<_EmergencyActions> {
+  EmergencyLocation? _location;
+  List<_NearbyEmergencyHospital> _nearby = const [];
+  String? _locationMessage;
+  var _isLocating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _locate(requestPermission: false);
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _EmergencyActions oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_location != null && oldWidget.hospitals != widget.hospitals) {
+      _nearby = _nearestEmergencyHospitals(widget.hospitals, _location!);
+    }
+  }
+
+  Future<void> _locate({required bool requestPermission}) async {
+    if (_isLocating) return;
+    setState(() {
+      _isLocating = true;
+      _locationMessage = null;
+    });
+    try {
+      final location = await ref
+          .read(emergencyLocationServiceProvider)
+          .currentLocation(requestPermission: requestPermission);
+      if (!mounted) return;
+      if (location == null) {
+        setState(() {
+          _locationMessage =
+              'Share your current location to show nearby emergency hospitals and their published numbers.';
+        });
+        return;
+      }
+      setState(() {
+        _location = location;
+        _nearby = _nearestEmergencyHospitals(widget.hospitals, location);
+        _locationMessage = _nearby.isEmpty
+            ? 'No emergency hospital with coordinates and a published phone number is currently available in the directory.'
+            : null;
+      });
+    } on EmergencyLocationFailure catch (error) {
+      if (mounted) setState(() => _locationMessage = error.message);
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => _locationMessage =
+              'Your location is unavailable. You can still open the hospital directory.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLocating = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) => Container(
@@ -881,9 +1030,11 @@ class _EmergencyActions extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
-          'Emergency actions',
-          style: TextStyle(
+        Text(
+          widget.emergencyNumber.isEmpty
+              ? 'Contact emergency services now'
+              : 'Call ${widget.emergencyNumber} now',
+          style: const TextStyle(
             color: AppColors.emergency,
             fontWeight: FontWeight.w700,
           ),
@@ -894,24 +1045,180 @@ class _EmergencyActions extends StatelessWidget {
             backgroundColor: AppColors.emergency,
             foregroundColor: Colors.white,
           ),
-          onPressed: onCall,
+          onPressed: widget.onCall,
           icon: const Icon(Icons.call_outlined),
           label: Text(
-            emergencyNumber.isEmpty
+            widget.emergencyNumber.isEmpty
                 ? 'Contact emergency services'
-                : 'Call $emergencyNumber',
+                : 'Call ${widget.emergencyNumber}',
           ),
         ),
         const SizedBox(height: 8),
-        OutlinedButton.icon(
-          onPressed: onOpenFacilities,
-          icon: const Icon(Icons.local_hospital_outlined),
-          label: const Text('Open emergency facilities'),
+        const Text(
+          'Do not drive yourself. Do not delay calling emergency services to compare hospitals.',
+          style: TextStyle(fontWeight: FontWeight.w600),
         ),
-        TextButton(onPressed: onStartOver, child: const Text('Start over')),
+        const SizedBox(height: 10),
+        if (_isLocating)
+          const Row(
+            children: [
+              SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              SizedBox(width: 8),
+              Expanded(child: Text('Finding nearby emergency hospitals…')),
+            ],
+          )
+        else if (_nearby.isNotEmpty) ...[
+          const Text(
+            'Nearest emergency hospitals',
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'Based on your current location. Distances are straight-line estimates; hospital availability can change.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 8),
+          for (final item in _nearby)
+            _NearbyEmergencyHospitalCard(
+              item: item,
+              onCall: () => widget.onCallFacility(item.hospital),
+              onOpen: () => widget.onOpenFacility(item.hospital),
+            ),
+        ] else ...[
+          if (_locationMessage != null)
+            Text(
+              _locationMessage!,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          const SizedBox(height: 6),
+          OutlinedButton.icon(
+            onPressed: () => _locate(requestPermission: true),
+            icon: const Icon(Icons.my_location_outlined),
+            label: const Text('Use my location'),
+          ),
+        ],
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          onPressed: widget.onOpenFacilities,
+          icon: const Icon(Icons.local_hospital_outlined),
+          label: const Text('Find and call an emergency hospital'),
+        ),
+        TextButton(
+          onPressed: widget.onStartOver,
+          child: const Text('Start over'),
+        ),
       ],
     ),
   );
+}
+
+class _NearbyEmergencyHospitalCard extends StatelessWidget {
+  const _NearbyEmergencyHospitalCard({
+    required this.item,
+    required this.onCall,
+    required this.onOpen,
+  });
+
+  final _NearbyEmergencyHospital item;
+  final VoidCallback onCall;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final hospital = item.hospital;
+    final number = (hospital.emergencyContactNumber ?? hospital.contactNumber)!
+        .trim();
+    return Container(
+      key: Key('nearby-emergency-hospital-${hospital.id}'),
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.control),
+        border: Border.all(color: AppColors.emergency.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            hospital.name,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            '${item.distanceKm.toStringAsFixed(1)} km away · $number',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: onCall,
+                  icon: const Icon(Icons.call_outlined, size: 18),
+                  label: Text('Call $number'),
+                ),
+              ),
+              const SizedBox(width: 6),
+              IconButton.outlined(
+                tooltip: 'Show ${hospital.name} on map',
+                onPressed: onOpen,
+                icon: const Icon(Icons.map_outlined),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NearbyEmergencyHospital {
+  const _NearbyEmergencyHospital({
+    required this.hospital,
+    required this.distanceKm,
+  });
+
+  final HospitalDirectoryEntry hospital;
+  final double distanceKm;
+}
+
+List<_NearbyEmergencyHospital> _nearestEmergencyHospitals(
+  List<HospitalDirectoryEntry> hospitals,
+  EmergencyLocation location,
+) {
+  const distance = Distance();
+  final origin = LatLng(location.latitude, location.longitude);
+  final ranked = <_NearbyEmergencyHospital>[];
+  for (final hospital in hospitals) {
+    final number =
+        (hospital.emergencyContactNumber ?? hospital.contactNumber)?.trim() ??
+        '';
+    final searchable = [
+      ...hospital.services,
+      ...hospital.departments,
+      ...hospital.operatingHours.keys,
+    ].join(' ').toLowerCase();
+    final hasEmergencyCare = RegExp(
+      r'\bemergency\b|\ber\b|\btrauma\b',
+    ).hasMatch(searchable);
+    if (!hospital.hasCoordinates || number.isEmpty || !hasEmergencyCare) {
+      continue;
+    }
+    final meters = distance(
+      origin,
+      LatLng(hospital.latitude!, hospital.longitude!),
+    );
+    ranked.add(
+      _NearbyEmergencyHospital(hospital: hospital, distanceKm: meters / 1000),
+    );
+  }
+  ranked.sort((left, right) => left.distanceKm.compareTo(right.distanceKm));
+  return ranked.take(3).toList(growable: false);
 }
 
 class _RecommendationList extends StatelessWidget {

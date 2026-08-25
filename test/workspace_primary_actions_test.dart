@@ -223,8 +223,10 @@ void main() {
     expect(find.text('Total quantity to dispense'), findsOneWidget);
     expect(find.text('Number of refills'), findsOneWidget);
     expect(find.text('Take as needed (PRN)'), findsOneWidget);
+    expect(find.text('Medication 1'), findsOneWidget);
+    expect(find.text('Add another medication'), findsOneWidget);
     expect(find.text('Dr. Test Prescriber'), findsOneWidget);
-    expect(find.text('Apply my electronic signature'), findsOneWidget);
+    expect(find.text('Apply my electronic signature'), findsNothing);
     expect(find.text('Preview prescription'), findsOneWidget);
 
     Finder field(String label) => find.ancestor(
@@ -242,19 +244,123 @@ void main() {
     await tester.enterText(field('Frequency'), 'Every 6 hours');
     await tester.enterText(field('Duration'), '3 days');
     await tester.enterText(field('Total quantity to dispense'), '12 tablets');
-    final signature = find.widgetWithText(
-      CheckboxListTile,
-      'Apply my electronic signature',
-    );
-    await tester.ensureVisible(signature);
-    await tester.tap(signature);
-    await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Preview prescription'));
     await tester.pumpAndSettle();
 
     expect(find.text('Confirm prescription'), findsOneWidget);
     expect(find.text('No refills'), findsOneWidget);
     expect(find.text('Confirm & issue'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('prescription scan prefills every detected medication', (
+    tester,
+  ) async {
+    final repository = _DialogCareRepository(
+      relationship,
+      prescriptionScans: const [
+        PrescriptionScanDraft(
+          diagnosisReason: 'Upper respiratory infection',
+          medicationName: 'Amoxicillin',
+          medicationFormStrength: '500 mg capsule',
+          route: 'Oral',
+          exactDose: '1 capsule',
+          frequency: 'Every 8 hours',
+          duration: '7 days',
+          quantityToDispense: '21 capsules',
+          refills: 0,
+        ),
+        PrescriptionScanDraft(
+          diagnosisReason: 'Upper respiratory infection',
+          medicationName: 'Paracetamol',
+          medicationFormStrength: '500 mg tablet',
+          route: 'Oral',
+          exactDose: '1 tablet',
+          frequency: 'Every 6 hours as needed',
+          duration: '3 days',
+          quantityToDispense: '12 tablets',
+          refills: 0,
+          isPrn: true,
+          prnReason: 'Fever',
+          maximumDailyDose: '4 tablets in 24 hours',
+        ),
+      ],
+    );
+    final previousSelector = FileSelectorPlatform.instance;
+    FileSelectorPlatform.instance = _FakeFileSelector();
+    addTearDown(() => FileSelectorPlatform.instance = previousSelector);
+    const request = (
+      role: UserRole.doctor,
+      section: 'prescriptions',
+      itemId: null as String?,
+    );
+    final container = ProviderContainer(
+      overrides: [
+        workspaceSnapshotProvider(request).overrideWith(
+          (ref) async => WorkspaceSnapshot(
+            title: 'Prescriptions',
+            description: 'Multiple medication scan test.',
+            items: const [],
+            loadedAt: DateTime(2026, 8, 26),
+          ),
+        ),
+        careRepositoryProvider.overrideWithValue(repository),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          navigatorKey: rootNavigatorKey,
+          home: const Scaffold(
+            body: LiveWorkspaceView(
+              role: UserRole.doctor,
+              section: 'prescriptions',
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Issue prescription'));
+    await tester.pumpAndSettle();
+    final scanButton = find.widgetWithText(
+      OutlinedButton,
+      'Attach and scan file',
+    );
+    await tester.ensureVisible(scanButton);
+    await tester.tap(scanButton);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Medication 1'), findsOneWidget);
+    expect(find.text('Medication 2'), findsOneWidget);
+    expect(find.text('Medication name'), findsNWidgets(2));
+    expect(find.text('Take as needed (PRN)'), findsNWidgets(2));
+    expect(find.text('Amoxicillin'), findsOneWidget);
+    expect(find.text('Paracetamol'), findsOneWidget);
+    expect(find.text('PRN reason'), findsOneWidget);
+    expect(find.text('Fever'), findsOneWidget);
+    expect(
+      find.text('Scan complete. Review every autofilled value before issuing.'),
+      findsOneWidget,
+    );
+    final previewButton = find.widgetWithText(
+      FilledButton,
+      'Preview prescription',
+    );
+    await tester.ensureVisible(previewButton);
+    await tester.tap(previewButton);
+    await tester.pumpAndSettle();
+    expect(find.text('Confirm prescription'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Confirm & issue'));
+    await tester.pumpAndSettle();
+    expect(repository.createdMedicationNames, ['Amoxicillin', 'Paracetamol']);
+    expect(repository.createdPrescriptionAttachments, [
+      'prescription.pdf',
+      null,
+    ]);
     expect(tester.takeException(), isNull);
   });
 
@@ -356,11 +462,11 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Patient'), findsOneWidget);
-    expect(find.text('Result category'), findsOneWidget);
+    expect(find.text('Result category'), findsNothing);
     expect(find.text('Result file and AI autofill'), findsOneWidget);
     final scanFile = find.widgetWithText(
       OutlinedButton,
-      'Attach and scan result file',
+      'Attach and scan result files',
     );
     await tester.ensureVisible(scanFile);
     await tester.tap(scanFile);
@@ -373,12 +479,17 @@ void main() {
       ),
       findsOneWidget,
     );
+    expect(find.text('Result category'), findsOneWidget);
     expect(find.text('CT scan'), findsOneWidget);
     expect(find.text('CT scan of chest without contrast'), findsOneWidget);
     expect(find.text('Care Navigator Medical Center'), findsOneWidget);
     expect(find.text('Dr. Juan Dela Cruz'), findsOneWidget);
     expect(find.text('No acute findings.'), findsOneWidget);
-    expect(find.text('Uploaded from the facility portal.'), findsOneWidget);
+    expect(find.text('Technical summary'), findsOneWidget);
+    expect(find.text('Patient-friendly summary'), findsOneWidget);
+    expect(find.text('Uploaded from the facility portal.'), findsNothing);
+    expect(find.text('Needs verification (optional)'), findsNothing);
+    expect(find.text('Other report notes (optional)'), findsNothing);
     await tester.tap(
       find.widgetWithText(FilledButton, 'Upload diagnostic result').last,
     );
@@ -413,6 +524,181 @@ void main() {
     expect(find.byType(AlertDialog), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('diagnostic upload keeps multiple reports separately editable', (
+    tester,
+  ) async {
+    final repository = _DialogCareRepository(
+      relationship,
+      diagnosticScans: [
+        const DiagnosticResultScanDraft(
+          sourceFileName: 'cbc.pdf',
+          patientName: 'Maria Santos',
+          category: 'laboratory',
+          testProcedureName: 'Complete Blood Count',
+          resultDetails: 'WBC | 6.2 | 10^9/L | 4-11 | within_range',
+          technicalSummary: 'WBC is within the report-stated range.',
+          patientFriendlySummary:
+              'Your WBC is within the range printed on this report.',
+        ),
+        const DiagnosticResultScanDraft(
+          sourceFileName: 'chest-xray.png',
+          patientName: 'Maria Santos',
+          category: 'x_ray',
+          testProcedureName: 'Chest X-ray',
+          officialFindingsImpression: 'No focal airspace opacity.',
+          technicalSummary: 'No acute report-stated abnormality.',
+          patientFriendlySummary:
+              'The report does not describe an acute abnormality.',
+        ),
+      ],
+    );
+    final previousSelector = FileSelectorPlatform.instance;
+    FileSelectorPlatform.instance = _FakeFileSelector(
+      files: [_testXFile('cbc.pdf'), _testXFile('chest-xray.png', png: true)],
+    );
+    addTearDown(() => FileSelectorPlatform.instance = previousSelector);
+    const request = (
+      role: UserRole.doctor,
+      section: 'results-review',
+      itemId: null as String?,
+    );
+    final container = ProviderContainer(
+      overrides: [
+        workspaceSnapshotProvider(request).overrideWith(
+          (ref) async => WorkspaceSnapshot(
+            title: 'Results Review',
+            description: 'Multiple result upload test.',
+            items: const [],
+            loadedAt: DateTime(2026, 8, 25),
+          ),
+        ),
+        careRepositoryProvider.overrideWithValue(repository),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          navigatorKey: rootNavigatorKey,
+          home: const Scaffold(
+            body: LiveWorkspaceView(
+              role: UserRole.doctor,
+              section: 'results-review',
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.widgetWithText(FilledButton, 'Upload diagnostic result').last,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.widgetWithText(OutlinedButton, 'Attach and scan result files'),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('2 reports detected.'), findsOneWidget);
+    expect(find.text('Report 1 of 2'), findsOneWidget);
+    expect(find.text('Report 2 of 2'), findsOneWidget);
+    expect(find.text('Complete Blood Count'), findsOneWidget);
+    expect(find.text('Chest X-ray'), findsOneWidget);
+
+    await tester.tap(
+      find.widgetWithText(FilledButton, 'Upload diagnostic result').last,
+    );
+    await tester.pumpAndSettle();
+    expect(repository.uploadedTitles, ['Complete Blood Count', 'Chest X-ray']);
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'diagnostic upload omits identity warning and dates undated results',
+    (tester) async {
+      final repository = _DialogCareRepository(
+        relationship,
+        diagnosticScans: const [
+          DiagnosticResultScanDraft(
+            sourceFileName: 'result.pdf',
+            patientName: 'Ana Reyes',
+            category: 'laboratory',
+            testProcedureName: 'Complete Blood Count',
+          ),
+        ],
+      );
+      final previousSelector = FileSelectorPlatform.instance;
+      FileSelectorPlatform.instance = _FakeFileSelector(
+        files: [_testXFile('result.pdf')],
+      );
+      addTearDown(() => FileSelectorPlatform.instance = previousSelector);
+      const request = (
+        role: UserRole.doctor,
+        section: 'results-review',
+        itemId: null as String?,
+      );
+      final container = ProviderContainer(
+        overrides: [
+          workspaceSnapshotProvider(request).overrideWith(
+            (ref) async => WorkspaceSnapshot(
+              title: 'Results Review',
+              description: 'Patient match test.',
+              items: const [],
+              loadedAt: DateTime(2026, 8, 25),
+            ),
+          ),
+          careRepositoryProvider.overrideWithValue(repository),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            navigatorKey: rootNavigatorKey,
+            home: const Scaffold(
+              body: LiveWorkspaceView(
+                role: UserRole.doctor,
+                section: 'results-review',
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.widgetWithText(FilledButton, 'Upload diagnostic result').last,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.widgetWithText(OutlinedButton, 'Attach and scan result files'),
+      );
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Patient mismatch'), findsNothing);
+      expect(
+        find.textContaining('Patient identity needs verification'),
+        findsNothing,
+      );
+      expect(find.text('Confirmed result date'), findsOneWidget);
+      expect(find.text('Needs verification (optional)'), findsNothing);
+      expect(find.text('Other report notes (optional)'), findsNothing);
+
+      final uploadDay = DateUtils.dateOnly(DateTime.now());
+      await tester.tap(
+        find.widgetWithText(FilledButton, 'Upload diagnostic result').last,
+      );
+      await tester.pumpAndSettle();
+      expect(repository.uploadedTitles, ['Complete Blood Count']);
+      expect(repository.uploadedDiagnosticResult?.resultDate, uploadDay);
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('existing patient mode searches the global identity directory', (
     tester,
@@ -520,10 +806,17 @@ class _PrimaryActionCase {
 }
 
 class _DialogCareRepository implements CareRepository {
-  _DialogCareRepository(this.relationship, {this.searchResults = const []});
+  _DialogCareRepository(
+    this.relationship, {
+    this.searchResults = const [],
+    this.diagnosticScans,
+    this.prescriptionScans,
+  });
 
   final ClinicalRelationship relationship;
   final List<ExistingPatientMatch> searchResults;
+  final List<DiagnosticResultScanDraft>? diagnosticScans;
+  final List<PrescriptionScanDraft>? prescriptionScans;
   String? lastSearchQuery;
   String? linkedPatientId;
   String? uploadedPatientId;
@@ -532,6 +825,9 @@ class _DialogCareRepository implements CareRepository {
   String? uploadedFileName;
   String? uploadedTitle;
   DiagnosticResultDetails? uploadedDiagnosticResult;
+  final List<String> uploadedTitles = [];
+  final List<String> createdMedicationNames = [];
+  final List<String?> createdPrescriptionAttachments = [];
 
   @override
   Future<List<ClinicalRelationship>> listClinicalRelationships() async => [
@@ -547,18 +843,82 @@ class _DialogCareRepository implements CareRepository {
       );
 
   @override
+  Future<PrescriptionScanDraft> extractPrescriptionFromAttachment({
+    required ({List<int> bytes, String name}) attachment,
+  }) async =>
+      (await extractPrescriptionsFromAttachment(attachment: attachment)).first;
+
+  @override
+  Future<List<PrescriptionScanDraft>> extractPrescriptionsFromAttachment({
+    required ({List<int> bytes, String name}) attachment,
+  }) async =>
+      prescriptionScans ??
+      const [
+        PrescriptionScanDraft(
+          diagnosisReason: 'Pain',
+          medicationName: 'Paracetamol',
+          medicationFormStrength: '500 mg tablet',
+          route: 'Oral',
+          exactDose: '1 tablet',
+          frequency: 'Every 6 hours',
+          duration: '3 days',
+          quantityToDispense: '12 tablets',
+          refills: 0,
+        ),
+      ];
+
+  @override
+  Future<void> createPrescription({
+    required ClinicalRelationship relationship,
+    required String medicationName,
+    required String dosage,
+    required String frequency,
+    required String duration,
+    String? diagnosisReason,
+    String? medicationFormStrength,
+    String? route,
+    String? exactDose,
+    String? quantityToDispense,
+    int refills = 0,
+    DateTime? startDate,
+    DateTime? endDate,
+    bool isPrn = false,
+    String? prnReason,
+    String? maximumDailyDose,
+    String? instructions,
+    ({List<int> bytes, String name})? attachment,
+  }) async {
+    createdMedicationNames.add(medicationName);
+    createdPrescriptionAttachments.add(attachment?.name);
+  }
+
+  @override
   Future<DiagnosticResultScanDraft> extractDiagnosticResultFromAttachment({
     required ({List<int> bytes, String name}) attachment,
-  }) async => DiagnosticResultScanDraft(
-    category: 'ct_scan',
-    testProcedureName: 'CT scan of chest without contrast',
-    performedOrCollectedDate: DateTime(2026, 8, 20),
-    resultDate: DateTime(2026, 8, 21),
-    facility: 'Care Navigator Medical Center',
-    requestingDoctor: 'Dr. Juan Dela Cruz',
-    findingsImpression: 'No acute findings.',
-    notes: 'Uploaded from the facility portal.',
-  );
+  }) async => (await extractDiagnosticResultsFromAttachments(
+    attachments: [attachment],
+  )).single;
+
+  @override
+  Future<List<DiagnosticResultScanDraft>>
+  extractDiagnosticResultsFromAttachments({
+    required List<({List<int> bytes, String name})> attachments,
+  }) async =>
+      diagnosticScans ??
+      [
+        DiagnosticResultScanDraft(
+          sourceFileName: attachments.first.name,
+          patientName: 'Maria Santos',
+          category: 'ct_scan',
+          testProcedureName: 'CT scan of chest without contrast',
+          performedOrCollectedDate: DateTime(2026, 8, 20),
+          resultDate: DateTime(2026, 8, 21),
+          facility: 'Care Navigator Medical Center',
+          requestingDoctor: 'Dr. Juan Dela Cruz',
+          findingsImpression: 'No acute findings.',
+          notes: 'Uploaded from the facility portal.',
+        ),
+      ];
 
   @override
   Future<List<ExistingPatientMatch>> searchExistingPatients(
@@ -589,6 +949,7 @@ class _DialogCareRepository implements CareRepository {
     uploadedDocumentType = documentType;
     uploadedFileName = fileName;
     uploadedTitle = title;
+    uploadedTitles.add(title);
     uploadedDiagnosticResult = diagnosticResult;
   }
 
@@ -597,18 +958,35 @@ class _DialogCareRepository implements CareRepository {
 }
 
 class _FakeFileSelector extends FileSelectorPlatform {
+  _FakeFileSelector({this.files});
+
+  final List<XFile>? files;
+
   @override
   Future<XFile?> openFile({
     List<XTypeGroup>? acceptedTypeGroups,
     String? initialDirectory,
     String? confirmButtonText,
-  }) async => XFile.fromData(
-    Uint8List.fromList(const [0x25, 0x50, 0x44, 0x46, 0x2D, 0x31, 0x2E, 0x37]),
-    path: 'lab-result.pdf',
-    name: 'lab-result.pdf',
-    mimeType: 'application/pdf',
-  );
+  }) async => (files ?? [_testXFile('prescription.pdf')]).firstOrNull;
+
+  @override
+  Future<List<XFile>> openFiles({
+    List<XTypeGroup>? acceptedTypeGroups,
+    String? initialDirectory,
+    String? confirmButtonText,
+  }) async => files ?? [_testXFile('lab-result.pdf')];
 }
+
+XFile _testXFile(String name, {bool png = false}) => XFile.fromData(
+  Uint8List.fromList(
+    png
+        ? const [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
+        : const [0x25, 0x50, 0x44, 0x46, 0x2D, 0x31, 0x2E, 0x37],
+  ),
+  path: name,
+  name: name,
+  mimeType: png ? 'image/png' : 'application/pdf',
+);
 
 class _DialogAdminRepository implements AdminRepository {
   @override

@@ -163,16 +163,22 @@ void main() {
       find.widgetWithText(FilledButton, 'Add Record'),
       'Follow-up patient checkup',
     );
-    await _openAndCancel(
-      tester,
-      find.widgetWithText(FilledButton, 'Issue Prescription'),
-      'Issue prescription',
-    );
-    await _openAndCancel(
-      tester,
+    await tester.tap(find.widgetWithText(FilledButton, 'Issue Prescription'));
+    await tester.pumpAndSettle();
+    expect(find.text('Issue prescription'), findsOneWidget);
+    expect(find.text('Patient'), findsNothing);
+    expect(find.text('Apply my electronic signature'), findsNothing);
+    await tester.tap(find.widgetWithText(TextButton, 'Cancel').last);
+    await tester.pumpAndSettle();
+
+    await tester.tap(
       find.widgetWithText(FilledButton, 'Upload diagnostic result'),
-      'Upload diagnostic result',
     );
+    await tester.pumpAndSettle();
+    expect(find.text('Upload diagnostic result'), findsWidgets);
+    expect(find.text('Patient'), findsNothing);
+    await tester.tap(find.widgetWithText(TextButton, 'Cancel').last);
+    await tester.pumpAndSettle();
 
     final actionLabels = [
       'Message Patient',
@@ -456,6 +462,67 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Open secure file'), findsOneWidget);
       expect(find.text('Care Hospital'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'doctor patient detail labels originating hospitals on checkup and clinical history entries',
+    (tester) async {
+      await _pumpItem(
+        tester,
+        role: UserRole.doctor,
+        section: 'patients',
+        itemId: 'assignment-id',
+        item: const WorkspaceItem(
+          id: 'assignment-id',
+          kind: 'doctor_patient_assignments',
+          title: 'Neil Ardrey Laza',
+          subtitle: 'Assigned patient',
+          data: {
+            'patient_id': 'patient-id',
+            'checkup_history': [
+              {
+                'title': 'General Checkup',
+                'record_type': 'checkup',
+                'doctor_display_name': 'Dr. Maria Santos',
+                'originating_hospital': 'CareNavigator Regional Hospital (Demo)',
+                'created_at': '2026-08-20T09:00:00Z',
+              },
+            ],
+            'prescription_history': [
+              {
+                'id': 'prescription-id',
+                'history_source': 'prescriptions',
+                'medication_name': 'Paracetamol 500mg',
+                'prescriber_name': 'Dr. Maria Santos',
+                'originating_hospital': 'CareNavigator Regional Hospital (Demo)',
+                'created_at': '2026-08-20T09:00:00Z',
+              },
+            ],
+            'diagnostic_result_history': [
+              {
+                'id': 'doc-id',
+                'history_source': 'medical_documents',
+                'document_type': 'diagnostic_result',
+                'test_procedure_name': 'CT Scan Chest',
+                'requesting_doctor': 'Dr. Maria Santos',
+                'originating_hospital': 'CareNavigator Regional Hospital (Demo)',
+                'result_date': '2026-08-21',
+              },
+            ],
+          },
+        ),
+      );
+
+      expect(find.text('General Checkup'), findsOneWidget);
+      expect(find.text('Paracetamol 500mg'), findsOneWidget);
+      expect(find.text('CT Scan Chest'), findsOneWidget);
+      expect(find.textContaining('CareNavigator Regional Hospital (Demo)'), findsWidgets);
+
+      await tester.ensureVisible(find.text('General Checkup'));
+      await tester.tap(find.text('General Checkup'));
+      await tester.pumpAndSettle();
+      expect(find.text('Originating Facility / Hospital'), findsOneWidget);
     },
   );
 

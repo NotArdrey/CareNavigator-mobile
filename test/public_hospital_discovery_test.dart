@@ -223,6 +223,13 @@ void main() {
     expect(find.text('Emergency Hospital Search'), findsOneWidget);
     expect(find.byTooltip('Pin conversation'), findsOneWidget);
     expect(find.byTooltip('Edit conversation title'), findsOneWidget);
+    expect(find.byTooltip('Delete conversation'), findsOneWidget);
+    await tester.tap(find.byTooltip('Delete conversation'));
+    await tester.pumpAndSettle();
+    expect(find.text('Delete conversation?'), findsOneWidget);
+    expect(find.textContaining('permanently removed'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Pin conversation'));
     await tester.pumpAndSettle();
     expect(find.byTooltip('Unpin conversation'), findsOneWidget);

@@ -30,6 +30,34 @@ void main() {
       expect(profile.isEmergency, isTrue);
     });
 
+    test(
+      'classifies crushing radiating chest pain with sweating as emergency',
+      () {
+        final profile = classifyCareAssistantInput(
+          'I have crushing chest pain spreading to my left arm and I’m sweating',
+        );
+
+        expect(profile.intent, CareAssistantIntent.emergency);
+        expect(profile.urgency, CareAssistantUrgency.emergency);
+        expect(profile.followUpQuestion, isNull);
+      },
+    );
+
+    test('recognizes a pediatric paracetamol dose request', () {
+      expect(
+        isPediatricParacetamolDoseRequest(
+          'My child has a fever. How much paracetamol should I give?',
+        ),
+        isTrue,
+      );
+      expect(
+        isPediatricParacetamolDoseRequest(
+          'I took paracetamol for my headache.',
+        ),
+        isFalse,
+      );
+    });
+
     test('classifies ambiguous breathing difficulty as urgent follow-up', () {
       final profile = classifyCareAssistantInput(
         'I have a hard time breathing and my tonsil has many stones',
@@ -103,6 +131,51 @@ void main() {
 
       expect(profile.intent, CareAssistantIntent.medical);
       expect(profile.urgency, CareAssistantUrgency.routine);
+    });
+
+    test('recognizes a dangerously high Celsius reading despite a typo', () {
+      final profile = classifyCareAssistantInput('45 celcius');
+
+      expect(profile.intent, CareAssistantIntent.emergency);
+      expect(profile.urgency, CareAssistantUrgency.emergency);
+    });
+
+    test('uses the previous fever question to understand a bare number', () {
+      final profile = classifyCareAssistantInput(
+        '45',
+        conversationContext:
+            'I have a very bad fever. What is your current temperature?',
+      );
+
+      expect(profile.intent, CareAssistantIntent.emergency);
+      expect(profile.urgency, CareAssistantUrgency.emergency);
+    });
+
+    test('converts a Fahrenheit temperature before triage', () {
+      final profile = classifyCareAssistantInput('105 fahrenheit');
+
+      expect(profile.intent, CareAssistantIntent.emergency);
+      expect(profile.urgency, CareAssistantUrgency.emergency);
+    });
+
+    test('prioritizes breathing danger over a non-extreme fever reading', () {
+      final profile = classifyCareAssistantInput(
+        "My temperature is 38°C and I can't breathe",
+      );
+
+      expect(profile.intent, CareAssistantIntent.emergency);
+      expect(profile.urgency, CareAssistantUrgency.emergency);
+    });
+
+    test('flags 38°C in an infant under three months as urgent', () {
+      final profile = classifyCareAssistantInput(
+        'The rectal temperature is 38°C',
+        conversationContext: 'My baby is 2 months old and has a fever.',
+      );
+
+      expect(profile.intent, CareAssistantIntent.medical);
+      expect(profile.urgency, CareAssistantUrgency.urgent);
+      expect(profile.followUpQuestion, isNull);
     });
 
     test('allows an explicit topic change during a medical conversation', () {
@@ -185,5 +258,13 @@ void main() {
     expect(actions, contains('infant under 1 year'));
     expect(actions, contains('adult or child over 1 year'));
     expect(guidance.avoid.join(' '), contains('blind finger sweep'));
+  });
+
+  test('very high temperature guidance is specific and actionable', () {
+    final guidance = emergencyFirstAidFor('45 celcius');
+
+    expect(guidance.immediateActions.join(' '), contains('temperature'));
+    expect(guidance.immediateActions.join(' '), contains('cool place'));
+    expect(guidance.avoid.join(' '), contains('ice bath'));
   });
 }

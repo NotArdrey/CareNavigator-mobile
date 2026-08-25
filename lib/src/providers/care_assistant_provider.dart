@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../models/hospitals/hospital_models.dart';
 import '../repositories/care_assistant_repository.dart';
+import '../repositories/care_assistant_history_repository.dart';
 import '../repositories/repository_failure.dart';
 import '../services/care_assistant_input_classifier.dart';
 import 'core_providers.dart';
@@ -97,6 +100,8 @@ class CareAssistantState {
     this.conversations = const [],
     this.conversationPinned = false,
     this.conversationTitleEdited = false,
+    this.historyIsLoading = false,
+    this.historyErrorMessage,
   });
 
   factory CareAssistantState.initial() => const CareAssistantState(
@@ -123,6 +128,8 @@ class CareAssistantState {
   final List<CareAssistantConversation> conversations;
   final bool conversationPinned;
   final bool conversationTitleEdited;
+  final bool historyIsLoading;
+  final String? historyErrorMessage;
 
   bool get isBusy => status == CareAssistantStatus.responding;
   bool get showEmergencyActions => urgency == CareAssistantUrgency.emergency;
@@ -193,6 +200,9 @@ class CareAssistantState {
     List<CareAssistantConversation>? conversations,
     bool? conversationPinned,
     bool? conversationTitleEdited,
+    bool? historyIsLoading,
+    String? historyErrorMessage,
+    bool clearHistoryError = false,
   }) => CareAssistantState(
     messages: messages ?? this.messages,
     status: status ?? this.status,
@@ -210,6 +220,10 @@ class CareAssistantState {
     conversationPinned: conversationPinned ?? this.conversationPinned,
     conversationTitleEdited:
         conversationTitleEdited ?? this.conversationTitleEdited,
+    historyIsLoading: historyIsLoading ?? this.historyIsLoading,
+    historyErrorMessage: clearHistoryError
+        ? null
+        : historyErrorMessage ?? this.historyErrorMessage,
   );
 }
 
@@ -221,9 +235,25 @@ final careAssistantProvider =
 class CareAssistantController extends Notifier<CareAssistantState> {
   var _requestToken = 0;
   var _conversationSequence = 0;
+  var _historyLoadToken = 0;
+  Future<void> _historyWriteQueue = Future<void>.value();
 
   @override
-  CareAssistantState build() => _newConversationState();
+  CareAssistantState build() {
+    final identity = ref.watch(appIdentityProvider);
+    final repository = ref.watch(careAssistantHistoryRepositoryProvider);
+    final initial = _newConversationState();
+    if (!identity.isAuthenticated || repository == null) return initial;
+
+    final userId = identity.userId!;
+    final token = ++_historyLoadToken;
+    unawaited(
+      Future<void>.microtask(
+        () => _loadHistory(token, userId: userId, repository: repository),
+      ),
+    );
+    return initial.copyWith(historyIsLoading: true);
+  }
 
   Future<void> submit(
     String rawMessage, {
@@ -243,11 +273,16 @@ class CareAssistantController extends Notifier<CareAssistantState> {
     final token = ++_requestToken;
     final directory = ref.read(hospitalDirectoryProvider);
     final continuingMedicalConversation =
-        state.intent == CareAssistantIntent.medical &&
-        state.status == CareAssistantStatus.followUp;
+        state.intent == CareAssistantIntent.medical;
+    final conversationContext = state.messages
+        .skip(1)
+        .where((message) => message.role == CareAssistantChatMessageRole.user)
+        .map((message) => message.text)
+        .join('\n');
     final profile = CareAssistantNeedProfile.fromText(
       messageText,
       continueMedicalConversation: continuingMedicalConversation,
+      conversationContext: conversationContext,
     );
     final userMessage = CareAssistantMessage(
       role: CareAssistantChatMessageRole.user,
@@ -275,6 +310,14 @@ class CareAssistantController extends Notifier<CareAssistantState> {
       final callInstruction = contact.isEmpty
           ? 'Contact your local emergency services'
           : 'Call $contact';
+      final measuredTemperature = extractBodyTemperatureCelsius(
+        messageText,
+        conversationContext: conversationContext,
+      );
+      final emergencyMessage =
+          measuredTemperature != null && measuredTemperature >= 40.5
+          ? '$callInstruction now. Do not drive yourself to the hospital. A body temperature of ${measuredTemperature.toStringAsFixed(measuredTemperature == measuredTemperature.roundToDouble() ? 0 : 1)}°C needs immediate medical assessment. Follow the emergency dispatcher\'s instructions, or have someone else take you to the nearest emergency department only if emergency transport is unavailable. Do not delay to continue this chat.'
+          : '$callInstruction now. Do not drive yourself to the hospital. Follow the emergency dispatcher\'s instructions, or have someone else take you to the nearest emergency department only if emergency transport is unavailable. Do not wait for more questions or continue this chat.';
       _complete(
         token,
         directory: directory,
@@ -283,10 +326,62 @@ class CareAssistantController extends Notifier<CareAssistantState> {
           message: '',
           intent: CareAssistantIntent.emergency,
           urgency: CareAssistantUrgency.emergency,
-          firstAid: emergencyFirstAidFor(messageText),
+          firstAid: emergencyFirstAidFor(
+            messageText,
+            conversationContext: conversationContext,
+          ),
         ),
-        messageOverride:
-            'This may require immediate medical attention. $callInstruction or go to the nearest emergency department now. Do not wait for an online consultation.',
+        messageOverride: emergencyMessage,
+      );
+      return;
+    }
+
+    final measuredTemperature = extractBodyTemperatureCelsius(
+      messageText,
+      conversationContext: conversationContext,
+    );
+    if (measuredTemperature != null &&
+        measuredTemperature >= 38 &&
+        isInfantUnderThreeMonths(
+          messageText,
+          conversationContext: conversationContext,
+        )) {
+      _complete(
+        token,
+        directory: directory,
+        profile: profile,
+        reply: const CareAssistantReply(
+          message:
+              'A baby under 3 months old with a temperature of 38°C or higher needs urgent medical assessment now, even without other symptoms. Contact the child\'s pediatrician immediately or go to an emergency department now. Do not delay care to continue this chat.\n\nCall 911 now if the baby is difficult to wake, has difficulty breathing, a seizure, a stiff neck, a rash that does not fade when pressed, or signs of severe dehydration.',
+          intent: CareAssistantIntent.medical,
+          urgency: CareAssistantUrgency.urgent,
+        ),
+      );
+      return;
+    }
+
+    if (isPediatricParacetamolDoseRequest(
+      messageText,
+      conversationContext: conversationContext,
+    )) {
+      _complete(
+        token,
+        directory: directory,
+        profile: profile,
+        reply: const CareAssistantReply(
+          message:
+              'I can help check the appropriate paracetamol dose, but I need these details first:\n'
+              '1. Child\'s age in months or years\n'
+              '2. Weight in kilograms\n'
+              '3. Current temperature and how it was measured\n'
+              '4. Exact paracetamol strength on the bottle, such as 120 mg/5 mL or 250 mg/5 mL\n'
+              '5. Amount and time of the last dose\n'
+              '6. Any other medicines already given\n\n'
+              'Do not give another dose until these are confirmed. Paracetamol concentrations vary, so age and weight alone are not enough to calculate a dose in milliliters. A calculated dose must use a clinician-approved pediatric dosing rule and the confirmed product concentration.\n\n'
+              'If the child is under 3 months old with a temperature of 38°C or higher, seek urgent medical care now. Call 911 or go to an emergency department now if the child is difficult to wake, has difficulty breathing, a seizure, a stiff neck, a rash that does not fade when pressed, or signs of severe dehydration.',
+          intent: CareAssistantIntent.medical,
+          urgency: CareAssistantUrgency.soon,
+        ),
       );
       return;
     }
@@ -361,7 +456,17 @@ class CareAssistantController extends Notifier<CareAssistantState> {
   void newChat() {
     _requestToken++;
     final conversations = _upsertConversation(state);
-    state = _newConversationState().copyWith(conversations: conversations);
+    final current = conversations.firstWhere(
+      (conversation) => conversation.id == state.conversationId,
+    );
+    if (current.messages.length > 1 || current.isTitleEdited) {
+      _schedulePersist(current);
+    }
+    state = _newConversationState().copyWith(
+      conversations: conversations,
+      historyIsLoading: state.historyIsLoading,
+      historyErrorMessage: state.historyErrorMessage,
+    );
   }
 
   void selectConversation(String conversationId) {
@@ -406,6 +511,8 @@ class CareAssistantController extends Notifier<CareAssistantState> {
       conversations: conversations,
       conversationPinned: selected.isPinned,
       conversationTitleEdited: selected.isTitleEdited,
+      historyIsLoading: state.historyIsLoading,
+      historyErrorMessage: state.historyErrorMessage,
     );
   }
 
@@ -431,6 +538,10 @@ class CareAssistantController extends Notifier<CareAssistantState> {
           )
           .toList(growable: false),
     );
+    final updated = state.conversations
+        .where((conversation) => conversation.id == conversationId)
+        .firstOrNull;
+    if (updated != null) _schedulePersist(updated);
   }
 
   void togglePinConversation(String conversationId) {
@@ -450,6 +561,51 @@ class CareAssistantController extends Notifier<CareAssistantState> {
           )
           .toList(growable: false),
     );
+    final updated = state.conversations
+        .where((conversation) => conversation.id == conversationId)
+        .firstOrNull;
+    if (updated != null) _schedulePersist(updated);
+  }
+
+  Future<void> deleteConversation(String conversationId) async {
+    final exists =
+        state.conversationId == conversationId ||
+        state.conversations.any(
+          (conversation) => conversation.id == conversationId,
+        );
+    if (!exists) return;
+
+    final identity = ref.read(appIdentityProvider);
+    final repository = ref.read(careAssistantHistoryRepositoryProvider);
+    if (identity.isAuthenticated && repository != null) {
+      var deleted = false;
+      _historyWriteQueue = _historyWriteQueue.then((_) async {
+        try {
+          await repository.deleteForUser(identity.userId!, conversationId);
+          deleted = true;
+          _clearHistoryError();
+        } catch (_) {
+          _setHistoryError('Conversation could not be deleted. Try again.');
+        }
+      });
+      await _historyWriteQueue;
+      if (!deleted) return;
+    }
+
+    final remaining = state.conversations
+        .where((conversation) => conversation.id != conversationId)
+        .toList(growable: false);
+    if (state.conversationId != conversationId) {
+      state = state.copyWith(conversations: remaining);
+      return;
+    }
+    if (remaining.isEmpty) {
+      state = _newConversationState().copyWith(
+        historyErrorMessage: state.historyErrorMessage,
+      );
+      return;
+    }
+    state = _stateFromConversation(remaining.first, remaining);
   }
 
   void _complete(
@@ -523,9 +679,7 @@ class CareAssistantController extends Notifier<CareAssistantState> {
       );
     }
 
-    var message = backendOverEscalated
-        ? 'I need a little more information to guide you safely.'
-        : (messageOverride ?? reply.message).trim();
+    var message = (messageOverride ?? reply.message).trim();
     final firstAid = emergency
         ? reply.firstAid
         : backendOverEscalated
@@ -609,35 +763,259 @@ class CareAssistantController extends Notifier<CareAssistantState> {
     );
   }
 
+  Future<void> _loadHistory(
+    int token, {
+    required String userId,
+    required CareAssistantHistoryRepository repository,
+  }) async {
+    try {
+      final records = await repository.loadForUser(userId);
+      if (!ref.mounted ||
+          token != _historyLoadToken ||
+          ref.read(appIdentityProvider).userId != userId) {
+        return;
+      }
+      final conversations = records
+          .map(_conversationFromRecord)
+          .whereType<CareAssistantConversation>()
+          .toList(growable: false);
+      if (conversations.isEmpty) {
+        state = state.copyWith(
+          historyIsLoading: false,
+          clearHistoryError: true,
+        );
+        return;
+      }
+
+      final untouched =
+          state.messages.length == 1 &&
+          state.conversationTitle == 'New consultation' &&
+          !state.conversationTitleEdited;
+      if (untouched) {
+        state = _stateFromConversation(conversations.first, conversations);
+        return;
+      }
+      final current = _conversationFromState(state);
+      state = state.copyWith(
+        conversations: [
+          current,
+          ...conversations.where(
+            (conversation) => conversation.id != current.id,
+          ),
+        ],
+        historyIsLoading: false,
+        clearHistoryError: true,
+      );
+    } catch (_) {
+      if (!ref.mounted ||
+          token != _historyLoadToken ||
+          ref.read(appIdentityProvider).userId != userId) {
+        return;
+      }
+      state = state.copyWith(
+        historyIsLoading: false,
+        historyErrorMessage:
+            'Conversation history could not be loaded. New messages will remain in this session.',
+      );
+    }
+  }
+
+  CareAssistantState _stateFromConversation(
+    CareAssistantConversation conversation,
+    List<CareAssistantConversation> conversations,
+  ) => CareAssistantState(
+    messages: conversation.messages,
+    status: conversation.status,
+    recommendations: conversation.recommendations,
+    intent: conversation.intent,
+    urgency: conversation.urgency,
+    recommendationSummary: conversation.recommendationSummary,
+    isOffline: conversation.isOffline,
+    errorMessage: conversation.errorMessage,
+    conversationId: conversation.id,
+    conversationTitle: conversation.title,
+    conversations: conversations,
+    conversationPinned: conversation.isPinned,
+    conversationTitleEdited: conversation.isTitleEdited,
+    historyIsLoading: false,
+  );
+
   void _publish(CareAssistantState next, {String? title}) {
     final titled = title == null
         ? next
         : next.copyWith(conversationTitle: title);
-    state = titled.copyWith(conversations: _upsertConversation(titled));
+    final conversations = _upsertConversation(titled);
+    state = titled.copyWith(conversations: conversations);
+    final current = conversations.firstWhere(
+      (conversation) => conversation.id == titled.conversationId,
+    );
+    _schedulePersist(current);
   }
 
   List<CareAssistantConversation> _upsertConversation(
     CareAssistantState value,
   ) {
-    final conversation = CareAssistantConversation(
-      id: value.conversationId,
-      title: value.conversationTitle,
-      updatedAt: DateTime.now(),
-      messages: value.messages,
-      status: value.status,
-      recommendations: value.recommendations,
-      intent: value.intent,
-      urgency: value.urgency,
-      isPinned: value.conversationPinned,
-      isTitleEdited: value.conversationTitleEdited,
-      recommendationSummary: value.recommendationSummary,
-      isOffline: value.isOffline,
-      errorMessage: value.errorMessage,
-    );
+    final conversation = _conversationFromState(value);
     return [
       conversation,
       ...value.conversations.where((item) => item.id != conversation.id),
     ];
+  }
+
+  CareAssistantConversation _conversationFromState(CareAssistantState value) =>
+      CareAssistantConversation(
+        id: value.conversationId,
+        title: value.conversationTitle,
+        updatedAt: DateTime.now(),
+        messages: value.messages,
+        status: value.status,
+        recommendations: value.recommendations,
+        intent: value.intent,
+        urgency: value.urgency,
+        isPinned: value.conversationPinned,
+        isTitleEdited: value.conversationTitleEdited,
+        recommendationSummary: value.recommendationSummary,
+        isOffline: value.isOffline,
+        errorMessage: value.errorMessage,
+      );
+
+  void _schedulePersist(CareAssistantConversation conversation) {
+    final identity = ref.read(appIdentityProvider);
+    final repository = ref.read(careAssistantHistoryRepositoryProvider);
+    if (!identity.isAuthenticated || repository == null) return;
+    final userId = identity.userId!;
+    final record = _recordFromConversation(conversation);
+    _historyWriteQueue = _historyWriteQueue.then((_) async {
+      try {
+        await repository.saveForUser(userId, record);
+        if (ref.mounted && ref.read(appIdentityProvider).userId == userId) {
+          _clearHistoryError();
+        }
+      } catch (_) {
+        if (ref.mounted && ref.read(appIdentityProvider).userId == userId) {
+          _setHistoryError(
+            'Conversation history could not be saved. This chat is available only in the current session.',
+          );
+        }
+      }
+    });
+  }
+
+  void _setHistoryError(String message) {
+    state = state.copyWith(
+      historyIsLoading: false,
+      historyErrorMessage: message,
+    );
+  }
+
+  void _clearHistoryError() {
+    if (state.historyErrorMessage == null) return;
+    state = state.copyWith(clearHistoryError: true);
+  }
+
+  CareAssistantHistoryRecord _recordFromConversation(
+    CareAssistantConversation conversation,
+  ) => CareAssistantHistoryRecord(
+    id: conversation.id,
+    title: conversation.title,
+    updatedAt: conversation.updatedAt,
+    isPinned: conversation.isPinned,
+    isTitleEdited: conversation.isTitleEdited,
+    payload: {
+      'messages': [
+        for (final message in conversation.messages)
+          {'role': message.role.name, 'text': message.text},
+      ],
+      'status': conversation.status.name,
+      'recommendations': [
+        for (final recommendation in conversation.recommendations)
+          {
+            'hospital_id': recommendation.hospitalId,
+            'reasons': recommendation.reasons,
+            'distance_km': recommendation.distanceKm,
+            'relevant_services': recommendation.relevantServices,
+            'relevant_specialists': recommendation.relevantSpecialists,
+          },
+      ],
+      'intent': conversation.intent.name,
+      'urgency': conversation.urgency.name,
+      'recommendation_summary': conversation.recommendationSummary,
+      'is_offline': conversation.isOffline,
+      'error_message': conversation.errorMessage,
+    },
+  );
+
+  CareAssistantConversation? _conversationFromRecord(
+    CareAssistantHistoryRecord record,
+  ) {
+    try {
+      final payload = record.payload;
+      final messages = _mapList(payload['messages'])
+          .map(
+            (message) => CareAssistantMessage(
+              role: _enumByName(
+                CareAssistantChatMessageRole.values,
+                message['role'],
+                CareAssistantChatMessageRole.assistant,
+              ),
+              text: message['text']?.toString() ?? '',
+            ),
+          )
+          .where((message) => message.text.trim().isNotEmpty)
+          .toList(growable: false);
+      final recommendations = _mapList(payload['recommendations'])
+          .map(
+            (recommendation) => CareAssistantRecommendation(
+              hospitalId: recommendation['hospital_id']?.toString() ?? '',
+              reasons: _stringList(recommendation['reasons']),
+              distanceKm: _doubleValue(recommendation['distance_km']),
+              relevantServices: _stringList(
+                recommendation['relevant_services'],
+              ),
+              relevantSpecialists: _stringList(
+                recommendation['relevant_specialists'],
+              ),
+            ),
+          )
+          .where((recommendation) => recommendation.hospitalId.isNotEmpty)
+          .toList(growable: false);
+      return CareAssistantConversation(
+        id: record.id,
+        title: record.title,
+        updatedAt: record.updatedAt,
+        messages: messages.isEmpty
+            ? const [
+                CareAssistantMessage(
+                  role: CareAssistantChatMessageRole.assistant,
+                  text: careAssistantWelcomeMessage,
+                ),
+              ]
+            : messages,
+        status: _enumByName(
+          CareAssistantStatus.values,
+          payload['status'],
+          CareAssistantStatus.idle,
+        ),
+        recommendations: recommendations,
+        intent: _enumByName(
+          CareAssistantIntent.values,
+          payload['intent'],
+          CareAssistantIntent.unclear,
+        ),
+        urgency: _enumByName(
+          CareAssistantUrgency.values,
+          payload['urgency'],
+          CareAssistantUrgency.routine,
+        ),
+        isPinned: record.isPinned,
+        isTitleEdited: record.isTitleEdited,
+        recommendationSummary: _nullableText(payload['recommendation_summary']),
+        isOffline: payload['is_offline'] == true,
+        errorMessage: _nullableText(payload['error_message']),
+      );
+    } catch (_) {
+      return null;
+    }
   }
 
   CareAssistantConversation _copyConversation(
@@ -930,13 +1308,19 @@ class CareAssistantNeedProfile {
   factory CareAssistantNeedProfile.fromText(
     String rawText, {
     bool continueMedicalConversation = false,
+    String conversationContext = '',
   }) {
     final text = rawText.trim().toLowerCase();
-    final initialClassification = classifyCareAssistantInput(text);
+    final contextText = conversationContext.trim().toLowerCase();
+    final analysisText = '$contextText\n$text';
+    final initialClassification = classifyCareAssistantInput(
+      text,
+      conversationContext: contextText,
+    );
     final classification = continueMedicalConversation
         ? initialClassification.continueMedicalConversation()
         : initialClassification;
-    final asksForNearest = _hasAny(text, const [
+    final asksForNearest = _hasAny(analysisText, const [
       'nearest',
       'closest',
       'near me',
@@ -945,7 +1329,7 @@ class CareAssistantNeedProfile {
       'around me',
     ]);
     final hasPatientType =
-        _hasAny(text, const [
+        _hasAny(analysisText, const [
           'adult',
           'child',
           'kid',
@@ -960,9 +1344,11 @@ class CareAssistantNeedProfile {
           'pregnancy',
           'maternity',
         ]) ||
-        RegExp(r'\b\d{1,2}\s*[- ]?\s*(?:year|yr)[ -]?old\b').hasMatch(text);
+        RegExp(
+          r'\b\d{1,2}\s*[- ]?\s*(?:year|yr)[ -]?old\b',
+        ).hasMatch(analysisText);
     final patientType =
-        _hasAny(text, const [
+        _hasAny(analysisText, const [
           'pregnant',
           'pregnancy',
           'maternity',
@@ -970,7 +1356,7 @@ class CareAssistantNeedProfile {
           'delivery',
         ])
         ? 'maternity'
-        : _hasAny(text, const [
+        : _hasAny(analysisText, const [
                 'child',
                 'kid',
                 'infant',
@@ -983,12 +1369,12 @@ class CareAssistantNeedProfile {
               ]) ||
               RegExp(
                 r'\b\d{1,2}\s*[- ]?\s*(?:year|yr)[ -]?old\b',
-              ).hasMatch(text)
+              ).hasMatch(analysisText)
         ? 'pediatric'
-        : _hasAny(text, const ['adult'])
+        : _hasAny(analysisText, const ['adult'])
         ? 'adult'
         : null;
-    final hasSeverity = _hasAny(text, const [
+    final hasSeverity = _hasAny(analysisText, const [
       'severe',
       'high fever',
       'very painful',
@@ -999,7 +1385,7 @@ class CareAssistantNeedProfile {
       'heavy',
       'serious',
     ]);
-    final hasDuration = _hasAny(text, const [
+    final hasDuration = _hasAny(analysisText, const [
       'today',
       'yesterday',
       'hour',
@@ -1011,14 +1397,14 @@ class CareAssistantNeedProfile {
       'since',
       'for ',
     ]);
-    final respiratory = _hasAny(text, const [
+    final respiratory = _hasAny(analysisText, const [
       'breathing',
       'shortness of breath',
       'wheezing',
       'asthma',
     ]);
-    final cardiac = _hasAny(text, const ['chest pain', 'heart pain']);
-    final trauma = _hasAny(text, const [
+    final cardiac = _hasAny(analysisText, const ['chest pain', 'heart pain']);
+    final trauma = _hasAny(analysisText, const [
       'accident',
       'injury',
       'injured',
@@ -1027,13 +1413,25 @@ class CareAssistantNeedProfile {
       'fall',
       'crash',
     ]);
-    final feverOrVomiting = _hasAny(text, const ['fever', 'vomit', 'vomiting']);
-    final stomach = _hasAny(text, const ['stomach', 'abdominal', 'belly']);
+    final feverOrVomiting = _hasAny(analysisText, const [
+      'fever',
+      'vomit',
+      'vomiting',
+    ]);
+    final stomach = _hasAny(analysisText, const [
+      'stomach',
+      'abdominal',
+      'belly',
+    ]);
     final emergency = classification.isEmergency;
     final isHighRiskChild =
         patientType == 'pediatric' &&
         feverOrVomiting &&
-        (_hasAny(text, const ['high fever', 'keeps vomiting', 'cannot keep']) ||
+        (_hasAny(analysisText, const [
+              'high fever',
+              'keeps vomiting',
+              'cannot keep',
+            ]) ||
             hasSeverity);
 
     final capabilities = <String>[
@@ -1041,8 +1439,9 @@ class CareAssistantNeedProfile {
       if (patientType == 'maternity') 'maternity',
       if (trauma) ...['trauma', 'imaging'],
       if (respiratory || cardiac || emergency || hasSeverity) 'emergency',
-      if (_hasAny(text, const ['scan', 'x-ray', 'xray', 'imaging'])) 'imaging',
-      if (_hasAny(text, const ['surgery', 'operation'])) 'surgery',
+      if (_hasAny(analysisText, const ['scan', 'x-ray', 'xray', 'imaging']))
+        'imaging',
+      if (_hasAny(analysisText, const ['surgery', 'operation'])) 'surgery',
     ];
     if (capabilities.isEmpty && (stomach || feverOrVomiting)) {
       capabilities.add('general');
@@ -1054,7 +1453,7 @@ class CareAssistantNeedProfile {
         trauma ||
         feverOrVomiting ||
         stomach ||
-        _hasAny(text, const [
+        _hasAny(analysisText, const [
           'pain',
           'rash',
           'infection',
@@ -1147,4 +1546,35 @@ class CareAssistantNeedProfile {
 
   static bool _hasAny(String value, List<String> terms) =>
       terms.any(value.contains);
+}
+
+T _enumByName<T extends Enum>(List<T> values, Object? raw, T fallback) {
+  final name = raw?.toString();
+  for (final value in values) {
+    if (value.name == name) return value;
+  }
+  return fallback;
+}
+
+List<Map<String, dynamic>> _mapList(Object? raw) {
+  if (raw is! List) return const [];
+  return raw
+      .whereType<Map>()
+      .map((value) => value.map((key, item) => MapEntry(key.toString(), item)))
+      .toList(growable: false);
+}
+
+List<String> _stringList(Object? raw) => raw is List
+    ? raw
+          .map((value) => value.toString().trim())
+          .where((value) => value.isNotEmpty)
+          .toList(growable: false)
+    : const [];
+
+double? _doubleValue(Object? raw) =>
+    raw is num ? raw.toDouble() : double.tryParse(raw?.toString() ?? '');
+
+String? _nullableText(Object? raw) {
+  final value = raw?.toString().trim() ?? '';
+  return value.isEmpty ? null : value;
 }

@@ -77,6 +77,23 @@ void main() {
       );
       expect(hospitalDropdown.initialValue, 'hospital-two');
 
+      expect(
+        find.text('Records to share for this care relationship'),
+        findsOneWidget,
+      );
+      expect(
+        find.widgetWithText(CheckboxListTile, 'Consultations'),
+        findsNothing,
+      );
+      expect(
+        find.widgetWithText(CheckboxListTile, 'Prescriptions'),
+        findsOneWidget,
+      );
+      expect(
+        find.widgetWithText(CheckboxListTile, 'Diagnostic results'),
+        findsOneWidget,
+      );
+
       var clinicianDropdown = tester
           .widget<DropdownButtonFormField<DoctorDirectoryEntry>>(
             find.byKey(const ValueKey('reservation-clinician-hospital-two')),
@@ -185,8 +202,10 @@ HospitalDirectoryEntry _hospital({
       displayLabel: doctorName,
       specialtyLabel: 'General Medicine',
       nextAvailableAt: DateTime(2026, 8, 25, 9),
-      offersOnlineCare: false,
-      consultationTypes: const ['face_to_face'],
+      offersOnlineCare: doctorId == 'doctor-two',
+      consultationTypes: doctorId == 'doctor-two'
+          ? const ['online']
+          : const ['face_to_face'],
     ),
     if (secondDoctorId != null && secondDoctorName != null)
       DoctorAvailability(

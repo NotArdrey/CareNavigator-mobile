@@ -163,19 +163,54 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
         : _appointmentRequestDetailSpec(role, appointmentDetail.kind);
     final spec = requestDetailSpec ?? baseSpec;
     final recordId = requestDetailSpec == null ? itemId : appointmentDetail!.id;
+    final patientId = role == UserRole.patient ? await _currentPatientId() : null;
     final doctorId = role == UserRole.doctor ? await _currentDoctorId() : null;
     final hospitalId = role == UserRole.hospitalAdministrator
         ? await _currentHospitalId()
         : null;
+    final currentUserId = await _currentApplicationUserId();
     dynamic query = _client.from(spec.table).select(spec.columns);
-    if (spec.table == 'doctor_schedules' && doctorId != null) {
-      query = query.eq('doctor_id', doctorId);
+    if (role == UserRole.patient && patientId != null) {
+      if (spec.table == 'consultations' ||
+          spec.table == 'online_consultation_requests' ||
+          spec.table == 'medical_records' ||
+          spec.table == 'prescriptions' ||
+          spec.table == 'laboratory_results') {
+        query = query.eq('patient_id', patientId);
+      } else if (spec.table == 'notifications') {
+        query = query.eq('user_id', currentUserId);
+      } else if (spec.table == 'patients') {
+        query = query.eq('id', patientId);
+      }
+    }
+    if (role == UserRole.doctor && doctorId != null) {
+      if (spec.table == 'doctor_schedules' ||
+          spec.table == 'consultations' ||
+          spec.table == 'doctor_patient_assignments' ||
+          spec.table == 'prescriptions' ||
+          spec.table == 'laboratory_requests' ||
+          spec.table == 'laboratory_results') {
+        query = query.eq('doctor_id', doctorId);
+      } else if (spec.table == 'guest_consultation_requests') {
+        query = query.eq('assigned_doctor_id', doctorId);
+      } else if (spec.table == 'online_consultation_requests') {
+        query = query.or(
+          'requested_doctor_id.eq.$doctorId,assigned_doctor_id.eq.$doctorId',
+        );
+      } else if (spec.table == 'notifications') {
+        query = query.eq('user_id', currentUserId);
+      } else if (spec.table == 'doctors') {
+        query = query.eq('id', doctorId);
+      }
     }
     if (hospitalId != null && _hospitalScopedTables.contains(spec.table)) {
       query = query.eq('hospital_id', hospitalId);
     }
     if (hospitalId != null && spec.table == 'guest_consultation_requests') {
       query = query.eq('preferred_hospital_id', hospitalId);
+    }
+    if (hospitalId != null && spec.table == 'online_consultation_requests') {
+      query = query.eq('hospital_id', hospitalId);
     }
     if (recordId != null) query = query.eq(spec.idColumn, recordId);
     if (spec.orderColumn != null) {
@@ -213,6 +248,9 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
           assignment: true,
           includeCheckupHistory: true,
         );
+        if (role == UserRole.doctor) {
+          rows = await _attachPatientClinicalHistory(rows);
+        }
       }
       if (doctorId != null) {
         rows = await _attachPatientConversationIds(rows, doctorId: doctorId);
@@ -235,7 +273,13 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
           .select(
             'id,reference_number,patient_id,profile_first_name,profile_last_name,phone_number_snapshot,hospital_id,requested_department_id,requested_doctor_id,assigned_doctor_id,medical_concern,symptom_duration,preferred_schedule,proposed_schedule,confirmed_schedule,consultation_channel,request_status,official_consultation_id,additional_information_request,rejection_reason,cancellation_reason,created_at,updated_at',
           );
-      if (hospitalId != null) {
+      if (role == UserRole.patient && patientId != null) {
+        onlineQuery = onlineQuery.eq('patient_id', patientId);
+      } else if (role == UserRole.doctor && doctorId != null) {
+        onlineQuery = onlineQuery.or(
+          'requested_doctor_id.eq.$doctorId,assigned_doctor_id.eq.$doctorId',
+        );
+      } else if (hospitalId != null) {
         onlineQuery = onlineQuery.eq('hospital_id', hospitalId);
       }
       final onlineRows = await onlineQuery
@@ -257,9 +301,6 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
     final doctorLaboratoryDocuments =
         role == UserRole.doctor && section == 'results-review';
     if (patientDocumentSection || doctorLaboratoryDocuments) {
-      final currentUserId = patientDocumentSection
-          ? await _currentApplicationUserId()
-          : null;
       rows.addAll(
         await _loadPatientCategoryDocuments(
           documentTypes: section == 'prescriptions'
@@ -267,6 +308,7 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
               : const ['lab_result', 'diagnostic_result'],
           itemId: itemId,
           currentUserId: currentUserId,
+          patientId: role == UserRole.patient ? patientId : null,
           limit: limit,
         ),
       );
@@ -284,7 +326,9 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
           .select(
             'id,reference_number,first_name,last_name,full_name,birth_date,sex,mobile_number,email,address,symptoms,symptom_duration,consultation_reason,preferred_hospital_id,preferred_department_id,request_status,identity_review_status,assigned_doctor_id,preferred_consultation_type,preferred_schedule,created_at',
           );
-      if (hospitalId != null) {
+      if (role == UserRole.doctor && doctorId != null) {
+        guestQuery = guestQuery.eq('assigned_doctor_id', doctorId);
+      } else if (hospitalId != null) {
         guestQuery = guestQuery.eq('preferred_hospital_id', hospitalId);
       }
       final guestRows = await guestQuery
@@ -322,12 +366,14 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
     required List<String> documentTypes,
     String? itemId,
     String? currentUserId,
+    String? patientId,
     int limit = 100,
   }) async {
     dynamic query = _client
         .from('medical_documents')
         .select()
         .inFilter('document_type', documentTypes);
+    if (patientId != null) query = query.eq('patient_id', patientId);
     if (itemId != null) query = query.eq('id', itemId);
     final response = await query
         .order('created_at', ascending: false)
@@ -409,7 +455,7 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
         (await _client
                 .from('medical_records')
                 .select(
-                  'id,patient_id,doctor_id,consultation_id,record_type,title,description,record_date,reason_for_visit,confirmed_diagnosis,treatment_plan,height_cm,weight_kg,bmi,blood_pressure_systolic,blood_pressure_diastolic,body_temperature_c,heart_rate_bpm,respiratory_rate_bpm,oxygen_saturation_percent,vitals_recorded_at,current_symptoms,known_medical_conditions,allergies,current_medications,relevant_medical_history,previous_surgeries,smoking_status,alcohol_use,pregnancy_status,doctor_notes,created_at,updated_at',
+                  'id,patient_id,doctor_id,hospital_id,consultation_id,record_type,title,description,record_date,reason_for_visit,confirmed_diagnosis,treatment_plan,height_cm,weight_kg,bmi,blood_pressure_systolic,blood_pressure_diastolic,body_temperature_c,heart_rate_bpm,respiratory_rate_bpm,oxygen_saturation_percent,vitals_recorded_at,current_symptoms,known_medical_conditions,allergies,current_medications,relevant_medical_history,previous_surgeries,smoking_status,alcohol_use,pregnancy_status,doctor_notes,created_at,updated_at',
                 )
                 .inFilter('patient_id', patientIds)
                 .inFilter('record_type', const [
@@ -433,13 +479,34 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
       for (final row in doctorRows)
         row['id'].toString(): row['display_name']?.toString() ?? '',
     };
+    final hospitalIds = medicalRows
+        .map((row) => row['hospital_id']?.toString() ?? '')
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    final hospitalRows = hospitalIds.isEmpty
+        ? const <Map<String, dynamic>>[]
+        : (await _client
+                  .from('hospitals')
+                  .select('id,hospital_name')
+                  .inFilter('id', hospitalIds))
+              .cast<Map<String, dynamic>>();
+    final hospitalsById = <String, String>{
+      for (final row in hospitalRows)
+        row['id'].toString(): row['hospital_name']?.toString() ?? '',
+    };
     final checkupsByPatient = <String, List<Map<String, Object?>>>{};
     for (final row in medicalRows) {
       final patientId = row['patient_id']?.toString() ?? '';
       if (patientId.isEmpty) continue;
+      final hospitalName = hospitalsById[row['hospital_id']?.toString()];
       checkupsByPatient.putIfAbsent(patientId, () => []).add({
         ...row,
         'doctor_display_name': doctorsById[row['doctor_id']?.toString()],
+        if (hospitalName != null && hospitalName.isNotEmpty) ...{
+          'hospital_name': hospitalName,
+          'originating_hospital': hospitalName,
+        },
       });
     }
     for (final checkups in checkupsByPatient.values) {
@@ -499,23 +566,74 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
         .cast<Map<String, dynamic>>();
     final laboratoryRows = (responses[1] as List).cast<Map<String, dynamic>>();
     final documentRows = (responses[2] as List).cast<Map<String, dynamic>>();
+
+    final allHospitalIds = [
+      ...prescriptionRows.map((r) => r['hospital_id']?.toString() ?? ''),
+      ...laboratoryRows.map((r) => r['hospital_id']?.toString() ?? ''),
+      ...documentRows.map((r) => r['hospital_id']?.toString() ?? ''),
+    ].where((id) => id.isNotEmpty).toSet().toList(growable: false);
+    final hospitalRows = allHospitalIds.isEmpty
+        ? const <Map<String, dynamic>>[]
+        : (await _client
+                  .from('hospitals')
+                  .select('id,hospital_name')
+                  .inFilter('id', allHospitalIds))
+              .cast<Map<String, dynamic>>();
+    final hospitalsById = <String, String>{
+      for (final row in hospitalRows)
+        row['id'].toString(): row['hospital_name']?.toString() ?? '',
+    };
+
+    final allDoctorIds = [
+      ...prescriptionRows.map((r) => r['doctor_id']?.toString() ?? ''),
+      ...laboratoryRows.map((r) => r['doctor_id']?.toString() ?? ''),
+      ...documentRows.map((r) => r['author_doctor_id']?.toString() ?? ''),
+    ].where((id) => id.isNotEmpty).toSet().toList(growable: false);
+    final doctorRows = allDoctorIds.isEmpty
+        ? const <Map<String, dynamic>>[]
+        : (await _client
+                  .from('doctors')
+                  .select('id,display_name')
+                  .inFilter('id', allDoctorIds))
+              .cast<Map<String, dynamic>>();
+    final doctorsById = <String, String>{
+      for (final row in doctorRows)
+        row['id'].toString(): row['display_name']?.toString() ?? '',
+    };
+
     final prescriptionsByPatient = <String, List<Map<String, Object?>>>{};
     final diagnosticsByPatient = <String, List<Map<String, Object?>>>{};
 
     for (final row in prescriptionRows) {
       final patientId = row['patient_id']?.toString() ?? '';
       if (patientId.isEmpty) continue;
+      final hospitalName = hospitalsById[row['hospital_id']?.toString()];
+      final doctorName = doctorsById[row['doctor_id']?.toString()];
       prescriptionsByPatient.putIfAbsent(patientId, () => []).add({
         ...row,
         'history_source': 'prescriptions',
+        if (hospitalName != null && hospitalName.isNotEmpty) ...{
+          'hospital_name': hospitalName,
+          'originating_hospital': hospitalName,
+        },
+        if (doctorName != null && doctorName.isNotEmpty)
+          'doctor_display_name': doctorName,
       });
     }
     for (final row in laboratoryRows) {
       final patientId = row['patient_id']?.toString() ?? '';
       if (patientId.isEmpty) continue;
+      final hospitalName = hospitalsById[row['hospital_id']?.toString()];
+      final doctorName = doctorsById[row['doctor_id']?.toString()];
       diagnosticsByPatient.putIfAbsent(patientId, () => []).add({
         ...row,
         'history_source': 'laboratory_results',
+        if (hospitalName != null && hospitalName.isNotEmpty) ...{
+          'hospital_name': hospitalName,
+          'originating_hospital': hospitalName,
+        },
+        if (doctorName != null && doctorName.isNotEmpty)
+          'doctor_display_name': doctorName,
       });
     }
     for (final row in documentRows) {
@@ -524,9 +642,17 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
       final target = row['document_type'] == 'prescription'
           ? prescriptionsByPatient
           : diagnosticsByPatient;
+      final hospitalName = hospitalsById[row['hospital_id']?.toString()];
+      final doctorName = doctorsById[row['author_doctor_id']?.toString()];
       target.putIfAbsent(patientId, () => []).add({
         ...row,
         'history_source': 'medical_documents',
+        if (hospitalName != null && hospitalName.isNotEmpty) ...{
+          'hospital_name': hospitalName,
+          'originating_hospital': hospitalName,
+        },
+        if (doctorName != null && doctorName.isNotEmpty)
+          'doctor_display_name': doctorName,
       });
     }
     for (final records in [
@@ -665,8 +791,8 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
     };
 
     final medicalColumns = includeCheckupHistory
-        ? 'id,patient_id,doctor_id,consultation_id,record_type,title,description,record_date,reason_for_visit,confirmed_diagnosis,treatment_plan,height_cm,weight_kg,bmi,blood_pressure_systolic,blood_pressure_diastolic,body_temperature_c,heart_rate_bpm,respiratory_rate_bpm,oxygen_saturation_percent,vitals_recorded_at,current_symptoms,known_medical_conditions,allergies,current_medications,relevant_medical_history,previous_surgeries,smoking_status,alcohol_use,pregnancy_status,doctor_notes,created_at,updated_at'
-        : 'patient_id,doctor_id,height_cm,weight_kg,bmi,blood_pressure_systolic,blood_pressure_diastolic,body_temperature_c,heart_rate_bpm,respiratory_rate_bpm,oxygen_saturation_percent,vitals_recorded_at,created_at';
+        ? 'id,patient_id,doctor_id,hospital_id,consultation_id,record_type,title,description,record_date,reason_for_visit,confirmed_diagnosis,treatment_plan,height_cm,weight_kg,bmi,blood_pressure_systolic,blood_pressure_diastolic,body_temperature_c,heart_rate_bpm,respiratory_rate_bpm,oxygen_saturation_percent,vitals_recorded_at,current_symptoms,known_medical_conditions,allergies,current_medications,relevant_medical_history,previous_surgeries,smoking_status,alcohol_use,pregnancy_status,doctor_notes,created_at,updated_at'
+        : 'patient_id,doctor_id,hospital_id,height_cm,weight_kg,bmi,blood_pressure_systolic,blood_pressure_diastolic,body_temperature_c,heart_rate_bpm,respiratory_rate_bpm,oxygen_saturation_percent,vitals_recorded_at,created_at';
     final medicalRows =
         (await _client
                 .from('medical_records')
@@ -699,6 +825,22 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
       for (final row in recordDoctorRows)
         row['id'].toString(): row['display_name']?.toString() ?? '',
     };
+    final recordHospitalIds = medicalRows
+        .map((row) => row['hospital_id']?.toString() ?? '')
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    final recordHospitalRows = recordHospitalIds.isEmpty
+        ? const <Map<String, dynamic>>[]
+        : (await _client
+                  .from('hospitals')
+                  .select('id,hospital_name')
+                  .inFilter('id', recordHospitalIds))
+              .cast<Map<String, dynamic>>();
+    final recordHospitalsById = <String, String>{
+      for (final row in recordHospitalRows)
+        row['id'].toString(): row['hospital_name']?.toString() ?? '',
+    };
     final checkupsByPatient = <String, List<Map<String, Object?>>>{};
     if (includeCheckupHistory) {
       for (final row in medicalRows) {
@@ -707,10 +849,16 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
         }
         final patientId = row['patient_id']?.toString() ?? '';
         if (patientId.isEmpty) continue;
+        final hospitalName =
+            recordHospitalsById[row['hospital_id']?.toString()];
         checkupsByPatient.putIfAbsent(patientId, () => []).add({
           ...row,
           'doctor_display_name':
               recordDoctorsById[row['doctor_id']?.toString()],
+          if (hospitalName != null && hospitalName.isNotEmpty) ...{
+            'hospital_name': hospitalName,
+            'originating_hospital': hospitalName,
+          },
         });
       }
       for (final checkups in checkupsByPatient.values) {
@@ -1277,6 +1425,24 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
     ];
   }
 
+  Future<String> _currentPatientId() async {
+    final user = _client.auth.currentUser;
+    if (user == null || user.isAnonymous) {
+      throw StateError('An authenticated patient account is required.');
+    }
+    final appUser = await _client
+        .from('users')
+        .select('id')
+        .eq('auth_user_id', user.id)
+        .single();
+    final patient = await _client
+        .from('patients')
+        .select('id')
+        .eq('user_id', appUser['id'])
+        .single();
+    return patient['id'].toString();
+  }
+
   Future<String> _currentDoctorId() async {
     final user = _client.auth.currentUser;
     if (user == null || user.isAnonymous) {
@@ -1379,15 +1545,34 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
       ],
       UserRole.guest => const <_WorkspaceTableSpec>[],
     };
+    final patientId = role == UserRole.patient ? await _currentPatientId() : null;
     final doctorId = role == UserRole.doctor ? await _currentDoctorId() : null;
     final hospitalId = role == UserRole.hospitalAdministrator
         ? await _currentHospitalId()
         : null;
+    final currentUserId = await _currentApplicationUserId();
     final responses = await Future.wait(
       specs.map((spec) async {
         dynamic query = _client.from(spec.table).select(spec.columns);
-        if (spec.table == 'doctor_schedules' && doctorId != null) {
-          query = query.eq('doctor_id', doctorId);
+        if (role == UserRole.patient && patientId != null) {
+          if (spec.table == 'consultations' ||
+              spec.table == 'prescriptions' ||
+              spec.table == 'laboratory_results') {
+            query = query.eq('patient_id', patientId);
+          } else if (spec.table == 'notifications') {
+            query = query.eq('user_id', currentUserId);
+          }
+        }
+        if (role == UserRole.doctor && doctorId != null) {
+          if (spec.table == 'doctor_schedules' ||
+              spec.table == 'consultations' ||
+              spec.table == 'doctor_patient_assignments' ||
+              spec.table == 'laboratory_results' ||
+              spec.table == 'prescriptions') {
+            query = query.eq('doctor_id', doctorId);
+          } else if (spec.table == 'notifications') {
+            query = query.eq('user_id', currentUserId);
+          }
         }
         if (hospitalId != null && _hospitalScopedTables.contains(spec.table)) {
           query = query.eq('hospital_id', hospitalId);

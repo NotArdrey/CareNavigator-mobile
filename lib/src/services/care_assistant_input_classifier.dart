@@ -28,10 +28,50 @@ class CareAssistantInputClassification {
   }
 }
 
-CareAssistantInputClassification classifyCareAssistantInput(String rawText) {
+CareAssistantInputClassification classifyCareAssistantInput(
+  String rawText, {
+  String conversationContext = '',
+}) {
   final text = rawText.trim().toLowerCase();
-  final hasSeverity = _hasAny(text, const ['severe', 'heavy', 'serious']);
+  final bodyTemperatureCelsius = extractBodyTemperatureCelsius(
+    text,
+    conversationContext: conversationContext,
+  );
+  if (bodyTemperatureCelsius != null) {
+    if (bodyTemperatureCelsius >= 40.5 || bodyTemperatureCelsius <= 32) {
+      return const CareAssistantInputClassification(
+        intent: CareAssistantIntent.emergency,
+        urgency: CareAssistantUrgency.emergency,
+      );
+    }
+  }
+  final hasSeverity = _hasAny(text, const [
+    'severe',
+    'heavy',
+    'serious',
+    'crushing',
+  ]);
   final chestPain = _hasAny(text, const ['chest pain', 'heart pain']);
+  final chestPainRadiation = _hasAny(text, const [
+    'spreading to my arm',
+    'spreading to the arm',
+    'spreading to their arm',
+    'radiating to my arm',
+    'radiating to the arm',
+    'pain in my left arm',
+    'pain in the left arm',
+    'spreading to my jaw',
+    'spreading to the jaw',
+    'spreading to my back',
+    'spreading to the back',
+  ]);
+  final heartAttackAssociatedSign = _hasAny(text, const [
+    'sweating',
+    'cold sweat',
+    'clammy',
+    'nausea',
+    'fainting',
+  ]);
   final trauma = _hasAny(text, const [
     'accident',
     'injury',
@@ -82,7 +122,8 @@ CareAssistantInputClassification classifyCareAssistantInput(String rawText) {
         'self harm',
       ]) ||
       seizureDanger ||
-      (chestPain && hasSeverity) ||
+      (chestPain &&
+          (hasSeverity || (chestPainRadiation && heartAttackAssociatedSign))) ||
       (trauma &&
           _hasAny(text, const [
             'major',
@@ -98,6 +139,33 @@ CareAssistantInputClassification classifyCareAssistantInput(String rawText) {
       intent: CareAssistantIntent.emergency,
       urgency: CareAssistantUrgency.emergency,
     );
+  }
+
+  if (bodyTemperatureCelsius != null) {
+    if (bodyTemperatureCelsius >= 38 &&
+        isInfantUnderThreeMonths(
+          text,
+          conversationContext: conversationContext,
+        )) {
+      return const CareAssistantInputClassification(
+        intent: CareAssistantIntent.medical,
+        urgency: CareAssistantUrgency.urgent,
+      );
+    }
+    if (bodyTemperatureCelsius >= 39.4 || bodyTemperatureCelsius <= 35) {
+      return const CareAssistantInputClassification(
+        intent: CareAssistantIntent.medical,
+        urgency: CareAssistantUrgency.urgent,
+        followUpQuestion:
+            'Are there any warning signs right now, such as confusion, trouble breathing, a seizure, a stiff neck, severe weakness, or difficulty drinking fluids?',
+      );
+    }
+    if (bodyTemperatureCelsius >= 38) {
+      return const CareAssistantInputClassification(
+        intent: CareAssistantIntent.medical,
+        urgency: CareAssistantUrgency.soon,
+      );
+    }
   }
 
   final breathingConcern = _hasAny(text, const [
@@ -246,17 +314,74 @@ CareAssistantInputClassification classifyCareAssistantInput(String rawText) {
   );
 }
 
+double? extractBodyTemperatureCelsius(
+  String rawText, {
+  String conversationContext = '',
+}) {
+  final text = rawText.trim().toLowerCase();
+  final explicit = RegExp(
+    r'(-?\d{2,3}(?:[.,]\d+)?)\s*°?\s*(c(?:elsius|elcius)?|f(?:ahrenheit)?)\b',
+  ).firstMatch(text);
+  if (explicit != null) {
+    final value = double.tryParse(explicit.group(1)!.replaceAll(',', '.'));
+    if (value == null) return null;
+    final unit = explicit.group(2)!;
+    final celsius = unit.startsWith('f') ? (value - 32) * 5 / 9 : value;
+    return celsius >= 20 && celsius <= 50 ? celsius : null;
+  }
+
+  final context = conversationContext.toLowerCase();
+  if (!_hasAny('$context $text', const [
+    'temperature',
+    'thermometer',
+    'fever',
+  ])) {
+    return null;
+  }
+  final numericOnly = RegExp(
+    r"^\s*(?:it(?:'s| is)\s*)?(\d{2,3}(?:[.,]\d+)?)\s*(?:degrees?)?\s*$",
+  ).firstMatch(text);
+  if (numericOnly == null) return null;
+  final value = double.tryParse(numericOnly.group(1)!.replaceAll(',', '.'));
+  if (value == null) return null;
+  final celsius = value > 60 ? (value - 32) * 5 / 9 : value;
+  return celsius >= 20 && celsius <= 50 ? celsius : null;
+}
+
 // Keep these offline emergency fallbacks aligned with current public guidance:
 // https://www.redcross.org/take-a-class/first-aid/performing-first-aid/first-aid-steps
 // https://www.redcross.org/take-a-class/resources/learn-first-aid/infant-choking
 // https://www.redcross.org/take-a-class/resources/learn-first-aid/seizures
 // https://international.heart.org/resuscitation/hands-only-cpr
-CareAssistantFirstAidGuidance emergencyFirstAidFor(String rawText) {
+CareAssistantFirstAidGuidance emergencyFirstAidFor(
+  String rawText, {
+  String conversationContext = '',
+}) {
   final text = rawText.trim().toLowerCase();
   const emergencySigns = [
     'The symptoms described are already warning signs requiring emergency medical care.',
     'Any loss of responsiveness, absent or abnormal breathing, blue or gray lips, or rapid worsening is immediately life-threatening.',
   ];
+
+  final temperatureCelsius = extractBodyTemperatureCelsius(
+    text,
+    conversationContext: conversationContext,
+  );
+  if (temperatureCelsius != null && temperatureCelsius >= 40.5) {
+    return const CareAssistantFirstAidGuidance(
+      immediateActions: [
+        'Contact local emergency services now and say that a very high body temperature was measured.',
+        'Move the person to a comfortably cool place, remove excess clothing or blankets, and keep watching their breathing and responsiveness.',
+        'If the person is fully awake and can swallow safely, offer small sips of cool water while help is coming.',
+        'Recheck the temperature promptly with a reliable digital thermometer if one is available, but do not delay emergency help if the person is very unwell.',
+      ],
+      avoid: [
+        'Do not use an ice bath, apply ice directly to the skin, or rub the skin with alcohol.',
+        'Do not give food, drink, or medicine to anyone who is confused, very drowsy, vomiting repeatedly, seizing, or unable to swallow safely.',
+      ],
+      warningSigns: emergencySigns,
+    );
+  }
 
   if (_hasAny(text, const [
     'suicidal',
@@ -413,3 +538,60 @@ CareAssistantFirstAidGuidance emergencyFirstAidFor(String rawText) {
 }
 
 bool _hasAny(String value, List<String> terms) => terms.any(value.contains);
+
+bool isPediatricParacetamolDoseRequest(
+  String rawText, {
+  String conversationContext = '',
+}) {
+  final latest = rawText.trim().toLowerCase();
+  final context = conversationContext.trim().toLowerCase();
+  final subjectIsChild = _hasAny('$context\n$latest', const [
+    'child',
+    'kid',
+    'infant',
+    'baby',
+    'toddler',
+    'son',
+    'daughter',
+  ]);
+  final asksAboutParacetamol = _hasAny(latest, const [
+    'paracetamol',
+    'acetaminophen',
+  ]);
+  final asksForDose = _hasAny(latest, const [
+    'dose',
+    'dosage',
+    'how much',
+    'how many ml',
+    'how many millilit',
+    'should i give',
+    'can i give',
+  ]);
+  return subjectIsChild && asksAboutParacetamol && asksForDose;
+}
+
+bool isInfantUnderThreeMonths(
+  String rawText, {
+  String conversationContext = '',
+}) {
+  final text = '$conversationContext\n$rawText'.trim().toLowerCase();
+  if (_hasAny(text, const [
+    'newborn',
+    'under 3 months',
+    'under three months',
+  ])) {
+    return true;
+  }
+  for (final match in RegExp(
+    r'\b(\d{1,2})\s*[- ]?\s*(months?|mos?|weeks?|wks?)\s*(?:old)?\b',
+  ).allMatches(text)) {
+    final age = int.tryParse(match.group(1) ?? '');
+    final unit = match.group(2) ?? '';
+    if (age == null) continue;
+    if (unit.startsWith('mo') && age < 3) return true;
+    if ((unit.startsWith('week') || unit.startsWith('wk')) && age < 13) {
+      return true;
+    }
+  }
+  return false;
+}

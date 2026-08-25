@@ -40,4 +40,46 @@ void main() {
     expect(draft.refills, isNull);
     expect(draft.startDate, isNull);
   });
+
+  test('multi-medication scan payload creates one editable draft per item', () {
+    final drafts = PrescriptionScanDraft.listFromPayload({
+      'prescription': {
+        'diagnosis_reason': 'Hypertension',
+        'medications': [
+          {
+            'medication_name': 'Amlodipine',
+            'medication_form_strength': '5 mg tablet',
+            'route': 'Oral',
+          },
+          {
+            'medication_name': 'Losartan',
+            'medication_form_strength': '50 mg tablet',
+            'route': 'Oral',
+          },
+        ],
+      },
+    });
+
+    expect(drafts, hasLength(2));
+    expect(drafts.map((draft) => draft.medicationName), [
+      'Amlodipine',
+      'Losartan',
+    ]);
+    expect(
+      drafts.map((draft) => draft.diagnosisReason),
+      everyElement('Hypertension'),
+    );
+  });
+
+  test('legacy single-medication response remains supported', () {
+    final drafts = PrescriptionScanDraft.listFromPayload({
+      'prescription': {
+        'diagnosis_reason': 'Pain',
+        'medication_name': 'Paracetamol',
+      },
+    });
+
+    expect(drafts, hasLength(1));
+    expect(drafts.single.medicationName, 'Paracetamol');
+  });
 }

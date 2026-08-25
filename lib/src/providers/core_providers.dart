@@ -7,14 +7,20 @@ import '../repositories/auth_repository.dart';
 import '../repositories/admin_repository.dart';
 import '../repositories/care_repository.dart';
 import '../repositories/care_assistant_repository.dart';
+import '../repositories/care_assistant_history_repository.dart';
 import '../repositories/hospital_repository.dart';
 import '../repositories/consultation_repository.dart';
 import '../repositories/profile_repository.dart';
 import '../repositories/public_settings_repository.dart';
 import '../repositories/workspace_repository.dart';
+import '../services/emergency_location_service.dart';
 
 final publicConfigProvider = Provider<PublicConfig>(
   (ref) => const PublicConfig.fromEnvironment(),
+);
+
+final emergencyLocationServiceProvider = Provider<EmergencyLocationService>(
+  (ref) => const GeolocatorEmergencyLocationService(),
 );
 
 final supabaseClientProvider = Provider<SupabaseClient?>((ref) {
@@ -38,6 +44,14 @@ final careAssistantRepositoryProvider = Provider<CareAssistantRepository?>((
   final client = ref.watch(supabaseClientProvider);
   return client == null ? null : SupabaseCareAssistantRepository(client);
 });
+
+final careAssistantHistoryRepositoryProvider =
+    Provider<CareAssistantHistoryRepository?>((ref) {
+      final client = ref.watch(supabaseClientProvider);
+      return client == null
+          ? null
+          : SupabaseCareAssistantHistoryRepository(client);
+    });
 
 final consultationRepositoryProvider = Provider<ConsultationRepository?>((ref) {
   final client = ref.watch(supabaseClientProvider);

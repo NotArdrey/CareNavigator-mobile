@@ -1796,35 +1796,39 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
         relationships: relationships,
         repository: repository,
         prescriber: prescriber,
+        showRelationshipField: selectedPatient == null,
       ),
     );
     if (draft == null) return;
-    await repository.createPrescription(
-      relationship: draft.relationship,
-      medicationName: draft.medicationName,
-      dosage: draft.dosage,
-      frequency: draft.frequency,
-      duration: draft.duration,
-      diagnosisReason: draft.diagnosisReason,
-      medicationFormStrength: draft.medicationFormStrength,
-      route: draft.route,
-      exactDose: draft.exactDose,
-      quantityToDispense: draft.quantityToDispense,
-      refills: draft.refills,
-      startDate: draft.startDate,
-      endDate: draft.endDate,
-      isPrn: draft.isPrn,
-      prnReason: draft.prnReason,
-      maximumDailyDose: draft.maximumDailyDose,
-      electronicSignatureAccepted: draft.electronicSignatureAccepted,
-      instructions: draft.instructions,
-      attachment: draft.attachment,
-    );
+    for (var index = 0; index < draft.medications.length; index++) {
+      final medication = draft.medications[index];
+      await repository.createPrescription(
+        relationship: draft.relationship,
+        medicationName: medication.medicationName,
+        dosage: medication.exactDose,
+        frequency: medication.frequency,
+        duration: medication.duration,
+        diagnosisReason: draft.diagnosisReason,
+        medicationFormStrength: medication.medicationFormStrength,
+        route: medication.route,
+        exactDose: medication.exactDose,
+        quantityToDispense: medication.quantityToDispense,
+        refills: medication.refills,
+        startDate: medication.startDate,
+        endDate: medication.endDate,
+        isPrn: medication.isPrn,
+        prnReason: medication.prnReason,
+        maximumDailyDose: medication.maximumDailyDose,
+        instructions: medication.instructions,
+        attachment: index == 0 ? draft.attachment : null,
+      );
+    }
     ref.invalidate(workspaceSnapshotProvider(_request));
+    final medicationCount = draft.medications.length;
     showRootMessage(
       draft.attachment == null
-          ? 'Prescription issued to the selected patient.'
-          : 'Prescription issued. The attachment and its AI summary status are available to the patient and care team.',
+          ? '$medicationCount medication${medicationCount == 1 ? '' : 's'} issued to the selected patient.'
+          : '$medicationCount medication${medicationCount == 1 ? '' : 's'} issued. The attachment and its AI summary status are available to the patient and care team.',
     );
   });
 
@@ -1880,31 +1884,45 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
       builder: (context) => _LaboratoryResultUploadDialog(
         relationships: relationships,
         repository: repository,
+        showRelationshipField: selectedPatient == null,
       ),
     );
     if (draft == null) return;
-    await repository.uploadMedicalFile(
-      patientId: draft.relationship.patientId,
-      fileName: draft.attachment.name,
-      title: draft.testProcedureName,
-      documentType: 'diagnostic_result',
-      bytes: draft.attachment.bytes,
-      referenceId: draft.relationship.clinicalReferenceId,
-      referenceType: draft.relationship.clinicalReferenceType,
-      diagnosticResult: DiagnosticResultDetails(
-        category: draft.category,
-        testProcedureName: draft.testProcedureName,
-        performedOrCollectedDate: draft.performedOrCollectedDate,
-        resultDate: draft.resultDate,
-        facility: draft.facility,
-        requestingDoctor: draft.requestingDoctor,
-        findingsImpression: draft.findingsImpression,
-        notes: draft.notes,
-      ),
-    );
+    for (final report in draft.reports) {
+      await repository.uploadMedicalFile(
+        patientId: draft.relationship.patientId,
+        fileName: report.attachment.name,
+        title: report.testProcedureName,
+        documentType: 'diagnostic_result',
+        bytes: report.attachment.bytes,
+        referenceId: draft.relationship.clinicalReferenceId,
+        referenceType: draft.relationship.clinicalReferenceType,
+        diagnosticResult: DiagnosticResultDetails(
+          category: report.category,
+          testProcedureName: report.testProcedureName,
+          testProcedureNameAiGenerated: report.testProcedureNameAiGenerated,
+          performedOrCollectedDate: report.performedOrCollectedDate,
+          performedOrCollectedDateText: report.performedOrCollectedDateText,
+          resultDate: report.resultDate,
+          resultDateText: report.resultDateText,
+          facility: report.facility,
+          requestingDoctor: report.requestingDoctor,
+          patientNameOnReport: report.patientNameOnReport,
+          procedureDetails: report.procedureDetails,
+          resultDetails: report.resultDetails,
+          officialFindingsImpression: report.officialFindingsImpression,
+          recommendations: report.recommendations,
+          technicalSummary: report.technicalSummary,
+          patientFriendlySummary: report.patientFriendlySummary,
+          verificationNotes: report.verificationNotes,
+          findingsImpression: report.officialFindingsImpression,
+          notes: report.notes,
+        ),
+      );
+    }
     ref.invalidate(workspaceSnapshotProvider(_request));
     showRootMessage(
-      'Diagnostic result uploaded for ${draft.relationship.patientLabel}. Its AI summary status is available to the patient and care team.',
+      '${draft.reports.length} diagnostic ${draft.reports.length == 1 ? 'result' : 'results'} uploaded for ${draft.relationship.patientLabel}. AI-filled information was saved after review.',
     );
   });
 
@@ -5847,11 +5865,22 @@ class _PrescriptionDraft {
   const _PrescriptionDraft({
     required this.relationship,
     required this.diagnosisReason,
+    required this.medications,
+    this.attachment,
+  });
+
+  final ClinicalRelationship relationship;
+  final String diagnosisReason;
+  final List<_PrescriptionMedicationDraft> medications;
+  final ({List<int> bytes, String name})? attachment;
+}
+
+class _PrescriptionMedicationDraft {
+  const _PrescriptionMedicationDraft({
     required this.medicationName,
     required this.medicationFormStrength,
     required this.route,
     required this.exactDose,
-    required this.dosage,
     required this.frequency,
     required this.duration,
     required this.quantityToDispense,
@@ -5861,18 +5890,13 @@ class _PrescriptionDraft {
     required this.isPrn,
     required this.prnReason,
     required this.maximumDailyDose,
-    required this.electronicSignatureAccepted,
     required this.instructions,
-    this.attachment,
   });
 
-  final ClinicalRelationship relationship;
-  final String diagnosisReason;
   final String medicationName;
   final String medicationFormStrength;
   final String route;
   final String exactDose;
-  final String dosage;
   final String frequency;
   final String duration;
   final String quantityToDispense;
@@ -5882,9 +5906,7 @@ class _PrescriptionDraft {
   final bool isPrn;
   final String prnReason;
   final String maximumDailyDose;
-  final bool electronicSignatureAccepted;
   final String instructions;
-  final ({List<int> bytes, String name})? attachment;
 }
 
 class _ReservationDraft {
@@ -6906,20 +6928,22 @@ class _ReservationDialog extends StatefulWidget {
 }
 
 class _ReservationDialogState extends State<_ReservationDialog> {
+  static const _consultationAccessCategory = 'consultations';
+  static const _recordCategoryLabels = <String, String>{
+    'medical_records': 'Medical records',
+    'diagnoses': 'Diagnoses',
+    'prescriptions': 'Prescriptions',
+    'laboratory_requests': 'Laboratory requests',
+    'laboratory_results': 'Diagnostic results',
+    'medical_documents': 'Medical documents',
+    'allergies_medications': 'Allergies and medications',
+    'treatment_plans': 'Treatment plans',
+  };
+
   final _formKey = GlobalKey<FormState>();
   final _complaintController = TextEditingController();
   final _symptomDurationController = TextEditingController();
-  final Set<String> _sharedCategories = {
-    'consultations',
-    'medical_records',
-    'diagnoses',
-    'prescriptions',
-    'laboratory_requests',
-    'laboratory_results',
-    'medical_documents',
-    'allergies_medications',
-    'treatment_plans',
-  };
+  final Set<String> _sharedCategories = {..._recordCategoryLabels.keys};
   late String _hospitalId;
   late DoctorDirectoryEntry _clinician;
   late String _consultationType;
@@ -7287,17 +7311,7 @@ class _ReservationDialogState extends State<_ReservationDialog> {
                     ),
                   ),
                   const SizedBox(height: AppSpacing.x2),
-                  for (final entry in const <String, String>{
-                    'consultations': 'Consultations',
-                    'medical_records': 'Medical records',
-                    'diagnoses': 'Diagnoses',
-                    'prescriptions': 'Prescriptions',
-                    'laboratory_requests': 'Laboratory requests',
-                    'laboratory_results': 'Diagnostic results',
-                    'medical_documents': 'Medical documents',
-                    'allergies_medications': 'Allergies and medications',
-                    'treatment_plans': 'Treatment plans',
-                  }.entries)
+                  for (final entry in _recordCategoryLabels.entries)
                     CheckboxListTile(
                       dense: true,
                       contentPadding: EdgeInsets.zero,
@@ -7475,7 +7489,7 @@ class _ReservationDialogState extends State<_ReservationDialog> {
                           ? _symptomDurationController.text.trim()
                           : 'Not specified',
                       sharedCategories: _consultationType == 'online'
-                          ? _sharedCategories.toList(growable: false)
+                          ? [_consultationAccessCategory, ..._sharedCategories]
                           : const [],
                       appointmentDate: _selectedSlot!.startsAt,
                     ),
@@ -7537,11 +7551,13 @@ class _PrescriptionDialog extends StatefulWidget {
     required this.relationships,
     required this.repository,
     required this.prescriber,
+    required this.showRelationshipField,
   });
 
   final List<ClinicalRelationship> relationships;
   final CareRepository repository;
   final PrescriberDetails? prescriber;
+  final bool showRelationshipField;
 
   @override
   State<_PrescriptionDialog> createState() => _PrescriptionDialogState();
@@ -7550,27 +7566,14 @@ class _PrescriptionDialog extends StatefulWidget {
 class _PrescriptionDialogState extends State<_PrescriptionDialog> {
   final _formKey = GlobalKey<FormState>();
   final _diagnosisController = TextEditingController();
-  final _medicationController = TextEditingController();
-  final _formStrengthController = TextEditingController();
-  final _routeController = TextEditingController();
-  final _exactDoseController = TextEditingController();
-  final _frequencyController = TextEditingController();
-  final _durationController = TextEditingController();
-  final _quantityController = TextEditingController();
-  final _refillsController = TextEditingController(text: '0');
-  final _prnReasonController = TextEditingController();
-  final _maximumDailyDoseController = TextEditingController();
-  final _instructionsController = TextEditingController();
+  final List<_EditablePrescriptionMedication> _medications = [
+    _EditablePrescriptionMedication(),
+  ];
   late ClinicalRelationship _relationship = widget.relationships.first;
-  DateTime _startDate = DateUtils.dateOnly(DateTime.now());
-  DateTime? _endDate;
-  bool _isPrn = false;
-  bool _signatureAccepted = false;
   bool _scanning = false;
   bool _scanCompleted = false;
   bool _previewing = false;
   String? _scanError;
-  String? _signatureError;
   ({List<int> bytes, String name})? _attachment;
 
   Future<void> _pickAttachment() async {
@@ -7592,7 +7595,7 @@ class _PrescriptionDialogState extends State<_PrescriptionDialog> {
     });
     try {
       final extracted = await widget.repository
-          .extractPrescriptionFromAttachment(attachment: attachment);
+          .extractPrescriptionsFromAttachment(attachment: attachment);
       if (!mounted || _attachment != attachment) return;
       _applyScan(extracted);
       setState(() {
@@ -7608,103 +7611,89 @@ class _PrescriptionDialogState extends State<_PrescriptionDialog> {
     }
   }
 
-  void _applyScan(PrescriptionScanDraft scan) {
-    void fill(TextEditingController controller, String? value) {
-      if (value != null && value.trim().isNotEmpty) {
-        controller.text = value.trim();
-      }
+  void _applyScan(List<PrescriptionScanDraft> scans) {
+    if (scans.isEmpty) return;
+    final diagnosis = scans
+        .map((scan) => scan.diagnosisReason?.trim())
+        .whereType<String>()
+        .where((value) => value.isNotEmpty)
+        .firstOrNull;
+    if (diagnosis != null) _diagnosisController.text = diagnosis;
+    final medications = scans
+        .map(_EditablePrescriptionMedication.fromScan)
+        .toList(growable: false);
+    for (final medication in _medications) {
+      medication.dispose();
     }
-
-    fill(_diagnosisController, scan.diagnosisReason);
-    fill(_medicationController, scan.medicationName);
-    fill(_formStrengthController, scan.medicationFormStrength);
-    fill(_routeController, scan.route);
-    fill(_exactDoseController, scan.exactDose);
-    fill(_frequencyController, scan.frequency);
-    fill(_durationController, scan.duration);
-    fill(_quantityController, scan.quantityToDispense);
-    if (scan.refills != null) _refillsController.text = '${scan.refills}';
-    fill(_prnReasonController, scan.prnReason);
-    fill(_maximumDailyDoseController, scan.maximumDailyDose);
-    fill(_instructionsController, scan.instructions);
-    _startDate = scan.startDate ?? _startDate;
-    _endDate = scan.endDate ?? _endDate;
-    _isPrn = scan.isPrn;
+    _medications
+      ..clear()
+      ..addAll(medications);
   }
 
-  Future<void> _chooseStartDate() async {
+  Future<void> _chooseStartDate(
+    _EditablePrescriptionMedication medication,
+  ) async {
     final value = await showDatePicker(
       context: context,
-      initialDate: _startDate,
+      initialDate: medication.startDate,
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
     );
     if (value == null || !mounted) return;
     setState(() {
-      _startDate = DateUtils.dateOnly(value);
-      if (_endDate != null && _endDate!.isBefore(_startDate)) _endDate = null;
+      medication.startDate = DateUtils.dateOnly(value);
+      if (medication.endDate != null &&
+          medication.endDate!.isBefore(medication.startDate)) {
+        medication.endDate = null;
+      }
     });
   }
 
-  Future<void> _chooseEndDate() async {
+  Future<void> _chooseEndDate(
+    _EditablePrescriptionMedication medication,
+  ) async {
     final value = await showDatePicker(
       context: context,
-      initialDate: _endDate ?? _startDate,
-      firstDate: _startDate,
+      initialDate: medication.endDate ?? medication.startDate,
+      firstDate: medication.startDate,
       lastDate: DateTime(2100),
     );
     if (value != null && mounted) {
-      setState(() => _endDate = DateUtils.dateOnly(value));
+      setState(() => medication.endDate = DateUtils.dateOnly(value));
     }
+  }
+
+  void _addMedication() {
+    setState(() => _medications.add(_EditablePrescriptionMedication()));
+  }
+
+  void _removeMedication(_EditablePrescriptionMedication medication) {
+    if (_medications.length == 1) return;
+    setState(() => _medications.remove(medication));
+    medication.dispose();
   }
 
   void _showPreview() {
     final valid = _formKey.currentState?.validate() ?? false;
-    setState(() {
-      _signatureError = _signatureAccepted
-          ? null
-          : 'Confirm your electronic signature before previewing.';
-    });
-    if (!valid || !_signatureAccepted || _scanning) return;
+    if (!valid || _scanning) return;
     setState(() => _previewing = true);
   }
 
   _PrescriptionDraft _draft() => _PrescriptionDraft(
     relationship: _relationship,
     diagnosisReason: _diagnosisController.text.trim(),
-    medicationName: _medicationController.text.trim(),
-    medicationFormStrength: _formStrengthController.text.trim(),
-    route: _routeController.text.trim(),
-    exactDose: _exactDoseController.text.trim(),
-    dosage: _exactDoseController.text.trim(),
-    frequency: _frequencyController.text.trim(),
-    duration: _durationController.text.trim(),
-    quantityToDispense: _quantityController.text.trim(),
-    refills: int.parse(_refillsController.text.trim()),
-    startDate: _startDate,
-    endDate: _endDate,
-    isPrn: _isPrn,
-    prnReason: _prnReasonController.text.trim(),
-    maximumDailyDose: _maximumDailyDoseController.text.trim(),
-    electronicSignatureAccepted: _signatureAccepted,
-    instructions: _instructionsController.text.trim(),
+    medications: _medications
+        .map((medication) => medication.toDraft())
+        .toList(growable: false),
     attachment: _attachment,
   );
 
   @override
   void dispose() {
     _diagnosisController.dispose();
-    _medicationController.dispose();
-    _formStrengthController.dispose();
-    _routeController.dispose();
-    _exactDoseController.dispose();
-    _frequencyController.dispose();
-    _durationController.dispose();
-    _quantityController.dispose();
-    _refillsController.dispose();
-    _prnReasonController.dispose();
-    _maximumDailyDoseController.dispose();
-    _instructionsController.dispose();
+    for (final medication in _medications) {
+      medication.dispose();
+    }
     super.dispose();
   }
 
@@ -7728,13 +7717,15 @@ class _PrescriptionDialogState extends State<_PrescriptionDialog> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _ClinicalRelationshipField(
-                      value: _relationship,
-                      relationships: widget.relationships,
-                      onChanged: (value) =>
-                          setState(() => _relationship = value),
-                    ),
-                    const SizedBox(height: AppSpacing.x4),
+                    if (widget.showRelationshipField) ...[
+                      _ClinicalRelationshipField(
+                        value: _relationship,
+                        relationships: widget.relationships,
+                        onChanged: (value) =>
+                            setState(() => _relationship = value),
+                      ),
+                      const SizedBox(height: AppSpacing.x4),
+                    ],
                     Text(
                       'Attach and scan first (optional)',
                       style: Theme.of(context).textTheme.titleSmall,
@@ -7816,152 +7807,33 @@ class _PrescriptionDialogState extends State<_PrescriptionDialog> {
                       validator: _requiredClinicalValue,
                     ),
                     const SizedBox(height: AppSpacing.x4),
-                    TextFormField(
-                      controller: _medicationController,
-                      textCapitalization: TextCapitalization.words,
-                      decoration: const InputDecoration(
-                        labelText: 'Medication name',
-                      ),
-                      validator: _requiredClinicalValue,
+                    Text(
+                      'Medications',
+                      style: Theme.of(context).textTheme.titleMedium,
                     ),
-                    const SizedBox(height: AppSpacing.x4),
-                    TextFormField(
-                      controller: _formStrengthController,
-                      decoration: const InputDecoration(
-                        labelText: 'Medication form and strength',
-                        hintText: 'Example: 500 mg tablet',
-                      ),
-                      validator: _requiredClinicalValue,
-                    ),
-                    const SizedBox(height: AppSpacing.x4),
-                    TextFormField(
-                      controller: _routeController,
-                      decoration: const InputDecoration(
-                        labelText: 'Route',
-                        hintText: 'Example: oral, topical, inhaled',
-                      ),
-                      validator: _requiredClinicalValue,
-                    ),
-                    const SizedBox(height: AppSpacing.x4),
-                    TextFormField(
-                      controller: _exactDoseController,
-                      decoration: const InputDecoration(
-                        labelText: 'Exact dose per intake',
-                        hintText: 'Example: 1 tablet or 5 mL',
-                      ),
-                      validator: _requiredClinicalValue,
-                    ),
-                    const SizedBox(height: AppSpacing.x4),
-                    TextFormField(
-                      controller: _frequencyController,
-                      decoration: const InputDecoration(
-                        labelText: 'Frequency',
-                        hintText: 'Example: Every 8 hours',
-                      ),
-                      validator: _requiredClinicalValue,
-                    ),
-                    const SizedBox(height: AppSpacing.x4),
-                    TextFormField(
-                      controller: _durationController,
-                      decoration: const InputDecoration(
-                        labelText: 'Duration',
-                        hintText: 'Example: 7 days',
-                      ),
-                      validator: _requiredClinicalValue,
-                    ),
-                    const SizedBox(height: AppSpacing.x4),
-                    TextFormField(
-                      controller: _quantityController,
-                      decoration: const InputDecoration(
-                        labelText: 'Total quantity to dispense',
-                        hintText: 'Example: 21 tablets',
-                      ),
-                      validator: _requiredClinicalValue,
-                    ),
-                    const SizedBox(height: AppSpacing.x4),
-                    TextFormField(
-                      controller: _refillsController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Number of refills',
-                        helperText: 'Enter 0 for no refills',
-                      ),
-                      validator: (value) {
-                        final parsed = int.tryParse(value?.trim() ?? '');
-                        return parsed == null || parsed < 0 || parsed > 99
-                            ? 'Enter a whole number from 0 to 99.'
-                            : null;
-                      },
-                    ),
-                    const SizedBox(height: AppSpacing.x4),
-                    Wrap(
-                      spacing: AppSpacing.x2,
-                      runSpacing: AppSpacing.x2,
-                      children: [
-                        OutlinedButton.icon(
-                          onPressed: _chooseStartDate,
-                          icon: const Icon(Icons.event_outlined),
-                          label: Text(
-                            'Start: ${DateFormat.yMMMd().format(_startDate)}',
-                          ),
-                        ),
-                        OutlinedButton.icon(
-                          onPressed: _chooseEndDate,
-                          icon: const Icon(Icons.event_available_outlined),
-                          label: Text(
-                            _endDate == null
-                                ? 'Add end date'
-                                : 'End: ${DateFormat.yMMMd().format(_endDate!)}',
-                          ),
-                        ),
-                        if (_endDate != null)
-                          IconButton(
-                            tooltip: 'Clear end date',
-                            onPressed: () => setState(() => _endDate = null),
-                            icon: const Icon(Icons.close),
-                          ),
-                      ],
+                    const SizedBox(height: AppSpacing.x1),
+                    Text(
+                      'Add a complete order for each medication. A scan can create several editable entries automatically.',
+                      style: Theme.of(context).textTheme.bodySmall,
                     ),
                     const SizedBox(height: AppSpacing.x3),
-                    SwitchListTile.adaptive(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('Take as needed (PRN)'),
-                      subtitle: const Text(
-                        'Requires a PRN reason and maximum daily dose.',
+                    for (
+                      var index = 0;
+                      index < _medications.length;
+                      index++
+                    ) ...[
+                      _buildMedicationEditor(
+                        context,
+                        medication: _medications[index],
+                        index: index,
                       ),
-                      value: _isPrn,
-                      onChanged: (value) => setState(() => _isPrn = value),
-                    ),
-                    if (_isPrn) ...[
-                      const SizedBox(height: AppSpacing.x2),
-                      TextFormField(
-                        controller: _prnReasonController,
-                        decoration: const InputDecoration(
-                          labelText: 'PRN reason',
-                          hintText: 'Example: for breakthrough pain',
-                        ),
-                        validator: _requiredClinicalValue,
-                      ),
-                      const SizedBox(height: AppSpacing.x4),
-                      TextFormField(
-                        controller: _maximumDailyDoseController,
-                        decoration: const InputDecoration(
-                          labelText: 'Maximum daily dose',
-                          hintText: 'Example: maximum 4 tablets in 24 hours',
-                        ),
-                        validator: _requiredClinicalValue,
-                      ),
+                      const SizedBox(height: AppSpacing.x3),
                     ],
-                    const SizedBox(height: AppSpacing.x4),
-                    TextFormField(
-                      controller: _instructionsController,
-                      minLines: 2,
-                      maxLines: 5,
-                      maxLength: 2000,
-                      decoration: const InputDecoration(
-                        labelText: 'Instructions (optional)',
-                        alignLabelWithHint: true,
-                      ),
+                    OutlinedButton.icon(
+                      key: const Key('add-prescription-medication'),
+                      onPressed: _addMedication,
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add another medication'),
                     ),
                     const SizedBox(height: AppSpacing.x5),
                     Text(
@@ -7989,28 +7861,6 @@ class _PrescriptionDialogState extends State<_PrescriptionDialog> {
                           ].join(' · '),
                         ),
                       ),
-                    CheckboxListTile(
-                      contentPadding: EdgeInsets.zero,
-                      controlAffinity: ListTileControlAffinity.leading,
-                      value: _signatureAccepted,
-                      onChanged: widget.prescriber == null
-                          ? null
-                          : (value) => setState(() {
-                              _signatureAccepted = value ?? false;
-                              if (_signatureAccepted) _signatureError = null;
-                            }),
-                      title: const Text('Apply my electronic signature'),
-                      subtitle: const Text(
-                        'I confirm that I reviewed these directions and intend to issue this prescription using my authenticated account.',
-                      ),
-                    ),
-                    if (_signatureError != null)
-                      Text(
-                        _signatureError!,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.error,
-                        ),
-                      ),
                   ],
                 ),
               ),
@@ -8035,6 +7885,187 @@ class _PrescriptionDialogState extends State<_PrescriptionDialog> {
     );
   }
 
+  Widget _buildMedicationEditor(
+    BuildContext context, {
+    required _EditablePrescriptionMedication medication,
+    required int index,
+  }) {
+    return Card(
+      key: ObjectKey(medication),
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.x4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Medication ${index + 1}',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                ),
+                if (_medications.length > 1)
+                  IconButton(
+                    tooltip: 'Remove medication ${index + 1}',
+                    onPressed: () => _removeMedication(medication),
+                    icon: const Icon(Icons.delete_outline),
+                  ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.x2),
+            TextFormField(
+              controller: medication.nameController,
+              textCapitalization: TextCapitalization.words,
+              decoration: const InputDecoration(labelText: 'Medication name'),
+              validator: _requiredClinicalValue,
+            ),
+            const SizedBox(height: AppSpacing.x4),
+            TextFormField(
+              controller: medication.formStrengthController,
+              decoration: const InputDecoration(
+                labelText: 'Medication form and strength',
+                hintText: 'Example: 500 mg tablet',
+              ),
+              validator: _requiredClinicalValue,
+            ),
+            const SizedBox(height: AppSpacing.x4),
+            TextFormField(
+              controller: medication.routeController,
+              decoration: const InputDecoration(
+                labelText: 'Route',
+                hintText: 'Example: oral, topical, inhaled',
+              ),
+              validator: _requiredClinicalValue,
+            ),
+            const SizedBox(height: AppSpacing.x4),
+            TextFormField(
+              controller: medication.exactDoseController,
+              decoration: const InputDecoration(
+                labelText: 'Exact dose per intake',
+                hintText: 'Example: 1 tablet or 5 mL',
+              ),
+              validator: _requiredClinicalValue,
+            ),
+            const SizedBox(height: AppSpacing.x4),
+            TextFormField(
+              controller: medication.frequencyController,
+              decoration: const InputDecoration(
+                labelText: 'Frequency',
+                hintText: 'Example: Every 8 hours',
+              ),
+              validator: _requiredClinicalValue,
+            ),
+            const SizedBox(height: AppSpacing.x4),
+            TextFormField(
+              controller: medication.durationController,
+              decoration: const InputDecoration(
+                labelText: 'Duration',
+                hintText: 'Example: 7 days',
+              ),
+              validator: _requiredClinicalValue,
+            ),
+            const SizedBox(height: AppSpacing.x4),
+            TextFormField(
+              controller: medication.quantityController,
+              decoration: const InputDecoration(
+                labelText: 'Total quantity to dispense',
+                hintText: 'Example: 21 tablets',
+              ),
+              validator: _requiredClinicalValue,
+            ),
+            const SizedBox(height: AppSpacing.x4),
+            TextFormField(
+              controller: medication.refillsController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Number of refills',
+                helperText: 'Enter 0 for no refills',
+              ),
+              validator: (value) {
+                final parsed = int.tryParse(value?.trim() ?? '');
+                return parsed == null || parsed < 0 || parsed > 99
+                    ? 'Enter a whole number from 0 to 99.'
+                    : null;
+              },
+            ),
+            const SizedBox(height: AppSpacing.x4),
+            Wrap(
+              spacing: AppSpacing.x2,
+              runSpacing: AppSpacing.x2,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () => _chooseStartDate(medication),
+                  icon: const Icon(Icons.event_outlined),
+                  label: Text(
+                    'Start: ${DateFormat.yMMMd().format(medication.startDate)}',
+                  ),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => _chooseEndDate(medication),
+                  icon: const Icon(Icons.event_available_outlined),
+                  label: Text(
+                    medication.endDate == null
+                        ? 'Add end date'
+                        : 'End: ${DateFormat.yMMMd().format(medication.endDate!)}',
+                  ),
+                ),
+                if (medication.endDate != null)
+                  IconButton(
+                    tooltip: 'Clear end date for medication ${index + 1}',
+                    onPressed: () => setState(() => medication.endDate = null),
+                    icon: const Icon(Icons.close),
+                  ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.x3),
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Take as needed (PRN)'),
+              subtitle: const Text(
+                'Requires a PRN reason and maximum daily dose.',
+              ),
+              value: medication.isPrn,
+              onChanged: (value) => setState(() => medication.isPrn = value),
+            ),
+            if (medication.isPrn) ...[
+              const SizedBox(height: AppSpacing.x2),
+              TextFormField(
+                controller: medication.prnReasonController,
+                decoration: const InputDecoration(
+                  labelText: 'PRN reason',
+                  hintText: 'Example: for breakthrough pain',
+                ),
+                validator: _requiredClinicalValue,
+              ),
+              const SizedBox(height: AppSpacing.x4),
+              TextFormField(
+                controller: medication.maximumDailyDoseController,
+                decoration: const InputDecoration(
+                  labelText: 'Maximum daily dose',
+                  hintText: 'Example: maximum 4 tablets in 24 hours',
+                ),
+                validator: _requiredClinicalValue,
+              ),
+            ],
+            const SizedBox(height: AppSpacing.x4),
+            TextFormField(
+              controller: medication.instructionsController,
+              minLines: 2,
+              maxLines: 5,
+              maxLength: 2000,
+              decoration: const InputDecoration(
+                labelText: 'Instructions (optional)',
+                alignLabelWithHint: true,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildPreview(BuildContext context) {
     final rows = <(String, String)>[
       (
@@ -8044,30 +8075,6 @@ class _PrescriptionDialogState extends State<_PrescriptionDialog> {
             : _relationship.patientLabel,
       ),
       ('Diagnosis / reason', _diagnosisController.text.trim()),
-      ('Medication', _medicationController.text.trim()),
-      ('Form and strength', _formStrengthController.text.trim()),
-      ('Route', _routeController.text.trim()),
-      ('Dose per intake', _exactDoseController.text.trim()),
-      ('Frequency', _frequencyController.text.trim()),
-      ('Duration', _durationController.text.trim()),
-      ('Quantity', _quantityController.text.trim()),
-      (
-        'Refills',
-        _refillsController.text.trim() == '0'
-            ? 'No refills'
-            : _refillsController.text.trim(),
-      ),
-      ('Start date', DateFormat.yMMMMd().format(_startDate)),
-      if (_endDate != null) ('End date', DateFormat.yMMMMd().format(_endDate!)),
-      if (_isPrn) ('PRN reason', _prnReasonController.text.trim()),
-      if (_isPrn)
-        ('Maximum daily dose', _maximumDailyDoseController.text.trim()),
-      if (_instructionsController.text.trim().isNotEmpty)
-        ('Instructions', _instructionsController.text.trim()),
-      if (_attachment != null) ('Attachment', _attachment!.name),
-      ('Prescriber', widget.prescriber?.name ?? 'Unavailable'),
-      ('License', widget.prescriber?.licenseNumber ?? 'Unavailable'),
-      ('Electronic signature', 'Confirmed using authenticated account'),
     ];
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -8084,8 +8091,203 @@ class _PrescriptionDialogState extends State<_PrescriptionDialog> {
           SelectableText(row.$2),
           const Divider(height: AppSpacing.x5),
         ],
+        for (var index = 0; index < _medications.length; index++)
+          ..._buildMedicationPreview(context, index),
+        if (_attachment != null)
+          ..._buildPreviewRow(context, 'Attachment', _attachment!.name),
+        ..._buildPreviewRow(
+          context,
+          'Prescriber',
+          widget.prescriber?.name ?? 'Unavailable',
+        ),
+        ..._buildPreviewRow(
+          context,
+          'License',
+          widget.prescriber?.licenseNumber ?? 'Unavailable',
+        ),
       ],
     );
+  }
+
+  List<Widget> _buildMedicationPreview(BuildContext context, int index) {
+    final medication = _medications[index];
+    return [
+      Text(
+        'Medication ${index + 1}',
+        style: Theme.of(context).textTheme.titleSmall,
+      ),
+      const SizedBox(height: AppSpacing.x2),
+      ..._buildPreviewRow(
+        context,
+        'Medication',
+        medication.nameController.text.trim(),
+      ),
+      ..._buildPreviewRow(
+        context,
+        'Form and strength',
+        medication.formStrengthController.text.trim(),
+      ),
+      ..._buildPreviewRow(
+        context,
+        'Route',
+        medication.routeController.text.trim(),
+      ),
+      ..._buildPreviewRow(
+        context,
+        'Dose per intake',
+        medication.exactDoseController.text.trim(),
+      ),
+      ..._buildPreviewRow(
+        context,
+        'Frequency',
+        medication.frequencyController.text.trim(),
+      ),
+      ..._buildPreviewRow(
+        context,
+        'Duration',
+        medication.durationController.text.trim(),
+      ),
+      ..._buildPreviewRow(
+        context,
+        'Quantity',
+        medication.quantityController.text.trim(),
+      ),
+      ..._buildPreviewRow(
+        context,
+        'Refills',
+        medication.refillsController.text.trim() == '0'
+            ? 'No refills'
+            : medication.refillsController.text.trim(),
+      ),
+      ..._buildPreviewRow(
+        context,
+        'Start date',
+        DateFormat.yMMMMd().format(medication.startDate),
+      ),
+      if (medication.endDate != null)
+        ..._buildPreviewRow(
+          context,
+          'End date',
+          DateFormat.yMMMMd().format(medication.endDate!),
+        ),
+      if (medication.isPrn)
+        ..._buildPreviewRow(
+          context,
+          'PRN reason',
+          medication.prnReasonController.text.trim(),
+        ),
+      if (medication.isPrn)
+        ..._buildPreviewRow(
+          context,
+          'Maximum daily dose',
+          medication.maximumDailyDoseController.text.trim(),
+        ),
+      if (medication.instructionsController.text.trim().isNotEmpty)
+        ..._buildPreviewRow(
+          context,
+          'Instructions',
+          medication.instructionsController.text.trim(),
+        ),
+    ];
+  }
+
+  List<Widget> _buildPreviewRow(
+    BuildContext context,
+    String label,
+    String value,
+  ) => [
+    Text(label, style: Theme.of(context).textTheme.labelMedium),
+    const SizedBox(height: AppSpacing.x1),
+    SelectableText(value),
+    const Divider(height: AppSpacing.x5),
+  ];
+}
+
+class _EditablePrescriptionMedication {
+  _EditablePrescriptionMedication({
+    DateTime? startDate,
+    this.endDate,
+    this.isPrn = false,
+  }) : startDate = DateUtils.dateOnly(startDate ?? DateTime.now());
+
+  factory _EditablePrescriptionMedication.fromScan(PrescriptionScanDraft scan) {
+    final medication = _EditablePrescriptionMedication(
+      startDate: scan.startDate,
+      endDate: scan.endDate,
+      isPrn: scan.isPrn,
+    );
+    medication._fill(medication.nameController, scan.medicationName);
+    medication._fill(
+      medication.formStrengthController,
+      scan.medicationFormStrength,
+    );
+    medication._fill(medication.routeController, scan.route);
+    medication._fill(medication.exactDoseController, scan.exactDose);
+    medication._fill(medication.frequencyController, scan.frequency);
+    medication._fill(medication.durationController, scan.duration);
+    medication._fill(medication.quantityController, scan.quantityToDispense);
+    if (scan.refills != null) {
+      medication.refillsController.text = '${scan.refills}';
+    }
+    medication._fill(medication.prnReasonController, scan.prnReason);
+    medication._fill(
+      medication.maximumDailyDoseController,
+      scan.maximumDailyDose,
+    );
+    medication._fill(medication.instructionsController, scan.instructions);
+    return medication;
+  }
+
+  final nameController = TextEditingController();
+  final formStrengthController = TextEditingController();
+  final routeController = TextEditingController();
+  final exactDoseController = TextEditingController();
+  final frequencyController = TextEditingController();
+  final durationController = TextEditingController();
+  final quantityController = TextEditingController();
+  final refillsController = TextEditingController(text: '0');
+  final prnReasonController = TextEditingController();
+  final maximumDailyDoseController = TextEditingController();
+  final instructionsController = TextEditingController();
+  DateTime startDate;
+  DateTime? endDate;
+  bool isPrn;
+
+  void _fill(TextEditingController controller, String? value) {
+    if (value != null && value.trim().isNotEmpty) {
+      controller.text = value.trim();
+    }
+  }
+
+  _PrescriptionMedicationDraft toDraft() => _PrescriptionMedicationDraft(
+    medicationName: nameController.text.trim(),
+    medicationFormStrength: formStrengthController.text.trim(),
+    route: routeController.text.trim(),
+    exactDose: exactDoseController.text.trim(),
+    frequency: frequencyController.text.trim(),
+    duration: durationController.text.trim(),
+    quantityToDispense: quantityController.text.trim(),
+    refills: int.parse(refillsController.text.trim()),
+    startDate: startDate,
+    endDate: endDate,
+    isPrn: isPrn,
+    prnReason: prnReasonController.text.trim(),
+    maximumDailyDose: maximumDailyDoseController.text.trim(),
+    instructions: instructionsController.text.trim(),
+  );
+
+  void dispose() {
+    nameController.dispose();
+    formStrengthController.dispose();
+    routeController.dispose();
+    exactDoseController.dispose();
+    frequencyController.dispose();
+    durationController.dispose();
+    quantityController.dispose();
+    refillsController.dispose();
+    prnReasonController.dispose();
+    maximumDailyDoseController.dispose();
+    instructionsController.dispose();
   }
 }
 
@@ -8108,26 +8310,54 @@ class _LaboratoryRequestDraft {
 class _LaboratoryResultUploadDraft {
   const _LaboratoryResultUploadDraft({
     required this.relationship,
-    required this.category,
-    required this.testProcedureName,
-    required this.performedOrCollectedDate,
-    required this.resultDate,
-    required this.facility,
-    required this.requestingDoctor,
-    required this.attachment,
-    required this.findingsImpression,
-    required this.notes,
+    required this.reports,
   });
 
   final ClinicalRelationship relationship;
+  final List<_DiagnosticResultUploadItem> reports;
+}
+
+class _DiagnosticResultUploadItem {
+  const _DiagnosticResultUploadItem({
+    required this.category,
+    required this.testProcedureName,
+    required this.testProcedureNameAiGenerated,
+    required this.performedOrCollectedDate,
+    required this.performedOrCollectedDateText,
+    required this.resultDate,
+    required this.resultDateText,
+    required this.facility,
+    required this.requestingDoctor,
+    required this.patientNameOnReport,
+    required this.attachment,
+    required this.procedureDetails,
+    required this.resultDetails,
+    required this.officialFindingsImpression,
+    required this.recommendations,
+    required this.technicalSummary,
+    required this.patientFriendlySummary,
+    required this.verificationNotes,
+    required this.notes,
+  });
+
   final String category;
   final String testProcedureName;
-  final DateTime performedOrCollectedDate;
-  final DateTime resultDate;
-  final String facility;
-  final String requestingDoctor;
+  final bool testProcedureNameAiGenerated;
+  final DateTime? performedOrCollectedDate;
+  final String? performedOrCollectedDateText;
+  final DateTime? resultDate;
+  final String? resultDateText;
+  final String? facility;
+  final String? requestingDoctor;
+  final String? patientNameOnReport;
   final ({List<int> bytes, String name}) attachment;
-  final String? findingsImpression;
+  final String? procedureDetails;
+  final String? resultDetails;
+  final String? officialFindingsImpression;
+  final String? recommendations;
+  final String? technicalSummary;
+  final String? patientFriendlySummary;
+  final String? verificationNotes;
   final String? notes;
 }
 
@@ -8135,10 +8365,12 @@ class _LaboratoryResultUploadDialog extends StatefulWidget {
   const _LaboratoryResultUploadDialog({
     required this.relationships,
     required this.repository,
+    required this.showRelationshipField,
   });
 
   final List<ClinicalRelationship> relationships;
   final CareRepository repository;
+  final bool showRelationshipField;
 
   @override
   State<_LaboratoryResultUploadDialog> createState() =>
@@ -8148,6 +8380,8 @@ class _LaboratoryResultUploadDialog extends StatefulWidget {
 class _LaboratoryResultUploadDialogState
     extends State<_LaboratoryResultUploadDialog> {
   static const _maximumAttachmentBytes = 20 * 1024 * 1024;
+  static const _maximumScanBytes = 2 * 1024 * 1024;
+  static const _maximumAttachments = 5;
   static const _categories = <String, String>{
     'laboratory': 'Laboratory',
     'x_ray': 'X-ray',
@@ -8160,25 +8394,16 @@ class _LaboratoryResultUploadDialogState
   };
 
   final _formKey = GlobalKey<FormState>();
-  final _testProcedureController = TextEditingController();
-  final _performedOrCollectedController = TextEditingController();
-  final _resultDateController = TextEditingController();
-  final _facilityController = TextEditingController();
-  final _requestingDoctorController = TextEditingController();
-  final _findingsImpressionController = TextEditingController();
-  final _notesController = TextEditingController();
   late ClinicalRelationship _relationship = widget.relationships.first;
-  String _category = 'laboratory';
-  DateTime? _performedOrCollectedDate;
-  DateTime? _resultDate;
-  ({List<int> bytes, String name})? _attachment;
+  List<({List<int> bytes, String name})> _attachments = [];
+  final List<_EditableDiagnosticReport> _reports = [];
   String? _attachmentError;
   bool _pickingAttachment = false;
   bool _scanning = false;
   bool _scanCompleted = false;
   String? _scanError;
 
-  Future<void> _pickAttachment() async {
+  Future<void> _pickAttachments() async {
     const acceptedTypes = XTypeGroup(
       label: 'Diagnostic result files',
       extensions: ['pdf', 'jpg', 'jpeg', 'png'],
@@ -8189,40 +8414,69 @@ class _LaboratoryResultUploadDialogState
       _attachmentError = null;
     });
     try {
-      final selected = await openFile(
+      final selected = await openFiles(
         acceptedTypeGroups: const [acceptedTypes],
       );
-      if (selected == null || !mounted) return;
-      final length = await selected.length();
-      if (length <= 0 || length > _maximumAttachmentBytes) {
+      if (selected.isEmpty || !mounted) return;
+      if (selected.length > _maximumAttachments) {
         setState(() {
-          _attachmentError = length <= 0
-              ? 'The selected file is empty.'
-              : 'Choose a file no larger than 20 MB.';
+          _attachmentError = 'Choose no more than 5 files at a time.';
         });
         return;
       }
-      final bytes = await selected.readAsBytes();
+      final attachments = <({List<int> bytes, String name})>[];
+      for (final file in selected) {
+        final length = await file.length();
+        if (length <= 0 || length > _maximumAttachmentBytes) {
+          if (!mounted) return;
+          setState(() {
+            _attachmentError = length <= 0
+                ? '${file.name} is empty.'
+                : '${file.name} is larger than 20 MB.';
+          });
+          return;
+        }
+        attachments.add((bytes: await file.readAsBytes(), name: file.name));
+      }
       if (!mounted) return;
-      final attachment = (bytes: bytes, name: selected.name);
+      _replaceReports([
+        for (final attachment in attachments)
+          _EditableDiagnosticReport.manual(attachment),
+      ]);
+      final totalBytes = attachments.fold<int>(
+        0,
+        (total, attachment) => total + attachment.bytes.length,
+      );
       setState(() {
-        _attachment = attachment;
+        _attachments = attachments;
         _attachmentError = null;
-        _scanning = true;
+        _scanning = totalBytes <= _maximumScanBytes;
         _scanCompleted = false;
-        _scanError = null;
+        _scanError = totalBytes > _maximumScanBytes
+            ? 'The selected files exceed the 2 MB combined AI scan limit. You can still enter and upload each report manually.'
+            : null;
       });
+      if (totalBytes > _maximumScanBytes) return;
       try {
         final extracted = await widget.repository
-            .extractDiagnosticResultFromAttachment(attachment: attachment);
-        if (!mounted || _attachment != attachment) return;
-        _applyScan(extracted);
+            .extractDiagnosticResultsFromAttachments(attachments: attachments);
+        if (!mounted || !_sameAttachments(_attachments, attachments)) return;
+        final reports = <_EditableDiagnosticReport>[];
+        for (var index = 0; index < extracted.length; index++) {
+          final scan = extracted[index];
+          final attachment = _attachmentForScan(scan, index, attachments);
+          reports.add(_EditableDiagnosticReport.fromScan(attachment, scan));
+        }
+        if (reports.isEmpty) {
+          throw StateError('No diagnostic reports were identified.');
+        }
+        _replaceReports(reports);
         setState(() {
           _scanning = false;
           _scanCompleted = true;
         });
       } catch (error) {
-        if (!mounted || _attachment != attachment) return;
+        if (!mounted || !_sameAttachments(_attachments, attachments)) return;
         setState(() {
           _scanning = false;
           _scanError = _friendlyError(error);
@@ -8239,41 +8493,84 @@ class _LaboratoryResultUploadDialogState
     }
   }
 
-  void _applyScan(DiagnosticResultScanDraft scan) {
-    void fill(TextEditingController controller, String? value) {
-      if (value != null && value.trim().isNotEmpty) {
-        controller.text = value.trim();
+  void _replaceReports(List<_EditableDiagnosticReport> reports) {
+    for (final report in _reports) {
+      report.dispose();
+    }
+    _reports
+      ..clear()
+      ..addAll(reports);
+  }
+
+  bool _sameAttachments(
+    List<({List<int> bytes, String name})> left,
+    List<({List<int> bytes, String name})> right,
+  ) =>
+      left.length == right.length &&
+      List.generate(left.length, (index) => index).every(
+        (index) =>
+            identical(left[index].bytes, right[index].bytes) &&
+            left[index].name == right[index].name,
+      );
+
+  ({List<int> bytes, String name}) _attachmentForScan(
+    DiagnosticResultScanDraft scan,
+    int index,
+    List<({List<int> bytes, String name})> attachments,
+  ) {
+    final sourceName = scan.sourceFileName?.trim().toLowerCase();
+    if (sourceName != null && sourceName.isNotEmpty) {
+      for (final attachment in attachments) {
+        if (attachment.name.trim().toLowerCase() == sourceName) {
+          return attachment;
+        }
       }
     }
+    return attachments[index < attachments.length
+        ? index
+        : attachments.length - 1];
+  }
 
-    final today = DateUtils.dateOnly(DateTime.now());
-    if (scan.category != null && _categories.containsKey(scan.category)) {
-      _category = scan.category!;
+  void _removeAttachment(({List<int> bytes, String name}) attachment) {
+    final retainedReports = _reports
+        .where(
+          (report) => !identical(report.attachment.bytes, attachment.bytes),
+        )
+        .toList(growable: false);
+    final removedReports = _reports
+        .where((report) => identical(report.attachment.bytes, attachment.bytes))
+        .toList(growable: false);
+    for (final report in removedReports) {
+      report.dispose();
     }
-    fill(_testProcedureController, scan.testProcedureName);
-    fill(_facilityController, scan.facility);
-    fill(_requestingDoctorController, scan.requestingDoctor);
-    fill(_findingsImpressionController, scan.findingsImpression);
-    fill(_notesController, scan.notes);
-    final performedDate = scan.performedOrCollectedDate == null
-        ? null
-        : DateUtils.dateOnly(scan.performedOrCollectedDate!);
-    final resultDate = scan.resultDate == null
-        ? null
-        : DateUtils.dateOnly(scan.resultDate!);
-    if (performedDate != null && !performedDate.isAfter(today)) {
-      _performedOrCollectedDate = performedDate;
-      _performedOrCollectedController.text = DateFormat.yMMMd().format(
-        performedDate,
-      );
-    }
-    if (resultDate != null &&
-        !resultDate.isAfter(today) &&
-        (_performedOrCollectedDate == null ||
-            !resultDate.isBefore(_performedOrCollectedDate!))) {
-      _resultDate = resultDate;
-      _resultDateController.text = DateFormat.yMMMd().format(resultDate);
-    }
+    setState(() {
+      _attachments = _attachments
+          .where((item) => !identical(item.bytes, attachment.bytes))
+          .toList(growable: false);
+      _reports
+        ..clear()
+        ..addAll(retainedReports);
+      _scanCompleted = _attachments.isNotEmpty && _scanCompleted;
+      _scanError = null;
+    });
+  }
+
+  void _removeReport(_EditableDiagnosticReport report) {
+    final attachmentStillUsed = _reports.any(
+      (item) =>
+          !identical(item, report) &&
+          identical(item.attachment.bytes, report.attachment.bytes),
+    );
+    report.dispose();
+    setState(() {
+      _reports.remove(report);
+      if (!attachmentStillUsed) {
+        _attachments = _attachments
+            .where((item) => !identical(item.bytes, report.attachment.bytes))
+            .toList(growable: false);
+      }
+      _scanCompleted = _reports.isNotEmpty && _scanCompleted;
+    });
   }
 
   Widget _buildResultFileScanner(BuildContext context) {
@@ -8287,12 +8584,12 @@ class _LaboratoryResultUploadDialogState
         ),
         const SizedBox(height: AppSpacing.x1),
         Text(
-          'Attach a PDF or clear image first. AI will prefill the editable diagnostic fields below; always verify them before uploading.',
+          'Attach up to 5 PDFs or clear images. AI creates a separate editable draft for every report it finds; review every field before uploading.',
           style: Theme.of(context).textTheme.bodySmall,
         ),
         const SizedBox(height: AppSpacing.x2),
         OutlinedButton.icon(
-          onPressed: busy ? null : _pickAttachment,
+          onPressed: busy ? null : _pickAttachments,
           icon: busy
               ? const SizedBox.square(
                   dimension: 18,
@@ -8304,46 +8601,48 @@ class _LaboratoryResultUploadDialogState
                 ? 'Reading result file…'
                 : _scanning
                 ? 'Scanning result file…'
-                : _attachment == null
-                ? 'Attach and scan result file'
-                : 'Change and rescan result file',
+                : _attachments.isEmpty
+                ? 'Attach and scan result files'
+                : _attachments.length == 1
+                ? 'Change and rescan result file'
+                : 'Change files and rescan',
           ),
         ),
-        if (_attachment != null) ...[
+        if (_attachments.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.x2),
-          Row(
-            children: [
-              const Icon(Icons.attachment, size: 16),
-              const SizedBox(width: AppSpacing.x2),
-              Expanded(
-                child: Text(
-                  _attachment!.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+          for (final attachment in _attachments)
+            Row(
+              children: [
+                const Icon(Icons.attachment, size: 16),
+                const SizedBox(width: AppSpacing.x2),
+                Expanded(
+                  child: Text(
+                    attachment.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-              ),
-              IconButton(
-                tooltip: 'Remove attachment',
-                onPressed: busy
-                    ? null
-                    : () => setState(() {
-                        _attachment = null;
-                        _scanCompleted = false;
-                        _scanError = null;
-                      }),
-                icon: const Icon(Icons.close, size: 16),
-              ),
-            ],
-          ),
+                IconButton(
+                  tooltip: 'Remove ${attachment.name}',
+                  onPressed: busy ? null : () => _removeAttachment(attachment),
+                  icon: const Icon(Icons.close, size: 16),
+                ),
+              ],
+            ),
         ],
-        if (_scanCompleted)
+        if (_scanCompleted) ...[
           Text(
             'Scan complete. Review every autofilled value before uploading.',
             style: TextStyle(color: Theme.of(context).colorScheme.primary),
           ),
+          Text(
+            '${_reports.length} ${_reports.length == 1 ? 'report' : 'reports'} detected.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
         if (_scanError != null)
           Text(
-            'Scan unavailable: $_scanError You can still complete the fields manually and upload this file.',
+            'Scan unavailable: $_scanError You can still complete the fields manually and upload the selected ${_attachments.length == 1 ? 'file' : 'files'}.',
             style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
         if (_attachmentError != null) ...[
@@ -8358,61 +8657,283 @@ class _LaboratoryResultUploadDialogState
         ],
         const SizedBox(height: AppSpacing.x1),
         Text(
-          'Accepted formats: PDF, JPG, or PNG (upload up to 20 MB; AI scan up to 2 MB).',
+          'Accepted formats: PDF, JPG, or PNG (up to 5 files; 20 MB each for upload; 2 MB combined for AI scan).',
           style: Theme.of(context).textTheme.bodySmall,
         ),
       ],
     );
   }
 
-  Future<void> _choosePerformedOrCollectedDate() async {
+  Future<void> _choosePerformedOrCollectedDate(
+    _EditableDiagnosticReport report,
+  ) async {
     final today = DateUtils.dateOnly(DateTime.now());
     final value = await showDatePicker(
       context: context,
-      initialDate: _performedOrCollectedDate ?? today,
+      initialDate: report.performedOrCollectedDate ?? today,
       firstDate: DateTime(1900),
       lastDate: today,
     );
     if (value == null || !mounted) return;
     final selected = DateUtils.dateOnly(value);
     setState(() {
-      _performedOrCollectedDate = selected;
-      _performedOrCollectedController.text = DateFormat.yMMMd().format(
+      report.performedOrCollectedDate = selected;
+      report.performedOrCollectedController.text = DateFormat.yMMMd().format(
         selected,
       );
-      if (_resultDate != null && _resultDate!.isBefore(selected)) {
-        _resultDate = null;
-        _resultDateController.clear();
+      if (report.resultDate != null && report.resultDate!.isBefore(selected)) {
+        report.resultDate = null;
+        report.resultDateController.clear();
       }
     });
   }
 
-  Future<void> _chooseResultDate() async {
+  Future<void> _chooseResultDate(_EditableDiagnosticReport report) async {
     final today = DateUtils.dateOnly(DateTime.now());
-    final firstDate = _performedOrCollectedDate ?? DateTime(1900);
+    final firstDate = report.performedOrCollectedDate ?? DateTime(1900);
     final value = await showDatePicker(
       context: context,
-      initialDate: _resultDate ?? _performedOrCollectedDate ?? today,
+      initialDate:
+          report.resultDate ?? report.performedOrCollectedDate ?? today,
       firstDate: firstDate,
       lastDate: today,
     );
     if (value == null || !mounted) return;
     final selected = DateUtils.dateOnly(value);
     setState(() {
-      _resultDate = selected;
-      _resultDateController.text = DateFormat.yMMMd().format(selected);
+      report.resultDate = selected;
+      report.resultDateController.text = DateFormat.yMMMd().format(selected);
     });
+  }
+
+  Widget _buildReportFields(
+    BuildContext context,
+    _EditableDiagnosticReport report,
+    int index,
+  ) {
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.x4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Report ${index + 1} of ${_reports.length}',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                if (_reports.length > 1)
+                  IconButton(
+                    tooltip: 'Remove report ${index + 1}',
+                    onPressed: () => _removeReport(report),
+                    icon: const Icon(Icons.close),
+                  ),
+              ],
+            ),
+            Text(
+              report.attachment.name,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: AppSpacing.x3),
+            TextFormField(
+              controller: report.patientNameController,
+              textCapitalization: TextCapitalization.words,
+              maxLength: 300,
+              decoration: const InputDecoration(
+                labelText: 'Patient name shown on report (optional)',
+              ),
+            ),
+            const SizedBox(height: AppSpacing.x2),
+            DropdownButtonFormField<String>(
+              key: ValueKey('category-$index-${report.category}'),
+              initialValue: report.category,
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'Result category'),
+              items: [
+                for (final entry in _categories.entries)
+                  DropdownMenuItem(value: entry.key, child: Text(entry.value)),
+              ],
+              onChanged: (value) =>
+                  setState(() => report.category = value ?? 'other'),
+            ),
+            const SizedBox(height: AppSpacing.x4),
+            TextFormField(
+              controller: report.testProcedureController,
+              autofocus: index == 0,
+              textCapitalization: TextCapitalization.sentences,
+              maxLength: 300,
+              decoration: InputDecoration(
+                labelText: 'Test/procedure name',
+                hintText: 'Example: Complete blood count or chest CT',
+                helperText: report.testProcedureNameAiGenerated
+                    ? 'AI-generated suggested name — verify or edit.'
+                    : null,
+              ),
+              onChanged: (_) {
+                if (report.testProcedureNameAiGenerated) {
+                  setState(() => report.testProcedureNameAiGenerated = false);
+                }
+              },
+              validator: (value) {
+                final length = value?.trim().length ?? 0;
+                return length < 2 ? 'Enter at least 2 characters.' : null;
+              },
+            ),
+            const SizedBox(height: AppSpacing.x2),
+            TextFormField(
+              controller: report.performedOrCollectedController,
+              readOnly: true,
+              decoration: const InputDecoration(
+                labelText: 'Confirmed procedure or collection date (optional)',
+                suffixIcon: Icon(Icons.calendar_today_outlined),
+              ),
+              onTap: () => _choosePerformedOrCollectedDate(report),
+            ),
+            const SizedBox(height: AppSpacing.x2),
+            TextFormField(
+              controller: report.performedOrCollectedDateTextController,
+              maxLength: 100,
+              decoration: const InputDecoration(
+                labelText: 'Procedure/collection date as printed (optional)',
+                helperText:
+                    'Preserved exactly. Confirm ambiguous dates such as 01/02/25 above.',
+              ),
+            ),
+            const SizedBox(height: AppSpacing.x2),
+            TextFormField(
+              controller: report.resultDateController,
+              readOnly: true,
+              decoration: const InputDecoration(
+                labelText: 'Confirmed result date',
+                suffixIcon: Icon(Icons.calendar_today_outlined),
+              ),
+              onTap: () => _chooseResultDate(report),
+            ),
+            const SizedBox(height: AppSpacing.x2),
+            TextFormField(
+              controller: report.resultDateTextController,
+              maxLength: 100,
+              decoration: const InputDecoration(
+                labelText: 'Result date as printed (optional)',
+                helperText:
+                    'Do not reuse an unspecified date for both date fields.',
+              ),
+            ),
+            const SizedBox(height: AppSpacing.x2),
+            TextFormField(
+              controller: report.facilityController,
+              textCapitalization: TextCapitalization.words,
+              maxLength: 300,
+              decoration: const InputDecoration(
+                labelText: 'Facility (optional if not stated)',
+              ),
+            ),
+            const SizedBox(height: AppSpacing.x2),
+            TextFormField(
+              controller: report.requestingDoctorController,
+              textCapitalization: TextCapitalization.words,
+              maxLength: 300,
+              decoration: const InputDecoration(
+                labelText: 'Requesting or referring doctor (optional)',
+              ),
+            ),
+            const SizedBox(height: AppSpacing.x2),
+            TextFormField(
+              controller: report.procedureDetailsController,
+              minLines: 2,
+              maxLines: 8,
+              maxLength: 30000,
+              decoration: const InputDecoration(
+                labelText: 'Type-specific report details (optional)',
+                helperText:
+                    'Examples: imaging body part/technique/comparison; pathology specimen/grade/margins/biomarkers; heart rhythm/rate/measurements.',
+                alignLabelWithHint: true,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.x3),
+            TextFormField(
+              controller: report.resultDetailsController,
+              minLines: 3,
+              maxLines: 12,
+              maxLength: 50000,
+              decoration: const InputDecoration(
+                labelText: 'All results, measurements, units, and ranges',
+                helperText:
+                    'Keep every readable normal and abnormal result. Do not classify values without a matching printed range.',
+                alignLabelWithHint: true,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.x3),
+            TextFormField(
+              controller: report.officialFindingsController,
+              textCapitalization: TextCapitalization.sentences,
+              minLines: 2,
+              maxLines: 10,
+              maxLength: 30000,
+              decoration: const InputDecoration(
+                labelText: 'Official findings/impression (optional)',
+                helperText:
+                    'Preserve the report author\'s wording and uncertainty.',
+                alignLabelWithHint: true,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.x3),
+            TextFormField(
+              controller: report.recommendationsController,
+              textCapitalization: TextCapitalization.sentences,
+              minLines: 2,
+              maxLines: 6,
+              maxLength: 10000,
+              decoration: const InputDecoration(
+                labelText: 'Report-stated recommendations (optional)',
+                helperText:
+                    'Do not add recommendations not stated in the report.',
+                alignLabelWithHint: true,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.x3),
+            TextFormField(
+              controller: report.technicalSummaryController,
+              textCapitalization: TextCapitalization.sentences,
+              minLines: 3,
+              maxLines: 10,
+              maxLength: 10000,
+              decoration: const InputDecoration(
+                labelText: 'Technical summary',
+                helperText:
+                    'Abnormal findings first; comparisons use only report-stated reference ranges.',
+                alignLabelWithHint: true,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.x3),
+            TextFormField(
+              controller: report.patientFriendlySummaryController,
+              textCapitalization: TextCapitalization.sentences,
+              minLines: 3,
+              maxLines: 10,
+              maxLength: 10000,
+              decoration: const InputDecoration(
+                labelText: 'Patient-friendly summary',
+                helperText:
+                    'Plain-language explanation only; verify it before saving.',
+                alignLabelWithHint: true,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
   void dispose() {
-    _testProcedureController.dispose();
-    _performedOrCollectedController.dispose();
-    _resultDateController.dispose();
-    _facilityController.dispose();
-    _requestingDoctorController.dispose();
-    _findingsImpressionController.dispose();
-    _notesController.dispose();
+    for (final report in _reports) {
+      report.dispose();
+    }
     super.dispose();
   }
 
@@ -8434,115 +8955,23 @@ class _LaboratoryResultUploadDialogState
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _ClinicalRelationshipField(
-                value: _relationship,
-                relationships: widget.relationships,
-                onChanged: (value) => setState(() => _relationship = value),
-              ),
-              const SizedBox(height: AppSpacing.x4),
+              if (widget.showRelationshipField) ...[
+                _ClinicalRelationshipField(
+                  value: _relationship,
+                  relationships: widget.relationships,
+                  onChanged: (value) => setState(() => _relationship = value),
+                ),
+                const SizedBox(height: AppSpacing.x4),
+              ],
               _buildResultFileScanner(context),
-              const SizedBox(height: AppSpacing.x5),
-              DropdownButtonFormField<String>(
-                key: ValueKey(_category),
-                initialValue: _category,
-                isExpanded: true,
-                decoration: const InputDecoration(labelText: 'Result category'),
-                items: [
-                  for (final entry in _categories.entries)
-                    DropdownMenuItem(
-                      value: entry.key,
-                      child: Text(entry.value),
-                    ),
+              if (_reports.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.x5),
+                for (var index = 0; index < _reports.length; index++) ...[
+                  _buildReportFields(context, _reports[index], index),
+                  if (index != _reports.length - 1)
+                    const SizedBox(height: AppSpacing.x4),
                 ],
-                onChanged: (value) =>
-                    setState(() => _category = value ?? 'laboratory'),
-              ),
-              const SizedBox(height: AppSpacing.x4),
-              TextFormField(
-                controller: _testProcedureController,
-                autofocus: true,
-                textCapitalization: TextCapitalization.sentences,
-                maxLength: 300,
-                decoration: const InputDecoration(
-                  labelText: 'Test/procedure name',
-                  hintText: 'Example: Complete blood count or chest CT',
-                ),
-                validator: (value) {
-                  final length = value?.trim().length ?? 0;
-                  return length < 2 ? 'Enter at least 2 characters.' : null;
-                },
-              ),
-              const SizedBox(height: AppSpacing.x4),
-              TextFormField(
-                controller: _performedOrCollectedController,
-                readOnly: true,
-                decoration: const InputDecoration(
-                  labelText: 'Date performed or specimen collected',
-                  suffixIcon: Icon(Icons.calendar_today_outlined),
-                ),
-                onTap: _choosePerformedOrCollectedDate,
-                validator: (_) => _performedOrCollectedDate == null
-                    ? 'Choose the performed or collected date.'
-                    : null,
-              ),
-              const SizedBox(height: AppSpacing.x4),
-              TextFormField(
-                controller: _resultDateController,
-                readOnly: true,
-                decoration: const InputDecoration(
-                  labelText: 'Result date',
-                  suffixIcon: Icon(Icons.calendar_today_outlined),
-                ),
-                onTap: _chooseResultDate,
-                validator: (_) =>
-                    _resultDate == null ? 'Choose the result date.' : null,
-              ),
-              const SizedBox(height: AppSpacing.x4),
-              TextFormField(
-                controller: _facilityController,
-                textCapitalization: TextCapitalization.words,
-                maxLength: 300,
-                decoration: const InputDecoration(labelText: 'Facility'),
-                validator: (value) => (value?.trim().isEmpty ?? true)
-                    ? 'Enter the facility.'
-                    : null,
-              ),
-              const SizedBox(height: AppSpacing.x2),
-              TextFormField(
-                controller: _requestingDoctorController,
-                textCapitalization: TextCapitalization.words,
-                maxLength: 300,
-                decoration: const InputDecoration(
-                  labelText: 'Requesting doctor',
-                ),
-                validator: (value) => (value?.trim().isEmpty ?? true)
-                    ? 'Enter the requesting doctor.'
-                    : null,
-              ),
-              const SizedBox(height: AppSpacing.x2),
-              TextFormField(
-                controller: _findingsImpressionController,
-                textCapitalization: TextCapitalization.sentences,
-                minLines: 2,
-                maxLines: 5,
-                maxLength: 4000,
-                decoration: const InputDecoration(
-                  labelText: 'Findings/impression (optional)',
-                  alignLabelWithHint: true,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.x4),
-              TextFormField(
-                controller: _notesController,
-                textCapitalization: TextCapitalization.sentences,
-                minLines: 2,
-                maxLines: 5,
-                maxLength: 2000,
-                decoration: const InputDecoration(
-                  labelText: 'Notes (optional)',
-                  alignLabelWithHint: true,
-                ),
-              ),
+              ],
             ],
           ),
         ),
@@ -8557,27 +8986,74 @@ class _LaboratoryResultUploadDialogState
               ? null
               : () {
                   final valid = _formKey.currentState?.validate() ?? false;
-                  if (_attachment == null) {
-                    setState(() => _attachmentError = 'Choose a result file.');
+                  if (_attachments.isEmpty || _reports.isEmpty) {
+                    setState(
+                      () =>
+                          _attachmentError = 'Choose at least one result file.',
+                    );
                   }
-                  if (!valid || _attachment == null) return;
+                  if (!valid || _attachments.isEmpty || _reports.isEmpty) {
+                    return;
+                  }
+                  String? optionalText(TextEditingController controller) {
+                    final value = controller.text.trim();
+                    return value.isEmpty ? null : value;
+                  }
+
                   Navigator.of(context).pop(
                     _LaboratoryResultUploadDraft(
                       relationship: _relationship,
-                      category: _category,
-                      testProcedureName: _testProcedureController.text.trim(),
-                      performedOrCollectedDate: _performedOrCollectedDate!,
-                      resultDate: _resultDate!,
-                      facility: _facilityController.text.trim(),
-                      requestingDoctor: _requestingDoctorController.text.trim(),
-                      attachment: _attachment!,
-                      findingsImpression:
-                          _findingsImpressionController.text.trim().isEmpty
-                          ? null
-                          : _findingsImpressionController.text.trim(),
-                      notes: _notesController.text.trim().isEmpty
-                          ? null
-                          : _notesController.text.trim(),
+                      reports: [
+                        for (final report in _reports)
+                          _DiagnosticResultUploadItem(
+                            category: report.category,
+                            testProcedureName: report
+                                .testProcedureController
+                                .text
+                                .trim(),
+                            testProcedureNameAiGenerated:
+                                report.testProcedureNameAiGenerated,
+                            performedOrCollectedDate:
+                                report.performedOrCollectedDate,
+                            performedOrCollectedDateText: optionalText(
+                              report.performedOrCollectedDateTextController,
+                            ),
+                            resultDate: report.resultDate,
+                            resultDateText: optionalText(
+                              report.resultDateTextController,
+                            ),
+                            facility: optionalText(report.facilityController),
+                            requestingDoctor: optionalText(
+                              report.requestingDoctorController,
+                            ),
+                            patientNameOnReport: optionalText(
+                              report.patientNameController,
+                            ),
+                            attachment: report.attachment,
+                            procedureDetails: optionalText(
+                              report.procedureDetailsController,
+                            ),
+                            resultDetails: optionalText(
+                              report.resultDetailsController,
+                            ),
+                            officialFindingsImpression: optionalText(
+                              report.officialFindingsController,
+                            ),
+                            recommendations: optionalText(
+                              report.recommendationsController,
+                            ),
+                            technicalSummary: optionalText(
+                              report.technicalSummaryController,
+                            ),
+                            patientFriendlySummary: optionalText(
+                              report.patientFriendlySummaryController,
+                            ),
+                            verificationNotes: optionalText(
+                              report.verificationNotesController,
+                            ),
+                            notes: optionalText(report.notesController),
+                          ),
+                      ],
                     ),
                   );
                 },
@@ -8585,6 +9061,221 @@ class _LaboratoryResultUploadDialogState
         ),
       ],
     );
+  }
+}
+
+class _EditableDiagnosticReport {
+  _EditableDiagnosticReport._({
+    required this.attachment,
+    required this.category,
+    required this.testProcedureNameAiGenerated,
+    required this.performedOrCollectedDate,
+    required this.resultDate,
+    required String? patientName,
+    required String? testProcedureName,
+    required String? performedOrCollectedDateText,
+    required String? resultDateText,
+    required String? facility,
+    required String? requestingDoctor,
+    required String? procedureDetails,
+    required String? resultDetails,
+    required String? officialFindingsImpression,
+    required String? recommendations,
+    required String? technicalSummary,
+    required String? patientFriendlySummary,
+    required String? verificationNotes,
+    required String? notes,
+  }) : patientNameController = TextEditingController(text: patientName),
+       testProcedureController = TextEditingController(text: testProcedureName),
+       performedOrCollectedController = TextEditingController(
+         text: performedOrCollectedDate == null
+             ? null
+             : DateFormat.yMMMd().format(performedOrCollectedDate),
+       ),
+       performedOrCollectedDateTextController = TextEditingController(
+         text: performedOrCollectedDateText,
+       ),
+       resultDateController = TextEditingController(
+         text: resultDate == null
+             ? null
+             : DateFormat.yMMMd().format(resultDate),
+       ),
+       resultDateTextController = TextEditingController(text: resultDateText),
+       facilityController = TextEditingController(text: facility),
+       requestingDoctorController = TextEditingController(
+         text: requestingDoctor,
+       ),
+       procedureDetailsController = TextEditingController(
+         text: procedureDetails,
+       ),
+       resultDetailsController = TextEditingController(text: resultDetails),
+       officialFindingsController = TextEditingController(
+         text: officialFindingsImpression,
+       ),
+       recommendationsController = TextEditingController(text: recommendations),
+       technicalSummaryController = TextEditingController(
+         text: technicalSummary,
+       ),
+       patientFriendlySummaryController = TextEditingController(
+         text: patientFriendlySummary,
+       ),
+       verificationNotesController = TextEditingController(
+         text: verificationNotes,
+       ),
+       notesController = TextEditingController(text: notes);
+
+  factory _EditableDiagnosticReport.manual(
+    ({List<int> bytes, String name}) attachment,
+  ) {
+    final today = DateUtils.dateOnly(DateTime.now());
+    return _EditableDiagnosticReport._(
+      attachment: attachment,
+      category: 'other',
+      testProcedureNameAiGenerated: false,
+      performedOrCollectedDate: null,
+      resultDate: today,
+      patientName: null,
+      testProcedureName: null,
+      performedOrCollectedDateText: null,
+      resultDateText: null,
+      facility: null,
+      requestingDoctor: null,
+      procedureDetails: null,
+      resultDetails: null,
+      officialFindingsImpression: null,
+      recommendations: null,
+      technicalSummary: null,
+      patientFriendlySummary: null,
+      verificationNotes: 'AI scan unavailable. Review the source manually.',
+      notes: null,
+    );
+  }
+
+  factory _EditableDiagnosticReport.fromScan(
+    ({List<int> bytes, String name}) attachment,
+    DiagnosticResultScanDraft scan,
+  ) {
+    final today = DateUtils.dateOnly(DateTime.now());
+    final verification = <String>[
+      ...?scan.verificationNotes
+          ?.split(RegExp(r'\r?\n'))
+          .map((item) => item.trim())
+          .where((item) => item.isNotEmpty),
+    ];
+    void verify(String message) {
+      if (!verification.any(
+        (item) => item.toLowerCase() == message.toLowerCase(),
+      )) {
+        verification.add(message);
+      }
+    }
+
+    if (scan.patientName == null) {
+      verify('Patient information on the report needs verification.');
+    }
+    if (!_LaboratoryResultUploadDialogState._categories.containsKey(
+      scan.category,
+    )) {
+      verify('Result category needs verification.');
+    }
+    if (scan.testProcedureName == null) {
+      verify('Test or procedure name needs verification.');
+    }
+    final performed = scan.performedOrCollectedDate == null
+        ? null
+        : DateUtils.dateOnly(scan.performedOrCollectedDate!);
+    final safePerformed = performed != null && !performed.isAfter(today)
+        ? performed
+        : null;
+    if (performed != null && performed.isAfter(today)) {
+      verify('Procedure or collection date needs verification.');
+    } else if (performed == null && scan.performedOrCollectedDateText != null) {
+      verify('Confirm the procedure or collection date as printed.');
+    }
+    final result = scan.resultDate == null
+        ? null
+        : DateUtils.dateOnly(scan.resultDate!);
+    final safeScannedResult =
+        result != null &&
+            !result.isAfter(today) &&
+            (safePerformed == null || !result.isBefore(safePerformed))
+        ? result
+        : null;
+    if (result != null &&
+        (result.isAfter(today) ||
+            (safePerformed != null && result.isBefore(safePerformed)))) {
+      verify('Result date needs verification.');
+    } else if (result == null && scan.resultDateText != null) {
+      verify('Confirm the result date as printed.');
+    }
+    return _EditableDiagnosticReport._(
+      attachment: attachment,
+      category:
+          _LaboratoryResultUploadDialogState._categories.containsKey(
+            scan.category,
+          )
+          ? scan.category!
+          : 'other',
+      testProcedureNameAiGenerated: scan.testProcedureNameAiGenerated,
+      performedOrCollectedDate: safePerformed,
+      resultDate: result == null ? today : safeScannedResult,
+      patientName: scan.patientName,
+      testProcedureName: scan.testProcedureName,
+      performedOrCollectedDateText: scan.performedOrCollectedDateText,
+      resultDateText: scan.resultDateText,
+      facility: scan.facility,
+      requestingDoctor: scan.requestingDoctor,
+      procedureDetails: scan.procedureDetails,
+      resultDetails: scan.resultDetails,
+      officialFindingsImpression:
+          scan.officialFindingsImpression ?? scan.findingsImpression,
+      recommendations: scan.recommendations,
+      technicalSummary: scan.technicalSummary,
+      patientFriendlySummary: scan.patientFriendlySummary,
+      verificationNotes: verification.isEmpty ? null : verification.join('\n'),
+      notes: scan.notes,
+    );
+  }
+
+  final ({List<int> bytes, String name}) attachment;
+  String category;
+  bool testProcedureNameAiGenerated;
+  DateTime? performedOrCollectedDate;
+  DateTime? resultDate;
+  final TextEditingController patientNameController;
+  final TextEditingController testProcedureController;
+  final TextEditingController performedOrCollectedController;
+  final TextEditingController performedOrCollectedDateTextController;
+  final TextEditingController resultDateController;
+  final TextEditingController resultDateTextController;
+  final TextEditingController facilityController;
+  final TextEditingController requestingDoctorController;
+  final TextEditingController procedureDetailsController;
+  final TextEditingController resultDetailsController;
+  final TextEditingController officialFindingsController;
+  final TextEditingController recommendationsController;
+  final TextEditingController technicalSummaryController;
+  final TextEditingController patientFriendlySummaryController;
+  final TextEditingController verificationNotesController;
+  final TextEditingController notesController;
+
+  void dispose() {
+    patientNameController.dispose();
+    testProcedureController.dispose();
+    performedOrCollectedController.dispose();
+    performedOrCollectedDateTextController.dispose();
+    resultDateController.dispose();
+    resultDateTextController.dispose();
+    facilityController.dispose();
+    requestingDoctorController.dispose();
+    procedureDetailsController.dispose();
+    resultDetailsController.dispose();
+    officialFindingsController.dispose();
+    recommendationsController.dispose();
+    technicalSummaryController.dispose();
+    patientFriendlySummaryController.dispose();
+    verificationNotesController.dispose();
+    notesController.dispose();
   }
 }
 
@@ -10496,9 +11187,16 @@ class _CheckupHistoryEntry extends StatelessWidget {
         'Date not recorded';
     final doctor =
         _firstText(record, const ['doctor_display_name']) ?? 'Care team';
+    final hospital = _firstText(record, const [
+      'originating_hospital',
+      'hospital_name',
+      'facility',
+    ]);
     final details = <(String, String)>[
+      if (hospital != null && hospital.isNotEmpty)
+        ('Originating Facility / Hospital', hospital),
       for (final key in _detailKeys('medical_records'))
-        if (!{'title', 'created_at'}.contains(key))
+        if (!{'title', 'created_at', 'originating_hospital', 'hospital_name'}.contains(key))
           if (_detailValue(record[key], key) case final value?)
             (_detailLabel(key), value),
     ];
@@ -10513,7 +11211,13 @@ class _CheckupHistoryEntry extends StatelessWidget {
       child: ExpansionTile(
         leading: const Icon(Icons.monitor_heart_outlined),
         title: Text(title),
-        subtitle: Text('$recordedAt — $doctor'),
+        subtitle: Text(
+          [
+            recordedAt,
+            doctor,
+            if (hospital != null && hospital.isNotEmpty) hospital,
+          ].join(' • '),
+        ),
         childrenPadding: const EdgeInsets.fromLTRB(
           AppSpacing.x4,
           0,
@@ -10664,8 +11368,17 @@ class _PatientClinicalHistoryEntryState
               _detailValue(record['created_at'], 'created_at') ??
               'Date not recorded';
     final author = widget.prescription
-        ? _firstText(record, const ['prescriber_name'])
-        : _firstText(record, const ['requesting_doctor']);
+        ? _firstText(record, const ['prescriber_name', 'doctor_display_name'])
+        : _firstText(record, const [
+            'requesting_doctor',
+            'doctor_display_name',
+            'authoring_doctor',
+          ]);
+    final hospital = _firstText(record, const [
+      'originating_hospital',
+      'hospital_name',
+      'facility',
+    ]);
     final keys = widget.prescription
         ? source == 'prescriptions'
               ? _detailKeys('prescriptions')
@@ -10679,6 +11392,17 @@ class _PatientClinicalHistoryEntryState
             'result_date',
             'facility',
             'requesting_doctor',
+            'patient_name_on_report',
+            'procedure_details',
+            'test_procedure_name_ai_generated',
+            'performed_or_collected_date_text',
+            'result_date_text',
+            'result_details',
+            'official_findings_impression',
+            'report_recommendations',
+            'technical_summary',
+            'patient_friendly_summary',
+            'verification_notes',
             'findings_impression',
             'notes',
             'ai_analysis_status',
@@ -10687,12 +11411,33 @@ class _PatientClinicalHistoryEntryState
             'created_at',
           ];
     final details = isFile
-        ? _medicalDocumentDetailEntries(record)
+        ? [
+            if (hospital != null &&
+                hospital.isNotEmpty &&
+                record['facility'] == null)
+              ('Originating Facility / Hospital', hospital),
+            ..._medicalDocumentDetailEntries(record),
+          ]
         : <(String, String)>[
+            if (hospital != null &&
+                hospital.isNotEmpty &&
+                !keys.contains('facility') &&
+                record['facility'] == null)
+              ('Originating Facility / Hospital', hospital),
             for (final key in keys)
-              if (_detailValue(record[key], key) case final value?)
-                (_detailLabel(key), value),
+              if (key != 'originating_hospital')
+                if (_detailValue(record[key], key) case final value?)
+                  (_detailLabel(key), value),
           ];
+
+    final subtitleParts = [
+      recordedAt,
+      if (author != null && author.isNotEmpty) author,
+      if (hospital != null &&
+          hospital.isNotEmpty &&
+          (author == null || !author.contains(hospital)))
+        hospital,
+    ];
 
     return Material(
       color: AppColors.surface,
@@ -10708,10 +11453,10 @@ class _PatientClinicalHistoryEntryState
               : Icons.biotech_outlined,
         ),
         title: Text(title),
-        subtitle: Text(author == null ? recordedAt : '$recordedAt | $author'),
+        subtitle: Text(subtitleParts.join(' • ')),
         childrenPadding: const EdgeInsets.fromLTRB(
           AppSpacing.x4,
-          0,
+          AppSpacing.x2,
           AppSpacing.x4,
           AppSpacing.x4,
         ),
@@ -11319,6 +12064,8 @@ List<String> _detailKeys(String kind) => switch (kind) {
     'created_at',
   ],
   'prescriptions' => const [
+    'originating_hospital',
+    'hospital_name',
     'diagnosis_reason',
     'medication_name',
     'medication_form_strength',
@@ -11342,6 +12089,9 @@ List<String> _detailKeys(String kind) => switch (kind) {
     'created_at',
   ],
   'laboratory_results' => const [
+    'originating_hospital',
+    'hospital_name',
+    'facility',
     'test_name',
     'verification_status',
     'ai_summary',
@@ -11351,6 +12101,8 @@ List<String> _detailKeys(String kind) => switch (kind) {
     'reviewed_at',
   ],
   'laboratory_requests' => const [
+    'originating_hospital',
+    'hospital_name',
     'test_name',
     'priority',
     'status',
@@ -11360,6 +12112,9 @@ List<String> _detailKeys(String kind) => switch (kind) {
     'completed_at',
   ],
   'medical_documents' => const [
+    'originating_hospital',
+    'hospital_name',
+    'facility',
     'title',
     'document_type',
     'ai_analysis_status',
@@ -11371,6 +12126,8 @@ List<String> _detailKeys(String kind) => switch (kind) {
     'created_at',
   ],
   'medical_records' => const [
+    'originating_hospital',
+    'hospital_name',
     'title',
     'record_type',
     'description',
@@ -11588,6 +12345,7 @@ List<String> _detailKeys(String kind) => switch (kind) {
 };
 
 String _detailLabel(String key) => switch (key) {
+  'originating_hospital' => 'Originating Facility / Hospital',
   'chief_complaint' => 'Reason for Visit',
   'appointment_date' => 'Date & Time',
   'consultation_type' => 'Consultation Type',
@@ -11613,6 +12371,17 @@ String _detailLabel(String key) => switch (key) {
   'test_procedure_name' => 'Test or Procedure',
   'performed_or_collected_date' => 'Performed or Collected',
   'result_date' => 'Result Issued',
+  'patient_name_on_report' => 'Patient Name on Report',
+  'procedure_details' => 'Type-specific Report Details',
+  'test_procedure_name_ai_generated' => 'Procedure Name AI-generated',
+  'performed_or_collected_date_text' => 'Procedure/Collection Date as Printed',
+  'result_date_text' => 'Result Date as Printed',
+  'result_details' => 'All Results and Measurements',
+  'official_findings_impression' => 'Official Findings / Impression',
+  'report_recommendations' => 'Report-stated Recommendations',
+  'technical_summary' => 'Technical Summary',
+  'patient_friendly_summary' => 'Patient-friendly Summary',
+  'verification_notes' => 'Needs Verification',
   'findings_impression' => 'Findings and Impression',
   _ =>
     key
@@ -11708,6 +12477,17 @@ List<(String, String)> _medicalDocumentDetailEntries(
       'result_date',
       'facility',
       'requesting_doctor',
+      'patient_name_on_report',
+      'procedure_details',
+      'test_procedure_name_ai_generated',
+      'performed_or_collected_date_text',
+      'result_date_text',
+      'result_details',
+      'official_findings_impression',
+      'report_recommendations',
+      'technical_summary',
+      'patient_friendly_summary',
+      'verification_notes',
       'findings_impression',
       'notes',
     ]) {
