@@ -11,6 +11,23 @@ enum CareAssistantIntent { medical, emergency, nonMedical, unclear }
 
 enum CareAssistantUrgency { routine, soon, urgent, emergency }
 
+class CareAssistantFirstAidGuidance {
+  const CareAssistantFirstAidGuidance({
+    required this.immediateActions,
+    required this.avoid,
+    required this.warningSigns,
+  });
+
+  final List<String> immediateActions;
+  final List<String> avoid;
+  final List<String> warningSigns;
+
+  bool get isComplete =>
+      immediateActions.isNotEmpty &&
+      avoid.isNotEmpty &&
+      warningSigns.isNotEmpty;
+}
+
 class CareAssistantImage {
   const CareAssistantImage({
     required this.bytes,
@@ -120,6 +137,7 @@ class CareAssistantReply {
     this.intent = CareAssistantIntent.unclear,
     this.urgency = CareAssistantUrgency.routine,
     this.followUpQuestion,
+    this.firstAid,
     this.recommendationIds = const [],
     this.recommendationSummary,
     this.facilityDistances = const {},
@@ -130,6 +148,7 @@ class CareAssistantReply {
   final CareAssistantIntent intent;
   final CareAssistantUrgency urgency;
   final String? followUpQuestion;
+  final CareAssistantFirstAidGuidance? firstAid;
   final List<String> recommendationIds;
   final String? recommendationSummary;
   final Map<String, double> facilityDistances;
@@ -147,6 +166,7 @@ class CareAssistantReply {
       intent: _intent(value['intent'], legacyEmergency: value['emergency']),
       urgency: _urgency(value['urgency'], legacyEmergency: value['emergency']),
       followUpQuestion: _nullableString(value['follow_up_question']),
+      firstAid: _firstAid(value['first_aid']),
       recommendationIds: _stringList(value['recommendation_ids']),
       recommendationSummary: _nullableString(value['recommendation_summary']),
       facilityDistances: _numberMap(value['facility_distances']),
@@ -190,6 +210,18 @@ class CareAssistantReply {
             .toSet()
             .toList(growable: false)
       : const [];
+
+  static CareAssistantFirstAidGuidance? _firstAid(Object? value) {
+    if (value is! Map) return null;
+    final guidance = CareAssistantFirstAidGuidance(
+      immediateActions: _stringList(
+        value['immediate_actions'],
+      ).take(6).toList(),
+      avoid: _stringList(value['avoid']).take(4).toList(),
+      warningSigns: _stringList(value['warning_signs']).take(5).toList(),
+    );
+    return guidance.isComplete ? guidance : null;
+  }
 
   static Map<String, double> _numberMap(Object? value) {
     if (value is! Map) return const {};

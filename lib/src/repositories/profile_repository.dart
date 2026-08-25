@@ -240,17 +240,17 @@ class SupabaseProfileRepository implements ProfileRepository {
         .select('id')
         .single();
     if (update.patientId != null) {
-      await _client
-          .from('patients')
-          .update({
+      await _client.rpc(
+        'update_own_patient_profile',
+        params: {
+          'patient_profile_update': {
             'blood_type': _nullable(update.bloodType),
             'emergency_contact': _textObject(update.emergencyContact),
             'allergies': _textArray(update.allergies),
             'existing_conditions': _textArray(update.existingConditions),
-          })
-          .eq('id', update.patientId!)
-          .select('id')
-          .single();
+          },
+        },
+      );
     }
   }
 

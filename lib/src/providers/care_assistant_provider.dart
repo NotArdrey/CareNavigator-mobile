@@ -9,7 +9,7 @@ import 'core_providers.dart';
 import 'hospital_directory_provider.dart';
 
 const careAssistantWelcomeMessage =
-    "Hi! Tell me what you're experiencing and I'll help you find an appropriate healthcare facility. Signed-in accounts with a saved address get distance-aware nearby recommendations.";
+    "Hi! Tell me what happened or what symptoms you're experiencing. I can share immediate first-aid steps when appropriate and help you find the right level of care. This guidance is not a diagnosis or a replacement for professional treatment.";
 
 enum CareAssistantStatus {
   idle,
@@ -279,10 +279,11 @@ class CareAssistantController extends Notifier<CareAssistantState> {
         token,
         directory: directory,
         profile: profile,
-        reply: const CareAssistantReply(
+        reply: CareAssistantReply(
           message: '',
           intent: CareAssistantIntent.emergency,
           urgency: CareAssistantUrgency.emergency,
+          firstAid: emergencyFirstAidFor(messageText),
         ),
         messageOverride:
             'This may require immediate medical attention. $callInstruction or go to the nearest emergency department now. Do not wait for an online consultation.',
@@ -525,6 +526,14 @@ class CareAssistantController extends Notifier<CareAssistantState> {
     var message = backendOverEscalated
         ? 'I need a little more information to guide you safely.'
         : (messageOverride ?? reply.message).trim();
+    final firstAid = emergency
+        ? reply.firstAid
+        : backendOverEscalated
+        ? null
+        : reply.firstAid;
+    if (firstAid != null && firstAid.isComplete) {
+      message = '$message\n\n${_formatFirstAid(firstAid)}';
+    }
     if (!emergency && followUp != null && followUp.isNotEmpty) {
       if (!message.contains(followUp)) message = '$message\n\n$followUp';
     }
@@ -571,6 +580,25 @@ class CareAssistantController extends Notifier<CareAssistantState> {
         isOffline: true,
       ),
     );
+  }
+
+  String _formatFirstAid(CareAssistantFirstAidGuidance guidance) {
+    final buffer = StringBuffer('Immediate first aid');
+    for (var index = 0; index < guidance.immediateActions.length; index++) {
+      buffer.write('\n${index + 1}. ${guidance.immediateActions[index]}');
+    }
+    buffer.write('\n\nWhat to avoid');
+    for (final item in guidance.avoid) {
+      buffer.write('\n• $item');
+    }
+    buffer.write('\n\nGet professional medical care if');
+    for (final sign in guidance.warningSigns) {
+      buffer.write('\n• $sign');
+    }
+    buffer.write(
+      '\n\nFirst aid is temporary support, not a diagnosis or a replacement for professional treatment.',
+    );
+    return buffer.toString();
   }
 
   CareAssistantState _newConversationState() {
@@ -1048,6 +1076,20 @@ class CareAssistantNeedProfile {
           'chew',
           'mouth',
           'jaw',
+          'cut',
+          'wound',
+          'burn',
+          'scald',
+          'sprain',
+          'poison',
+          'overdose',
+          'bite',
+          'sting',
+          'nosebleed',
+          'faint',
+          'seizure',
+          'choking',
+          'allergic',
         ]);
     final intent = classification.intent;
 

@@ -10,6 +10,17 @@ const patientSexOptions = <PatientSexOption>[
   PatientSexOption(value: 'male', label: 'Male'),
 ];
 
+const patientBloodTypeOptions = <String>[
+  'A+',
+  'A-',
+  'B+',
+  'B-',
+  'AB+',
+  'AB-',
+  'O+',
+  'O-',
+];
+
 class PatientIdentity {
   const PatientIdentity({
     required this.firstName,

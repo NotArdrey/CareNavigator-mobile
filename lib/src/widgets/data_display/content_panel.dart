@@ -85,11 +85,13 @@ class StatusTag extends StatelessWidget {
     required this.label,
     required this.icon,
     required this.color,
+    this.height,
   });
 
   final String label;
   final IconData icon;
   final Color color;
+  final double? height;
 
   @override
   Widget build(BuildContext context) {
@@ -97,6 +99,7 @@ class StatusTag extends StatelessWidget {
       label: label,
       child: ExcludeSemantics(
         child: Container(
+          height: height,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           decoration: BoxDecoration(
             color: color.withValues(alpha: 0.09),

@@ -6,6 +6,7 @@ import 'package:care_navigator_ph/src/repositories/care_repository.dart';
 import 'package:care_navigator_ph/src/repositories/profile_repository.dart';
 import 'package:care_navigator_ph/src/repositories/workspace_repository.dart';
 import 'package:care_navigator_ph/src/routing/root_overlay.dart';
+import 'package:care_navigator_ph/src/widgets/data_display/content_panel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -610,9 +611,11 @@ void main() {
       ),
     );
 
-    final action = find.widgetWithText(TextButton, 'Change department');
-    await tester.ensureVisible(action);
-    await tester.tap(action);
+    final editAction = find.widgetWithText(OutlinedButton, 'Edit');
+    await tester.ensureVisible(editAction);
+    await tester.tap(editAction);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Change department'));
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.text('Change doctor department'), findsOneWidget);
 
@@ -720,8 +723,105 @@ void main() {
 
     await _openAndCancel(
       tester,
-      find.widgetWithText(TextButton, 'Edit'),
+      find.widgetWithText(OutlinedButton, 'Edit'),
       'Update Ward beds',
+    );
+  });
+
+  testWidgets('admin table view action opens record details in a modal', (
+    tester,
+  ) async {
+    await _pumpItem(
+      tester,
+      role: UserRole.hospitalAdministrator,
+      section: 'services',
+      adminRepository: _DepartmentAdminRepository(),
+      item: const WorkspaceItem(
+        id: 'service-view-id',
+        kind: 'hospital_services',
+        title: 'Cardiology',
+        subtitle: 'Available',
+        data: {
+          'service_name': 'Cardiology',
+          'description': 'Heart and vascular care',
+        },
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey('view-record-service-view-id')),
+      findsOneWidget,
+    );
+    await tester.tap(find.widgetWithText(OutlinedButton, 'View'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(find.text('Record ID'), findsOneWidget);
+    expect(find.text('service-view-id'), findsOneWidget);
+    expect(find.text('Heart and vascular care'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Close'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsNothing);
+  });
+
+  testWidgets('immutable admin records remain explicit view only', (
+    tester,
+  ) async {
+    await _pumpItem(
+      tester,
+      role: UserRole.superAdministrator,
+      section: 'security',
+      item: const WorkspaceItem(
+        id: 'security-event-id',
+        kind: 'security_events',
+        title: 'Failed sign-in',
+        subtitle: 'Recorded security event',
+      ),
+    );
+
+    expect(find.widgetWithText(OutlinedButton, 'View'), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, 'Edit'), findsNothing);
+    expect(find.widgetWithText(TextButton, 'Delete'), findsNothing);
+  });
+
+  testWidgets('facility availability exposes connected add edit and delete', (
+    tester,
+  ) async {
+    await _pumpItem(
+      tester,
+      role: UserRole.hospitalAdministrator,
+      section: 'availability',
+      item: const WorkspaceItem(
+        id: 'facility-id',
+        kind: 'hospital_facility_status',
+        title: 'Intensive care unit',
+        subtitle: '4 units available',
+        status: 'available',
+        data: {
+          'facility_type': 'icu',
+          'status': 'available',
+          'available_units': 4,
+          'notes': 'Staffed continuously',
+        },
+      ),
+    );
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Add facility status'));
+    await tester.pumpAndSettle();
+    expect(find.text('Add facility status'), findsWidgets);
+    expect(find.text('Operating room'), findsOneWidget);
+    await _cancelDialog(tester);
+
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Edit'));
+    await tester.pumpAndSettle();
+    expect(find.text('Edit facility'), findsOneWidget);
+    expect(find.text('Staffed continuously'), findsOneWidget);
+    await _cancelDialog(tester);
+
+    await _openAndCancel(
+      tester,
+      find.widgetWithText(TextButton, 'Delete'),
+      'Delete Intensive care unit?',
     );
   });
 
@@ -739,6 +839,7 @@ void main() {
         kind: 'emergency_room_status',
         title: 'Emergency room',
         subtitle: '9 beds available',
+        status: 'available',
         data: {
           'maximum_capacity': 29,
           'available_beds': 9,
@@ -750,7 +851,20 @@ void main() {
       ),
     );
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Confirm capacity'));
+    final statusControl = find.byType(StatusTag);
+    final viewControl = find.byKey(const ValueKey('view-record-er-status-id'));
+    final editControl = find.byKey(const ValueKey('edit-record-er-status-id'));
+    expect(statusControl, findsOneWidget);
+    expect(
+      tester.getSize(statusControl).height,
+      tester.getSize(viewControl).height,
+    );
+    expect(
+      tester.getSize(statusControl).height,
+      tester.getSize(editControl).height,
+    );
+
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Edit'));
     await tester.pumpAndSettle();
 
     expect(find.text('Confirm emergency capacity'), findsOneWidget);
@@ -1002,6 +1116,7 @@ void main() {
       tester,
       role: UserRole.hospitalAdministrator,
       section: 'services',
+      adminRepository: _DepartmentAdminRepository(),
       item: const WorkspaceItem(
         id: 'service-id',
         kind: 'hospital_services',
@@ -1011,16 +1126,15 @@ void main() {
       ),
     );
 
-    await tester.tap(find.byTooltip('Update availability'));
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Edit'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Unavailable').last);
-    await tester.pumpAndSettle();
-    expect(find.text('Update operational status?'), findsOneWidget);
+    expect(find.text('Edit service'), findsOneWidget);
+    expect(find.text('Availability'), findsOneWidget);
     await _cancelDialog(tester);
 
     await _openAndCancel(
       tester,
-      find.byTooltip('Delete record'),
+      find.widgetWithText(TextButton, 'Delete'),
       'Delete Cardiology?',
     );
   });
@@ -1041,9 +1155,9 @@ void main() {
       ),
     );
 
-    await tester.tap(find.byTooltip('Change account status'));
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Edit'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Suspend account').last);
+    await tester.tap(find.text('Set status to Suspended').last);
     await tester.pumpAndSettle();
     expect(find.text('Change account status?'), findsOneWidget);
     await _cancelDialog(tester);
@@ -1064,11 +1178,12 @@ void main() {
         data: {'is_allowed': true},
       ),
     );
-    await _openAndCancel(
-      tester,
-      find.widgetWithText(TextButton, 'Deny'),
-      'Deny permission?',
-    );
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Edit'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Deny permission'));
+    await tester.pumpAndSettle();
+    expect(find.text('Deny permission?'), findsOneWidget);
+    await _cancelDialog(tester);
 
     await _pumpItem(
       tester,
@@ -1084,7 +1199,7 @@ void main() {
     );
     await _openAndCancel(
       tester,
-      find.widgetWithText(TextButton, 'Edit'),
+      find.widgetWithText(OutlinedButton, 'Edit'),
       'Edit Support email',
     );
   });
@@ -1112,7 +1227,7 @@ void main() {
     );
     await _openAndCancel(
       tester,
-      find.byTooltip('Delete maintenance window'),
+      find.widgetWithText(TextButton, 'Delete'),
       'Delete Database maintenance?',
     );
   });

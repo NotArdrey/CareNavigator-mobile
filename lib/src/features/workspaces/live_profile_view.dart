@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/auth/user_role.dart';
+import '../../models/shared/patient_identity.dart';
 import '../../providers/core_providers.dart';
 import '../../repositories/profile_repository.dart';
 import '../../repositories/repository_failure.dart';
@@ -30,13 +31,13 @@ class _LiveProfileViewState extends ConsumerState<LiveProfileView> {
   final _emailAddress = TextEditingController();
   final _mobile = TextEditingController();
   final _address = TextEditingController();
-  final _bloodType = TextEditingController();
   final _emergencyContact = TextEditingController();
   final _allergies = TextEditingController();
   final _conditions = TextEditingController();
   CareProfile? _profile;
   DateTime? _birthDate;
   String? _sex;
+  String? _bloodType;
   bool _consultations = true;
   bool _appointments = true;
   bool _results = true;
@@ -56,7 +57,6 @@ class _LiveProfileViewState extends ConsumerState<LiveProfileView> {
     _emailAddress.dispose();
     _mobile.dispose();
     _address.dispose();
-    _bloodType.dispose();
     _emergencyContact.dispose();
     _allergies.dispose();
     _conditions.dispose();
@@ -71,7 +71,9 @@ class _LiveProfileViewState extends ConsumerState<LiveProfileView> {
     _emailAddress.text = profile.email ?? '';
     _mobile.text = profile.mobileNumber ?? '';
     _address.text = profile.address ?? '';
-    _bloodType.text = profile.bloodType ?? '';
+    _bloodType = patientBloodTypeOptions.contains(profile.bloodType)
+        ? profile.bloodType
+        : null;
     _emergencyContact.text = profile.emergencyContact ?? '';
     _allergies.text = profile.allergies ?? '';
     _conditions.text = profile.existingConditions ?? '';
@@ -213,11 +215,24 @@ class _LiveProfileViewState extends ConsumerState<LiveProfileView> {
                       'Patient-entered context supports care navigation; clinicians verify official records.',
                   child: Column(
                     children: [
-                      TextFormField(
-                        controller: _bloodType,
+                      DropdownButtonFormField<String>(
+                        initialValue: _bloodType,
+                        isExpanded: true,
                         decoration: const InputDecoration(
                           labelText: 'Blood type',
+                          hintText: 'Select your blood type',
+                          prefixIcon: Icon(Icons.bloodtype_outlined),
                         ),
+                        items: [
+                          for (final bloodType in patientBloodTypeOptions)
+                            DropdownMenuItem(
+                              value: bloodType,
+                              child: Text(bloodType),
+                            ),
+                        ],
+                        onChanged: _saving
+                            ? null
+                            : (value) => setState(() => _bloodType = value),
                       ),
                       const SizedBox(height: AppSpacing.x3),
                       TextFormField(
@@ -330,7 +345,7 @@ class _LiveProfileViewState extends ConsumerState<LiveProfileView> {
           sex: _sex,
           address: _address.text,
           patientId: profile.patientId,
-          bloodType: _bloodType.text,
+          bloodType: _bloodType,
           emergencyContact: _emergencyContact.text,
           allergies: _allergies.text,
           existingConditions: _conditions.text,

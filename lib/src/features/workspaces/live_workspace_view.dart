@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -611,6 +612,48 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
                       label: const Text('Upload diagnostic result'),
                     ),
                   if (widget.role == UserRole.hospitalAdministrator &&
+                      widget.section == 'availability' &&
+                      widget.itemId == null &&
+                      _missingFacilityTypes(snapshot.items).isNotEmpty)
+                    FilledButton.icon(
+                      onPressed: _busyItems.contains('facility-status-create')
+                          ? null
+                          : () => _createFacilityStatus(snapshot.items),
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add facility status'),
+                    ),
+                  if (widget.role == UserRole.hospitalAdministrator &&
+                      widget.section == 'beds' &&
+                      widget.itemId == null)
+                    FilledButton.icon(
+                      onPressed: _busyItems.contains('hospital-bed-create')
+                          ? null
+                          : () => _createCapacityRecord(beds: true),
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add bed type'),
+                    ),
+                  if (widget.role == UserRole.hospitalAdministrator &&
+                      widget.section == 'rooms' &&
+                      widget.itemId == null)
+                    FilledButton.icon(
+                      onPressed: _busyItems.contains('hospital-room-create')
+                          ? null
+                          : () => _createCapacityRecord(beds: false),
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add room type'),
+                    ),
+                  if (widget.role == UserRole.hospitalAdministrator &&
+                      widget.section == 'emergency-room' &&
+                      widget.itemId == null &&
+                      snapshot.items.isEmpty)
+                    FilledButton.icon(
+                      onPressed: _busyItems.contains('emergency-room-create')
+                          ? null
+                          : _createEmergencyRoomRecord,
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add ER capacity'),
+                    ),
+                  if (widget.role == UserRole.hospitalAdministrator &&
                       widget.section == 'staff' &&
                       widget.itemId == null)
                     FilledButton.icon(
@@ -640,6 +683,36 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
                           : _createHospitalDepartment,
                       icon: const Icon(Icons.add),
                       label: const Text('Add department'),
+                    ),
+                  if (widget.role == UserRole.superAdministrator &&
+                      {'approvals', 'hospitals'}.contains(widget.section) &&
+                      widget.itemId == null)
+                    FilledButton.icon(
+                      onPressed: _busyItems.contains('hospital-create')
+                          ? null
+                          : _createHospitalRecord,
+                      icon: const Icon(Icons.add_business_outlined),
+                      label: const Text('Add hospital'),
+                    ),
+                  if (widget.role == UserRole.superAdministrator &&
+                      widget.section == 'permissions' &&
+                      widget.itemId == null)
+                    FilledButton.icon(
+                      onPressed: _busyItems.contains('permission-create')
+                          ? null
+                          : _createPermissionRecord,
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add permission'),
+                    ),
+                  if (widget.role == UserRole.superAdministrator &&
+                      widget.section == 'settings' &&
+                      widget.itemId == null)
+                    FilledButton.icon(
+                      onPressed: _busyItems.contains('setting-create')
+                          ? null
+                          : _createSystemSettingRecord,
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add setting'),
                     ),
                   if (widget.role == UserRole.superAdministrator &&
                       widget.section == 'maintenance' &&
@@ -1074,21 +1147,107 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
   }
 
   bool _canOpen(WorkspaceItem item) =>
+      !_usesExplicitAdminTableActions &&
       widget.section != null &&
       widget.itemId == null &&
-      item.id != 'record' &&
-      !{
-        'guest_consultation_requests',
-        'online_consultation_requests',
-      }.contains(item.kind);
+      item.id != 'record';
+
+  bool get _usesExplicitAdminTableActions =>
+      {
+        UserRole.hospitalAdministrator,
+        UserRole.superAdministrator,
+      }.contains(widget.role) &&
+      widget.section != null &&
+      widget.itemId == null;
 
   void _open(WorkspaceItem item) {
     final section = widget.section;
     if (section == null) return;
-    context.go('${widget.role.homeLocation}/$section/${item.id}');
+    context.go(
+      '${widget.role.homeLocation}/$section/${workspaceItemRouteId(item)}',
+    );
   }
 
   Widget? _actionsFor(WorkspaceItem item) {
+    final recordActions = _recordActionsFor(item);
+    if (!_usesExplicitAdminTableActions) return recordActions;
+    final canEdit = _canEditAdminRecord(item);
+    final canDelete = _canDeleteAdminRecord(item);
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 620),
+      child: Wrap(
+        spacing: AppSpacing.x2,
+        runSpacing: AppSpacing.x2,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          OutlinedButton.icon(
+            key: ValueKey('view-record-${item.id}'),
+            onPressed: _busyItems.contains(item.id)
+                ? null
+                : () => _showRecordDetails(item),
+            icon: const Icon(Icons.visibility_outlined, size: 18),
+            label: const Text('View'),
+          ),
+          if (canEdit)
+            OutlinedButton.icon(
+              key: ValueKey('edit-record-${item.id}'),
+              onPressed: _busyItems.contains(item.id)
+                  ? null
+                  : () => _editAdminRecord(item),
+              icon: const Icon(Icons.edit_outlined, size: 18),
+              label: const Text('Edit'),
+            ),
+          if (canDelete)
+            TextButton.icon(
+              key: ValueKey('delete-record-${item.id}'),
+              onPressed: _busyItems.contains(item.id)
+                  ? null
+                  : () => _deleteManagedRecord(item),
+              icon: const Icon(Icons.delete_outline, size: 18),
+              label: const Text('Delete'),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.destructive,
+              ),
+            ),
+          ?recordActions,
+        ],
+      ),
+    );
+  }
+
+  bool _canEditAdminRecord(WorkspaceItem item) => const {
+    'hospital_beds',
+    'hospital_rooms',
+    'emergency_room_status',
+    'hospital_facility_status',
+    'hospital_services',
+    'hospital_departments',
+    'hospitals',
+    'users',
+    'role_permissions',
+    'system_settings',
+    'maintenance_windows',
+  }.contains(item.kind);
+
+  bool _canDeleteAdminRecord(WorkspaceItem item) => const {
+    'hospital_beds',
+    'hospital_rooms',
+    'emergency_room_status',
+    'hospital_facility_status',
+    'hospital_services',
+    'hospital_departments',
+    'hospitals',
+    'role_permissions',
+    'system_settings',
+    'maintenance_windows',
+  }.contains(item.kind);
+
+  Future<void> _showRecordDetails(WorkspaceItem item) => showRootDialog<void>(
+    builder: (context) =>
+        _AdminRecordDetailsDialog(item: item, role: widget.role),
+  );
+
+  Widget? _recordActionsFor(WorkspaceItem item) {
     if (item.kind == 'notifications' && item.isUnread) {
       return TextButton(
         onPressed: _busyItems.contains(item.id)
@@ -1228,38 +1387,6 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
         item.kind == 'laboratory_results') {
       return _laboratoryReviewActions(item);
     }
-    if (item.kind == 'users' &&
-        {'accounts', 'staff'}.contains(widget.section)) {
-      final statusMenu = PopupMenuButton<String>(
-        tooltip: 'Change account status',
-        enabled: !_busyItems.contains(item.id),
-        onSelected: (status) => _updateAccountStatus(item, status),
-        itemBuilder: (context) => const [
-          PopupMenuItem(value: 'active', child: Text('Mark active')),
-          PopupMenuItem(value: 'inactive', child: Text('Mark inactive')),
-          PopupMenuItem(value: 'suspended', child: Text('Suspend account')),
-        ],
-      );
-      final isHospitalDoctor =
-          widget.role == UserRole.hospitalAdministrator &&
-          widget.section == 'staff' &&
-          (item.data['display_name']?.toString().trim().isNotEmpty ?? false);
-      if (!isHospitalDoctor) return statusMenu;
-      return Wrap(
-        spacing: AppSpacing.x1,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          TextButton.icon(
-            onPressed: _busyItems.contains(item.id)
-                ? null
-                : () => _changeDoctorDepartment(item),
-            icon: const Icon(Icons.account_tree_outlined, size: 18),
-            label: const Text('Change department'),
-          ),
-          statusMenu,
-        ],
-      );
-    }
     if (item.kind == 'doctor_schedules') {
       final active = item.data['is_active'] == true;
       final reservedCount =
@@ -1298,24 +1425,6 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
         ],
       );
     }
-    if ({'hospital_beds', 'hospital_rooms'}.contains(item.kind)) {
-      return TextButton.icon(
-        onPressed: _busyItems.contains(item.id)
-            ? null
-            : () => _editCapacity(item),
-        icon: const Icon(Icons.edit_outlined, size: 18),
-        label: const Text('Edit'),
-      );
-    }
-    if (item.kind == 'emergency_room_status') {
-      return FilledButton.icon(
-        onPressed: _busyItems.contains(item.id)
-            ? null
-            : () => _editEmergencyCapacity(item),
-        icon: const Icon(Icons.fact_check_outlined, size: 18),
-        label: const Text('Confirm capacity'),
-      );
-    }
     if (widget.role == UserRole.doctor && item.kind == 'laboratory_requests') {
       return IconButton(
         tooltip: 'Cancel laboratory request',
@@ -1325,77 +1434,13 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
         icon: const Icon(Icons.cancel_outlined),
       );
     }
-    if ({
-      'hospital_services',
-      'hospital_departments',
-      'hospital_facility_status',
-    }.contains(item.kind)) {
-      const statuses = ['available', 'limited', 'unavailable'];
-      final statusMenu = PopupMenuButton<String>(
-        tooltip: 'Update availability',
-        enabled: !_busyItems.contains(item.id),
-        onSelected: (status) => _updateOperationalStatus(item, status),
-        itemBuilder: (context) => [
-          for (final status in statuses)
-            PopupMenuItem(value: status, child: Text(_statusLabel(status))),
-        ],
-      );
-      if ({'hospital_services', 'hospital_departments'}.contains(item.kind)) {
-        return Wrap(
-          spacing: AppSpacing.x1,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            statusMenu,
-            IconButton(
-              tooltip: 'Delete record',
-              onPressed: _busyItems.contains(item.id)
-                  ? null
-                  : () => _deleteManagedRecord(item),
-              icon: const Icon(Icons.delete_outline),
-            ),
-          ],
-        );
-      }
-      return statusMenu;
-    }
-    if (item.kind == 'role_permissions') {
-      final allowed = item.data['is_allowed'] == true;
+    if (item.kind == 'maintenance_windows') {
+      final active = item.data['is_active'] == true;
       return TextButton(
         onPressed: _busyItems.contains(item.id)
             ? null
-            : () => _updatePermission(item, !allowed),
-        child: Text(allowed ? 'Deny' : 'Allow'),
-      );
-    }
-    if (item.kind == 'system_settings') {
-      return TextButton.icon(
-        onPressed: _busyItems.contains(item.id)
-            ? null
-            : () => _editSystemSetting(item),
-        icon: const Icon(Icons.edit_outlined, size: 18),
-        label: const Text('Edit'),
-      );
-    }
-    if (item.kind == 'maintenance_windows') {
-      final active = item.data['is_active'] == true;
-      return Wrap(
-        spacing: AppSpacing.x1,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          TextButton(
-            onPressed: _busyItems.contains(item.id)
-                ? null
-                : () => _setMaintenanceActive(item, !active),
-            child: Text(active ? 'Deactivate' : 'Activate'),
-          ),
-          IconButton(
-            tooltip: 'Delete maintenance window',
-            onPressed: _busyItems.contains(item.id)
-                ? null
-                : () => _deleteManagedRecord(item),
-            icon: const Icon(Icons.delete_outline),
-          ),
-        ],
+            : () => _setMaintenanceActive(item, !active),
+        child: Text(active ? 'Deactivate' : 'Activate'),
       );
     }
     if (widget.role == UserRole.superAdministrator &&
@@ -2456,6 +2501,238 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
     });
   }
 
+  Future<void> _editAdminRecord(WorkspaceItem item) async {
+    switch (item.kind) {
+      case 'hospital_beds':
+      case 'hospital_rooms':
+        await _editCapacity(item);
+        return;
+      case 'emergency_room_status':
+        await _editEmergencyCapacity(item);
+        return;
+      case 'hospital_services':
+      case 'hospital_departments':
+        await _editNamedOperationalRecord(item);
+        return;
+      case 'hospital_facility_status':
+        await _editFacilityStatus(item);
+        return;
+      case 'users':
+        await _editAccountRecord(item);
+        return;
+      case 'role_permissions':
+        await _editPermissionRecord(item);
+        return;
+      case 'system_settings':
+        await _editSystemSetting(item);
+        return;
+      case 'maintenance_windows':
+        await _editMaintenanceWindow(item);
+        return;
+      case 'hospitals':
+        await _editHospitalRecord(item);
+        return;
+    }
+  }
+
+  Future<void> _editAccountRecord(WorkspaceItem item) async {
+    final isHospitalDoctor =
+        widget.role == UserRole.hospitalAdministrator &&
+        (item.data['display_name']?.toString().trim().isNotEmpty ?? false);
+    final action = await showRootDialog<String>(
+      builder: (context) => SimpleDialog(
+        title: Text('Edit ${item.title}'),
+        children: [
+          for (final status in const ['active', 'inactive', 'suspended'])
+            SimpleDialogOption(
+              onPressed: () => Navigator.of(context).pop(status),
+              child: ListTile(
+                leading: Icon(_statusIcon(status)),
+                title: Text('Set status to ${_statusLabel(status)}'),
+                trailing: item.status == status
+                    ? const Icon(Icons.check)
+                    : null,
+              ),
+            ),
+          if (isHospitalDoctor)
+            SimpleDialogOption(
+              onPressed: () => Navigator.of(context).pop('department'),
+              child: const ListTile(
+                leading: Icon(Icons.account_tree_outlined),
+                title: Text('Change department'),
+              ),
+            ),
+        ],
+      ),
+    );
+    if (action == null) return;
+    if (action == 'department') {
+      await _changeDoctorDepartment(item);
+    } else {
+      await _updateAccountStatus(item, action);
+    }
+  }
+
+  Future<void> _editPermissionRecord(WorkspaceItem item) async {
+    final allowed = await showRootDialog<bool>(
+      builder: (context) => SimpleDialog(
+        title: Text('Edit ${item.title}'),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const ListTile(
+              leading: Icon(Icons.check_circle_outline),
+              title: Text('Allow permission'),
+            ),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const ListTile(
+              leading: Icon(Icons.block_outlined),
+              title: Text('Deny permission'),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (allowed != null && allowed != (item.data['is_allowed'] == true)) {
+      await _updatePermission(item, allowed);
+    }
+  }
+
+  Future<void> _editNamedOperationalRecord(WorkspaceItem item) async {
+    final repository = ref.read(adminRepositoryProvider);
+    if (repository == null) throw StateError('Admin service is unavailable.');
+    final isService = item.kind == 'hospital_services';
+    final adminContext = isService
+        ? await repository.loadHospitalAdminContext()
+        : null;
+    final draft = await showRootDialog<_NamedRecordDraft>(
+      barrierDismissible: false,
+      builder: (context) => _NamedRecordDialog(
+        title: 'Edit ${isService ? 'service' : 'department'}',
+        nameLabel: isService ? 'Service name' : 'Department name',
+        confirmLabel: 'Save changes',
+        initialName: item.title,
+        initialDescription: item.data['description']?.toString() ?? '',
+        initialDepartmentId: item.data['department_id']?.toString(),
+        initialStatus:
+            item.data['availability_status']?.toString() ?? item.status,
+        departments: adminContext?.departments ?? const [],
+      ),
+    );
+    if (draft == null) return;
+    await _runItemAction(item.id, () async {
+      await repository.updateOperationalRecord(
+        table: item.kind,
+        recordId: item.id,
+        changes: isService
+            ? {
+                'service_name': draft.name,
+                'description': draft.description,
+                'department_id': draft.departmentId,
+                if (draft.status != null) 'availability_status': draft.status,
+              }
+            : {
+                'department_name': draft.name,
+                'description': draft.description,
+                if (draft.status != null) 'availability_status': draft.status,
+              },
+      );
+      ref.invalidate(workspaceSnapshotProvider(_request));
+      await ref.read(hospitalDirectoryProvider.notifier).refresh();
+      showRootMessage('${isService ? 'Service' : 'Department'} updated.');
+    });
+  }
+
+  Future<void> _editFacilityStatus(WorkspaceItem item) async {
+    final draft = await showRootDialog<_FacilityStatusDraft>(
+      barrierDismissible: false,
+      builder: (context) => _FacilityStatusDialog(item: item),
+    );
+    if (draft == null) return;
+    await _runItemAction(item.id, () async {
+      final repository = ref.read(adminRepositoryProvider);
+      if (repository == null) throw StateError('Admin service is unavailable.');
+      await repository.updateOperationalRecord(
+        table: 'hospital_facility_status',
+        recordId: item.id,
+        changes: {
+          'status': draft.status,
+          'available_units': draft.availableUnits,
+          'notes': draft.notes,
+        },
+      );
+      ref.invalidate(workspaceSnapshotProvider(_request));
+      await ref.read(hospitalDirectoryProvider.notifier).refresh();
+      showRootMessage('Facility status updated.');
+    });
+  }
+
+  Future<void> _editHospitalRecord(WorkspaceItem item) async {
+    final draft = await showRootDialog<_HospitalRecordDraft>(
+      barrierDismissible: false,
+      builder: (context) => _HospitalRecordDialog(item: item),
+    );
+    if (draft == null) return;
+    await _runItemAction(item.id, () async {
+      final repository = ref.read(adminRepositoryProvider);
+      if (repository == null) throw StateError('Admin service is unavailable.');
+      await repository.updateManagedRecord(
+        table: 'hospitals',
+        recordId: item.id,
+        changes: draft.toValues(includeVerification: false),
+      );
+      ref.invalidate(workspaceSnapshotProvider(_request));
+      await ref.read(hospitalDirectoryProvider.notifier).refresh();
+      showRootMessage('Hospital information updated.');
+    });
+  }
+
+  Future<void> _editMaintenanceWindow(WorkspaceItem item) async {
+    final draft = await showRootDialog<_MaintenanceCopyDraft>(
+      barrierDismissible: false,
+      builder: (context) => _MaintenanceCopyDialog(
+        title: 'Edit maintenance window',
+        confirmLabel: 'Continue',
+        initialTitle: item.title,
+        initialMessage: item.data['message']?.toString() ?? item.subtitle,
+      ),
+    );
+    if (draft == null) return;
+    final currentStart = DateTime.tryParse(
+      item.data['starts_at']?.toString() ?? '',
+    );
+    final startsAt = await requestRootDateTime(
+      initial: currentStart ?? DateTime.now().add(const Duration(hours: 1)),
+    );
+    if (startsAt == null) return;
+    final currentEnd = DateTime.tryParse(
+      item.data['ends_at']?.toString() ?? '',
+    );
+    final endsAt = await requestRootDateTime(
+      initial: currentEnd ?? startsAt.add(const Duration(hours: 1)),
+    );
+    if (endsAt == null) return;
+    await _runItemAction(item.id, () async {
+      final repository = ref.read(adminRepositoryProvider);
+      if (repository == null) throw StateError('Admin service is unavailable.');
+      await repository.updateManagedRecord(
+        table: 'maintenance_windows',
+        recordId: item.id,
+        changes: {
+          'title': draft.title,
+          'message': draft.message,
+          'starts_at': startsAt.toUtc().toIso8601String(),
+          'ends_at': endsAt.toUtc().toIso8601String(),
+          'is_active': item.data['is_active'] == true,
+        },
+      );
+      ref.invalidate(workspaceSnapshotProvider(_request));
+      showRootMessage('Maintenance window updated.');
+    });
+  }
+
   Future<void> _updateAccountStatus(WorkspaceItem item, String status) async {
     if (item.status == status) return;
     final confirmed = await confirmRootAction(
@@ -2472,42 +2749,6 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
       await repository.updateAccountStatus(userId: item.id, status: status);
       ref.invalidate(workspaceSnapshotProvider(_request));
       showRootMessage('Account status updated.');
-    });
-  }
-
-  Future<void> _updateOperationalStatus(
-    WorkspaceItem item,
-    String status,
-  ) async {
-    final confirmed = await confirmRootAction(
-      title: 'Update operational status?',
-      message:
-          'This publishes ${_statusLabel(status)} for ${item.title} and may notify affected users.',
-      confirmLabel: 'Update status',
-      destructive: {
-        'unavailable',
-        'full',
-        'temporarily_closed',
-      }.contains(status),
-    );
-    if (!confirmed) return;
-    await _runItemAction(item.id, () async {
-      final repository = ref.read(adminRepositoryProvider);
-      if (repository == null) throw StateError('Admin service is unavailable.');
-      await repository.updateOperationalRecord(
-        table: item.kind,
-        recordId: item.id,
-        changes: {
-          item.kind == 'hospital_services' ||
-                      item.kind == 'hospital_departments'
-                  ? 'availability_status'
-                  : 'status':
-              status,
-        },
-      );
-      ref.invalidate(workspaceSnapshotProvider(_request));
-      ref.invalidate(hospitalDirectoryProvider);
-      showRootMessage('Operational status updated.');
     });
   }
 
@@ -2781,6 +3022,186 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
     },
   );
 
+  Future<void> _createCapacityRecord({required bool beds}) => _runItemAction(
+    beds ? 'hospital-bed-create' : 'hospital-room-create',
+    () async {
+      final draft = await showRootDialog<_CapacityResourceDraft>(
+        barrierDismissible: false,
+        builder: (context) => _CapacityResourceDialog(beds: beds),
+      );
+      if (draft == null) return;
+      final repository = ref.read(adminRepositoryProvider);
+      if (repository == null) throw StateError('Admin service is unavailable.');
+      await repository.createManagedRecord(
+        table: beds ? 'hospital_beds' : 'hospital_rooms',
+        values: beds
+            ? {
+                'bed_type': draft.type,
+                'total_beds': draft.total,
+                'available_beds': draft.available,
+                'occupied_beds': draft.total - draft.available,
+              }
+            : {
+                'room_type': draft.type,
+                'total_rooms': draft.total,
+                'available_rooms': draft.available,
+                'occupied_rooms': draft.total - draft.available,
+                'status': draft.available == 0
+                    ? 'unavailable'
+                    : draft.available < draft.total
+                    ? 'limited'
+                    : 'available',
+              },
+      );
+      ref.invalidate(workspaceSnapshotProvider(_request));
+      ref.invalidate(hospitalDirectoryProvider);
+      showRootMessage('${beds ? 'Bed' : 'Room'} type added.');
+    },
+  );
+
+  Future<void> _createFacilityStatus(List<WorkspaceItem> items) =>
+      _runItemAction('facility-status-create', () async {
+        final facilityTypes = _missingFacilityTypes(items);
+        if (facilityTypes.isEmpty) {
+          showRootMessage('All supported facility types are already listed.');
+          return;
+        }
+        final draft = await showRootDialog<_FacilityStatusDraft>(
+          barrierDismissible: false,
+          builder: (context) =>
+              _FacilityStatusDialog(facilityTypes: facilityTypes),
+        );
+        if (draft == null) return;
+        final repository = ref.read(adminRepositoryProvider);
+        if (repository == null) {
+          throw StateError('Admin service is unavailable.');
+        }
+        await repository.createManagedRecord(
+          table: 'hospital_facility_status',
+          values: {
+            'facility_type': draft.facilityType,
+            'status': draft.status,
+            'available_units': draft.availableUnits,
+            'notes': draft.notes,
+          },
+        );
+        ref.invalidate(workspaceSnapshotProvider(_request));
+        await ref.read(hospitalDirectoryProvider.notifier).refresh();
+        showRootMessage('Facility status added.');
+      });
+
+  Future<void> _createEmergencyRoomRecord() => _runItemAction(
+    'emergency-room-create',
+    () async {
+      final draft = await showRootDialog<_EmergencyCapacityDraft>(
+        barrierDismissible: false,
+        builder: (context) => const _EmergencyCapacityDialog(
+          initialTotal: 0,
+          initialOccupied: 0,
+          initialClosedOrUnstaffed: 0,
+          initialReserved: 0,
+          initialPatientCount: 0,
+        ),
+      );
+      if (draft == null) return;
+      final repository = ref.read(adminRepositoryProvider);
+      if (repository == null) throw StateError('Admin service is unavailable.');
+      final available =
+          draft.total -
+          draft.occupied -
+          draft.closedOrUnstaffed -
+          draft.reserved;
+      await repository.createManagedRecord(
+        table: 'emergency_room_status',
+        values: {
+          'status':
+              draft.statusOverride ??
+              (available == 0
+                  ? 'full'
+                  : available * 5 <= draft.total
+                  ? 'limited'
+                  : 'available'),
+          'maximum_capacity': draft.total,
+          'available_beds': available,
+          'occupied_beds': draft.occupied,
+          'closed_or_unstaffed_beds': draft.closedOrUnstaffed,
+          'reserved_beds': draft.reserved,
+          'current_patient_count': draft.currentPatients,
+        },
+      );
+      ref.invalidate(workspaceSnapshotProvider(_request));
+      ref.invalidate(hospitalDirectoryProvider);
+      showRootMessage('Emergency capacity record added.');
+    },
+  );
+
+  Future<void> _createHospitalRecord() => _runItemAction(
+    'hospital-create',
+    () async {
+      final draft = await showRootDialog<_HospitalRecordDraft>(
+        barrierDismissible: false,
+        builder: (context) => const _HospitalRecordDialog(),
+      );
+      if (draft == null) return;
+      final repository = ref.read(adminRepositoryProvider);
+      if (repository == null) throw StateError('Admin service is unavailable.');
+      await repository.createManagedRecord(
+        table: 'hospitals',
+        values: draft.toValues(includeVerification: true),
+      );
+      ref.invalidate(workspaceSnapshotProvider(_request));
+      await ref.read(hospitalDirectoryProvider.notifier).refresh();
+      showRootMessage('Hospital record added for review.');
+    },
+  );
+
+  Future<void> _createPermissionRecord() => _runItemAction(
+    'permission-create',
+    () async {
+      final draft = await showRootDialog<_PermissionRecordDraft>(
+        barrierDismissible: false,
+        builder: (context) => const _PermissionRecordDialog(),
+      );
+      if (draft == null) return;
+      final repository = ref.read(adminRepositoryProvider);
+      if (repository == null) throw StateError('Admin service is unavailable.');
+      await repository.createManagedRecord(
+        table: 'role_permissions',
+        values: {
+          'role_id': draft.roleId,
+          'permission': draft.permission,
+          'is_allowed': draft.allowed,
+        },
+      );
+      ref.invalidate(workspaceSnapshotProvider(_request));
+      showRootMessage('Role permission added.');
+    },
+  );
+
+  Future<void> _createSystemSettingRecord() => _runItemAction(
+    'setting-create',
+    () async {
+      final draft = await showRootDialog<_SystemSettingRecordDraft>(
+        barrierDismissible: false,
+        builder: (context) => const _SystemSettingRecordDialog(),
+      );
+      if (draft == null) return;
+      final repository = ref.read(adminRepositoryProvider);
+      if (repository == null) throw StateError('Admin service is unavailable.');
+      await repository.createManagedRecord(
+        table: 'system_settings',
+        values: {
+          'key': draft.key,
+          'value': draft.value,
+          'description': draft.description,
+          'is_public': draft.isPublic,
+        },
+      );
+      ref.invalidate(workspaceSnapshotProvider(_request));
+      showRootMessage('System setting added.');
+    },
+  );
+
   Future<void> _createHospitalDepartment() => _runItemAction(
     'hospital-department-create',
     () async {
@@ -2875,7 +3296,15 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
       if (repository == null) throw StateError('Admin service is unavailable.');
       await repository.deleteManagedRecord(table: item.kind, recordId: item.id);
       ref.invalidate(workspaceSnapshotProvider(_request));
-      if ({'hospital_services', 'hospital_departments'}.contains(item.kind)) {
+      if ({
+        'hospital_beds',
+        'hospital_rooms',
+        'emergency_room_status',
+        'hospital_facility_status',
+        'hospital_services',
+        'hospital_departments',
+        'hospitals',
+      }.contains(item.kind)) {
         await ref.read(hospitalDirectoryProvider.notifier).refresh();
       }
       showRootMessage('Managed record deleted.');
@@ -4394,11 +4823,13 @@ class _NamedRecordDraft {
     required this.name,
     required this.description,
     required this.departmentId,
+    required this.status,
   });
 
   final String name;
   final String description;
   final String? departmentId;
+  final String? status;
 }
 
 class _NamedRecordDialog extends StatefulWidget {
@@ -4407,12 +4838,20 @@ class _NamedRecordDialog extends StatefulWidget {
     required this.nameLabel,
     required this.confirmLabel,
     this.departments = const [],
+    this.initialName = '',
+    this.initialDescription = '',
+    this.initialDepartmentId,
+    this.initialStatus,
   });
 
   final String title;
   final String nameLabel;
   final String confirmLabel;
   final List<HospitalDepartmentOption> departments;
+  final String initialName;
+  final String initialDescription;
+  final String? initialDepartmentId;
+  final String? initialStatus;
 
   @override
   State<_NamedRecordDialog> createState() => _NamedRecordDialogState();
@@ -4420,9 +4859,21 @@ class _NamedRecordDialog extends StatefulWidget {
 
 class _NamedRecordDialogState extends State<_NamedRecordDialog> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _descriptionController = TextEditingController();
+  late final TextEditingController _nameController;
+  late final TextEditingController _descriptionController;
   String? _departmentId;
+  String? _status;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.initialName);
+    _descriptionController = TextEditingController(
+      text: widget.initialDescription,
+    );
+    _departmentId = widget.initialDepartmentId;
+    _status = widget.initialStatus;
+  }
 
   @override
   void dispose() {
@@ -4484,6 +4935,25 @@ class _NamedRecordDialogState extends State<_NamedRecordDialog> {
                 onChanged: (value) => setState(() => _departmentId = value),
               ),
             ],
+            if (widget.initialStatus != null) ...[
+              const SizedBox(height: AppSpacing.x4),
+              DropdownButtonFormField<String>(
+                initialValue: _status,
+                decoration: const InputDecoration(labelText: 'Availability'),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'available',
+                    child: Text('Available'),
+                  ),
+                  DropdownMenuItem(value: 'limited', child: Text('Limited')),
+                  DropdownMenuItem(
+                    value: 'unavailable',
+                    child: Text('Unavailable'),
+                  ),
+                ],
+                onChanged: (value) => setState(() => _status = value),
+              ),
+            ],
           ],
         ),
       ),
@@ -4501,10 +4971,756 @@ class _NamedRecordDialogState extends State<_NamedRecordDialog> {
               name: _nameController.text.trim(),
               description: _descriptionController.text.trim(),
               departmentId: _departmentId,
+              status: _status,
             ),
           );
         },
         child: Text(widget.confirmLabel),
+      ),
+    ],
+  );
+}
+
+const _facilityTypes = <String>[
+  'icu',
+  'operating_room',
+  'ambulance',
+  'laboratory',
+  'pharmacy',
+];
+
+List<String> _missingFacilityTypes(List<WorkspaceItem> items) {
+  final existing = items
+      .map((item) => item.data['facility_type']?.toString())
+      .whereType<String>()
+      .toSet();
+  return _facilityTypes
+      .where((facilityType) => !existing.contains(facilityType))
+      .toList(growable: false);
+}
+
+String _facilityTypeLabel(String value) => switch (value) {
+  'icu' => 'Intensive care unit',
+  'operating_room' => 'Operating room',
+  'ambulance' => 'Ambulance',
+  'laboratory' => 'Laboratory',
+  'pharmacy' => 'Pharmacy',
+  _ => _detailLabel(value),
+};
+
+class _FacilityStatusDraft {
+  const _FacilityStatusDraft({
+    required this.facilityType,
+    required this.status,
+    required this.availableUnits,
+    required this.notes,
+  });
+
+  final String facilityType;
+  final String status;
+  final int? availableUnits;
+  final String? notes;
+}
+
+class _FacilityStatusDialog extends StatefulWidget {
+  const _FacilityStatusDialog({this.item, this.facilityTypes = _facilityTypes});
+
+  final WorkspaceItem? item;
+  final List<String> facilityTypes;
+
+  @override
+  State<_FacilityStatusDialog> createState() => _FacilityStatusDialogState();
+}
+
+class _FacilityStatusDialogState extends State<_FacilityStatusDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _availableController;
+  late final TextEditingController _notesController;
+  late String _facilityType;
+  late String _status;
+
+  @override
+  void initState() {
+    super.initState();
+    final item = widget.item;
+    _facilityType =
+        item?.data['facility_type']?.toString() ?? widget.facilityTypes.first;
+    _status = item?.status ?? item?.data['status']?.toString() ?? 'available';
+    _availableController = TextEditingController(
+      text: item?.data['available_units']?.toString() ?? '',
+    );
+    _notesController = TextEditingController(
+      text: item?.data['notes']?.toString() ?? '',
+    );
+  }
+
+  @override
+  void dispose() {
+    _availableController.dispose();
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    icon: const Icon(Icons.local_hospital_outlined),
+    title: Text(widget.item == null ? 'Add facility status' : 'Edit facility'),
+    content: Form(
+      key: _formKey,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 500),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            DropdownButtonFormField<String>(
+              initialValue: _facilityType,
+              decoration: const InputDecoration(labelText: 'Facility type'),
+              items: [
+                for (final facilityType in widget.facilityTypes)
+                  DropdownMenuItem(
+                    value: facilityType,
+                    child: Text(_facilityTypeLabel(facilityType)),
+                  ),
+              ],
+              onChanged: widget.item == null
+                  ? (value) => setState(() => _facilityType = value!)
+                  : null,
+            ),
+            const SizedBox(height: AppSpacing.x4),
+            DropdownButtonFormField<String>(
+              initialValue: _status,
+              decoration: const InputDecoration(labelText: 'Status'),
+              items: const [
+                DropdownMenuItem(value: 'available', child: Text('Available')),
+                DropdownMenuItem(value: 'limited', child: Text('Limited')),
+                DropdownMenuItem(
+                  value: 'unavailable',
+                  child: Text('Unavailable'),
+                ),
+              ],
+              onChanged: (value) => setState(() => _status = value!),
+            ),
+            const SizedBox(height: AppSpacing.x4),
+            TextFormField(
+              controller: _availableController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Available units (optional)',
+              ),
+              validator: (value) {
+                final text = value?.trim() ?? '';
+                if (text.isEmpty) return null;
+                final units = int.tryParse(text);
+                return units == null || units < 0
+                    ? 'Enter zero or a positive whole number.'
+                    : null;
+              },
+            ),
+            const SizedBox(height: AppSpacing.x4),
+            TextFormField(
+              controller: _notesController,
+              minLines: 2,
+              maxLines: 4,
+              maxLength: 1000,
+              decoration: const InputDecoration(labelText: 'Notes (optional)'),
+            ),
+          ],
+        ),
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.of(context).pop(),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(
+        onPressed: () {
+          if (!(_formKey.currentState?.validate() ?? false)) return;
+          final availableText = _availableController.text.trim();
+          final notes = _notesController.text.trim();
+          Navigator.of(context).pop(
+            _FacilityStatusDraft(
+              facilityType: _facilityType,
+              status: _status,
+              availableUnits: availableText.isEmpty
+                  ? null
+                  : int.parse(availableText),
+              notes: notes.isEmpty ? null : notes,
+            ),
+          );
+        },
+        child: Text(widget.item == null ? 'Add facility' : 'Save changes'),
+      ),
+    ],
+  );
+}
+
+class _CapacityResourceDraft {
+  const _CapacityResourceDraft({
+    required this.type,
+    required this.total,
+    required this.available,
+  });
+
+  final String type;
+  final int total;
+  final int available;
+}
+
+class _CapacityResourceDialog extends StatefulWidget {
+  const _CapacityResourceDialog({required this.beds});
+
+  final bool beds;
+
+  @override
+  State<_CapacityResourceDialog> createState() =>
+      _CapacityResourceDialogState();
+}
+
+class _CapacityResourceDialogState extends State<_CapacityResourceDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _typeController = TextEditingController();
+  final _totalController = TextEditingController(text: '0');
+  final _availableController = TextEditingController(text: '0');
+
+  @override
+  void dispose() {
+    _typeController.dispose();
+    _totalController.dispose();
+    _availableController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    icon: Icon(widget.beds ? Icons.bed_outlined : Icons.meeting_room_outlined),
+    title: Text('Add ${widget.beds ? 'bed' : 'room'} type'),
+    content: Form(
+      key: _formKey,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 480),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextFormField(
+              controller: _typeController,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: widget.beds ? 'Bed type' : 'Room type',
+              ),
+              validator: (value) => (value?.trim().length ?? 0) < 2
+                  ? 'Enter at least 2 characters.'
+                  : null,
+            ),
+            const SizedBox(height: AppSpacing.x4),
+            TextFormField(
+              controller: _totalController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Total capacity'),
+              validator: (value) {
+                final parsed = int.tryParse(value ?? '');
+                return parsed == null || parsed < 0
+                    ? 'Enter zero or a positive whole number.'
+                    : null;
+              },
+            ),
+            const SizedBox(height: AppSpacing.x4),
+            TextFormField(
+              controller: _availableController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Available capacity',
+              ),
+              validator: (value) {
+                final total = int.tryParse(_totalController.text);
+                final available = int.tryParse(value ?? '');
+                if (available == null || available < 0) {
+                  return 'Enter zero or a positive whole number.';
+                }
+                return total != null && available > total
+                    ? 'Available capacity cannot exceed total capacity.'
+                    : null;
+              },
+            ),
+          ],
+        ),
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.of(context).pop(),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(
+        onPressed: () {
+          if (!(_formKey.currentState?.validate() ?? false)) return;
+          Navigator.of(context).pop(
+            _CapacityResourceDraft(
+              type: _typeController.text.trim(),
+              total: int.parse(_totalController.text),
+              available: int.parse(_availableController.text),
+            ),
+          );
+        },
+        child: const Text('Add record'),
+      ),
+    ],
+  );
+}
+
+class _HospitalRecordDraft {
+  const _HospitalRecordDraft({
+    required this.name,
+    required this.address,
+    required this.city,
+    required this.province,
+    required this.contactNumber,
+    required this.emergencyContactNumber,
+    required this.email,
+    required this.description,
+    required this.operatingStatus,
+  });
+
+  final String name;
+  final String address;
+  final String city;
+  final String province;
+  final String contactNumber;
+  final String emergencyContactNumber;
+  final String email;
+  final String description;
+  final String operatingStatus;
+
+  Map<String, Object?> toValues({required bool includeVerification}) => {
+    'hospital_name': name,
+    'address': address,
+    'city': city.trim().isEmpty ? null : city.trim(),
+    'province': province.trim().isEmpty ? null : province.trim(),
+    'contact_number': contactNumber.trim().isEmpty
+        ? null
+        : contactNumber.trim(),
+    'emergency_contact_number': emergencyContactNumber.trim().isEmpty
+        ? null
+        : emergencyContactNumber.trim(),
+    'email': email.trim().isEmpty ? null : email.trim(),
+    'description': description,
+    'operating_status': operatingStatus,
+    if (includeVerification) 'verification_status': 'pending',
+  };
+}
+
+class _HospitalRecordDialog extends StatefulWidget {
+  const _HospitalRecordDialog({this.item});
+
+  final WorkspaceItem? item;
+
+  @override
+  State<_HospitalRecordDialog> createState() => _HospitalRecordDialogState();
+}
+
+class _HospitalRecordDialogState extends State<_HospitalRecordDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _nameController;
+  late final TextEditingController _addressController;
+  late final TextEditingController _cityController;
+  late final TextEditingController _provinceController;
+  late final TextEditingController _contactController;
+  late final TextEditingController _emergencyContactController;
+  late final TextEditingController _emailController;
+  late final TextEditingController _descriptionController;
+  late String _operatingStatus;
+
+  @override
+  void initState() {
+    super.initState();
+    final data = widget.item?.data ?? const <String, Object?>{};
+    _nameController = TextEditingController(
+      text: data['hospital_name']?.toString() ?? widget.item?.title ?? '',
+    );
+    _addressController = TextEditingController(
+      text: data['address']?.toString() ?? '',
+    );
+    _cityController = TextEditingController(
+      text: data['city']?.toString() ?? '',
+    );
+    _provinceController = TextEditingController(
+      text: data['province']?.toString() ?? '',
+    );
+    _contactController = TextEditingController(
+      text: data['contact_number']?.toString() ?? '',
+    );
+    _emergencyContactController = TextEditingController(
+      text: data['emergency_contact_number']?.toString() ?? '',
+    );
+    _emailController = TextEditingController(
+      text: data['email']?.toString() ?? '',
+    );
+    _descriptionController = TextEditingController(
+      text: data['description']?.toString() ?? '',
+    );
+    _operatingStatus = data['operating_status']?.toString() ?? 'open';
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _addressController.dispose();
+    _cityController.dispose();
+    _provinceController.dispose();
+    _contactController.dispose();
+    _emergencyContactController.dispose();
+    _emailController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    icon: const Icon(Icons.local_hospital_outlined),
+    title: Text(widget.item == null ? 'Add hospital' : 'Edit hospital'),
+    content: Form(
+      key: _formKey,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 620, maxHeight: 620),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: _nameController,
+                autofocus: true,
+                decoration: const InputDecoration(labelText: 'Hospital name'),
+                validator: (value) => (value?.trim().length ?? 0) < 3
+                    ? 'Enter at least 3 characters.'
+                    : null,
+              ),
+              const SizedBox(height: AppSpacing.x4),
+              TextFormField(
+                controller: _addressController,
+                decoration: const InputDecoration(labelText: 'Address'),
+                validator: (value) => (value?.trim().length ?? 0) < 5
+                    ? 'Enter a complete address.'
+                    : null,
+              ),
+              const SizedBox(height: AppSpacing.x4),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _cityController,
+                      decoration: const InputDecoration(labelText: 'City'),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.x3),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _provinceController,
+                      decoration: const InputDecoration(labelText: 'Province'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.x4),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _contactController,
+                      decoration: const InputDecoration(
+                        labelText: 'Contact number',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.x3),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _emergencyContactController,
+                      decoration: const InputDecoration(
+                        labelText: 'Emergency number',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.x4),
+              TextFormField(
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(labelText: 'Email'),
+              ),
+              const SizedBox(height: AppSpacing.x4),
+              DropdownButtonFormField<String>(
+                initialValue: _operatingStatus,
+                decoration: const InputDecoration(
+                  labelText: 'Operating status',
+                ),
+                items: [
+                  for (final status in const [
+                    'open',
+                    'limited',
+                    'temporarily_closed',
+                    'closed',
+                  ])
+                    DropdownMenuItem(
+                      value: status,
+                      child: Text(_statusLabel(status)),
+                    ),
+                ],
+                onChanged: (value) {
+                  if (value != null) setState(() => _operatingStatus = value);
+                },
+              ),
+              const SizedBox(height: AppSpacing.x4),
+              TextFormField(
+                controller: _descriptionController,
+                minLines: 3,
+                maxLines: 6,
+                maxLength: 2000,
+                decoration: const InputDecoration(
+                  labelText: 'Description',
+                  alignLabelWithHint: true,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.of(context).pop(),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(
+        onPressed: () {
+          if (!(_formKey.currentState?.validate() ?? false)) return;
+          Navigator.of(context).pop(
+            _HospitalRecordDraft(
+              name: _nameController.text.trim(),
+              address: _addressController.text.trim(),
+              city: _cityController.text.trim(),
+              province: _provinceController.text.trim(),
+              contactNumber: _contactController.text.trim(),
+              emergencyContactNumber: _emergencyContactController.text.trim(),
+              email: _emailController.text.trim(),
+              description: _descriptionController.text.trim(),
+              operatingStatus: _operatingStatus,
+            ),
+          );
+        },
+        child: Text(widget.item == null ? 'Add hospital' : 'Save changes'),
+      ),
+    ],
+  );
+}
+
+class _PermissionRecordDraft {
+  const _PermissionRecordDraft({
+    required this.roleId,
+    required this.permission,
+    required this.allowed,
+  });
+
+  final int roleId;
+  final String permission;
+  final bool allowed;
+}
+
+class _PermissionRecordDialog extends StatefulWidget {
+  const _PermissionRecordDialog();
+
+  @override
+  State<_PermissionRecordDialog> createState() =>
+      _PermissionRecordDialogState();
+}
+
+class _PermissionRecordDialogState extends State<_PermissionRecordDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _roleController = TextEditingController();
+  final _permissionController = TextEditingController();
+  bool _allowed = true;
+
+  @override
+  void dispose() {
+    _roleController.dispose();
+    _permissionController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    icon: const Icon(Icons.admin_panel_settings_outlined),
+    title: const Text('Add permission'),
+    content: Form(
+      key: _formKey,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 500),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextFormField(
+              controller: _roleController,
+              autofocus: true,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Role ID'),
+              validator: (value) => int.tryParse(value ?? '') == null
+                  ? 'Enter a valid role ID.'
+                  : null,
+            ),
+            const SizedBox(height: AppSpacing.x4),
+            TextFormField(
+              controller: _permissionController,
+              decoration: const InputDecoration(labelText: 'Permission key'),
+              validator: (value) => (value?.trim().length ?? 0) < 3
+                  ? 'Enter at least 3 characters.'
+                  : null,
+            ),
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Allowed'),
+              value: _allowed,
+              onChanged: (value) => setState(() => _allowed = value),
+            ),
+          ],
+        ),
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.of(context).pop(),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(
+        onPressed: () {
+          if (!(_formKey.currentState?.validate() ?? false)) return;
+          Navigator.of(context).pop(
+            _PermissionRecordDraft(
+              roleId: int.parse(_roleController.text),
+              permission: _permissionController.text.trim(),
+              allowed: _allowed,
+            ),
+          );
+        },
+        child: const Text('Add permission'),
+      ),
+    ],
+  );
+}
+
+class _SystemSettingRecordDraft {
+  const _SystemSettingRecordDraft({
+    required this.key,
+    required this.value,
+    required this.description,
+    required this.isPublic,
+  });
+
+  final String key;
+  final Object value;
+  final String description;
+  final bool isPublic;
+}
+
+class _SystemSettingRecordDialog extends StatefulWidget {
+  const _SystemSettingRecordDialog();
+
+  @override
+  State<_SystemSettingRecordDialog> createState() =>
+      _SystemSettingRecordDialogState();
+}
+
+class _SystemSettingRecordDialogState
+    extends State<_SystemSettingRecordDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _keyController = TextEditingController();
+  final _valueController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  bool _isPublic = false;
+
+  @override
+  void dispose() {
+    _keyController.dispose();
+    _valueController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    icon: const Icon(Icons.settings_outlined),
+    title: const Text('Add setting'),
+    content: Form(
+      key: _formKey,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 520),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextFormField(
+              controller: _keyController,
+              autofocus: true,
+              decoration: const InputDecoration(labelText: 'Setting key'),
+              validator: (value) =>
+                  RegExp(
+                    r'^[a-z0-9][a-z0-9_.-]{2,}$',
+                  ).hasMatch(value?.trim() ?? '')
+                  ? null
+                  : 'Use at least 3 lowercase letters, numbers, dots, dashes, or underscores.',
+            ),
+            const SizedBox(height: AppSpacing.x4),
+            TextFormField(
+              controller: _valueController,
+              decoration: const InputDecoration(
+                labelText: 'Value',
+                helperText: 'JSON values are stored with their native type.',
+              ),
+              validator: (value) => (value?.trim().isEmpty ?? true)
+                  ? 'Enter a setting value.'
+                  : null,
+            ),
+            const SizedBox(height: AppSpacing.x4),
+            TextFormField(
+              controller: _descriptionController,
+              minLines: 2,
+              maxLines: 4,
+              decoration: const InputDecoration(labelText: 'Description'),
+            ),
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Public setting'),
+              subtitle: const Text('Visible without an administrator session'),
+              value: _isPublic,
+              onChanged: (value) => setState(() => _isPublic = value),
+            ),
+          ],
+        ),
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.of(context).pop(),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(
+        onPressed: () {
+          if (!(_formKey.currentState?.validate() ?? false)) return;
+          final rawValue = _valueController.text.trim();
+          Object parsedValue;
+          try {
+            parsedValue = jsonDecode(rawValue) ?? rawValue;
+          } on FormatException {
+            parsedValue = rawValue;
+          }
+          Navigator.of(context).pop(
+            _SystemSettingRecordDraft(
+              key: _keyController.text.trim(),
+              value: parsedValue,
+              description: _descriptionController.text.trim(),
+              isPublic: _isPublic,
+            ),
+          );
+        },
+        child: const Text('Add setting'),
       ),
     ],
   );
@@ -4518,7 +5734,17 @@ class _MaintenanceCopyDraft {
 }
 
 class _MaintenanceCopyDialog extends StatefulWidget {
-  const _MaintenanceCopyDialog();
+  const _MaintenanceCopyDialog({
+    this.title = 'Schedule maintenance',
+    this.confirmLabel = 'Choose schedule',
+    this.initialTitle = '',
+    this.initialMessage = '',
+  });
+
+  final String title;
+  final String confirmLabel;
+  final String initialTitle;
+  final String initialMessage;
 
   @override
   State<_MaintenanceCopyDialog> createState() => _MaintenanceCopyDialogState();
@@ -4526,8 +5752,15 @@ class _MaintenanceCopyDialog extends StatefulWidget {
 
 class _MaintenanceCopyDialogState extends State<_MaintenanceCopyDialog> {
   final _formKey = GlobalKey<FormState>();
-  final _titleController = TextEditingController();
-  final _messageController = TextEditingController();
+  late final TextEditingController _titleController;
+  late final TextEditingController _messageController;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController(text: widget.initialTitle);
+    _messageController = TextEditingController(text: widget.initialMessage);
+  }
 
   @override
   void dispose() {
@@ -4539,7 +5772,7 @@ class _MaintenanceCopyDialogState extends State<_MaintenanceCopyDialog> {
   @override
   Widget build(BuildContext context) => AlertDialog(
     icon: const Icon(Icons.build_outlined),
-    title: const Text('Schedule maintenance'),
+    title: Text(widget.title),
     content: Form(
       key: _formKey,
       child: ConstrainedBox(
@@ -4588,7 +5821,7 @@ class _MaintenanceCopyDialogState extends State<_MaintenanceCopyDialog> {
             ),
           );
         },
-        child: const Text('Choose schedule'),
+        child: Text(widget.confirmLabel),
       ),
     ],
   );
@@ -8603,6 +9836,62 @@ class _ConnectionRequestCard extends StatelessWidget {
   }
 }
 
+class _AdminRecordDetailsDialog extends StatelessWidget {
+  const _AdminRecordDetailsDialog({required this.item, required this.role});
+
+  final WorkspaceItem item;
+  final UserRole role;
+
+  @override
+  Widget build(BuildContext context) {
+    final entries = <(String, String)>[
+      ('Record ID', item.id),
+      for (final entry in item.data.entries)
+        if (entry.key != 'id')
+          if (_detailValue(entry.value, entry.key) case final value?)
+            (_detailLabel(entry.key), value),
+    ];
+    return AlertDialog(
+      icon: Icon(_iconFor(item.kind)),
+      title: Text(item.title.isEmpty ? 'Record details' : item.title),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 760, maxHeight: 620),
+        child: SingleChildScrollView(
+          child: item.kind == 'consultations'
+              ? _LiveRecordDetails(item: item, role: role)
+              : Wrap(
+                  spacing: AppSpacing.x4,
+                  runSpacing: AppSpacing.x4,
+                  children: [
+                    for (final entry in entries)
+                      SizedBox(
+                        width: 340,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              entry.$1,
+                              style: Theme.of(context).textTheme.labelMedium,
+                            ),
+                            const SizedBox(height: AppSpacing.x1),
+                            SelectableText(entry.$2),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+        ),
+      ),
+      actions: [
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Close'),
+        ),
+      ],
+    );
+  }
+}
+
 class _LiveRecordDetails extends StatelessWidget {
   const _LiveRecordDetails({required this.item, this.role, this.topActions});
 
@@ -9852,6 +11141,7 @@ class _ConsultationRecordRow extends StatelessWidget {
             label: _statusLabel(status),
             icon: _statusIcon(status),
             color: _statusColor(status),
+            height: 48,
           )
         : null;
     final rowAction = trailing != null
@@ -10618,6 +11908,7 @@ class _LiveRecordRow extends StatelessWidget {
             label: _statusLabel(status),
             icon: _statusIcon(status),
             color: _statusColor(status),
+            height: 48,
           )
         : null;
     final rowAction = trailing != null
@@ -10648,7 +11939,7 @@ class _LiveRecordRow extends StatelessWidget {
         onTap: busy ? null : onOpen,
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final compact = constraints.maxWidth < 680;
+            final compact = constraints.maxWidth < 900;
             final summary = Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

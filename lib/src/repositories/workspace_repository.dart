@@ -78,6 +78,38 @@ class WorkspaceItem {
   );
 }
 
+const _onlineAppointmentRoutePrefix = 'online-request~';
+const _guestAppointmentRoutePrefix = 'guest-request~';
+
+String workspaceItemRouteId(WorkspaceItem item) => switch (item.kind) {
+  'online_consultation_requests' =>
+    '$_onlineAppointmentRoutePrefix${Uri.encodeComponent(item.id)}',
+  'guest_consultation_requests' =>
+    '$_guestAppointmentRoutePrefix${Uri.encodeComponent(item.id)}',
+  _ => item.id,
+};
+
+({String kind, String id})? _appointmentDetailReference(String? routeId) {
+  if (routeId == null) return null;
+  if (routeId.startsWith(_onlineAppointmentRoutePrefix)) {
+    return (
+      kind: 'online_consultation_requests',
+      id: Uri.decodeComponent(
+        routeId.substring(_onlineAppointmentRoutePrefix.length),
+      ),
+    );
+  }
+  if (routeId.startsWith(_guestAppointmentRoutePrefix)) {
+    return (
+      kind: 'guest_consultation_requests',
+      id: Uri.decodeComponent(
+        routeId.substring(_guestAppointmentRoutePrefix.length),
+      ),
+    );
+  }
+  return null;
+}
+
 class SupabaseWorkspaceRepository implements WorkspaceRepository {
   SupabaseWorkspaceRepository(this._client);
 
@@ -114,8 +146,8 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
     if (role == UserRole.hospitalAdministrator && section == 'reports') {
       return _loadAnalytics('hospital_analytics', 'Hospital reports');
     }
-    final spec = _specFor(role, section);
-    if (spec == null) {
+    final baseSpec = _specFor(role, section);
+    if (baseSpec == null) {
       return WorkspaceSnapshot(
         title: _humanize(section),
         description: 'This workspace module is not available for this role.',
@@ -123,6 +155,14 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
         loadedAt: DateTime.now(),
       );
     }
+    final appointmentDetail = section == 'appointments'
+        ? _appointmentDetailReference(itemId)
+        : null;
+    final requestDetailSpec = appointmentDetail == null
+        ? null
+        : _appointmentRequestDetailSpec(role, appointmentDetail.kind);
+    final spec = requestDetailSpec ?? baseSpec;
+    final recordId = requestDetailSpec == null ? itemId : appointmentDetail!.id;
     final doctorId = role == UserRole.doctor ? await _currentDoctorId() : null;
     final hospitalId = role == UserRole.hospitalAdministrator
         ? await _currentHospitalId()
@@ -134,7 +174,10 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
     if (hospitalId != null && _hospitalScopedTables.contains(spec.table)) {
       query = query.eq('hospital_id', hospitalId);
     }
-    if (itemId != null) query = query.eq(spec.idColumn, itemId);
+    if (hospitalId != null && spec.table == 'guest_consultation_requests') {
+      query = query.eq('preferred_hospital_id', hospitalId);
+    }
+    if (recordId != null) query = query.eq(spec.idColumn, recordId);
     if (spec.orderColumn != null) {
       query = query.order(spec.orderColumn!, ascending: spec.ascending);
     }
@@ -1437,10 +1480,10 @@ class _WorkspaceTableSpec {
     required this.table,
     required this.title,
     required this.description,
+    this.columns = '*',
     this.orderColumn,
     this.idColumn = 'id',
-  }) : columns = '*',
-       ascending = false;
+  }) : ascending = false;
 
   const _WorkspaceTableSpec.compact(this.table)
     : title = '',
@@ -1514,6 +1557,36 @@ _WorkspaceTableSpec? _specFor(UserRole role, String section) {
     orderColumn: _orderColumn(table),
     idColumn: table == 'system_settings' ? 'key' : 'id',
   );
+}
+
+_WorkspaceTableSpec? _appointmentRequestDetailSpec(UserRole role, String kind) {
+  if (kind == 'online_consultation_requests' &&
+      {
+        UserRole.patient,
+        UserRole.doctor,
+        UserRole.hospitalAdministrator,
+      }.contains(role)) {
+    return const _WorkspaceTableSpec(
+      table: 'online_consultation_requests',
+      title: 'Appointment Details',
+      description: 'Review this appointment request.',
+      columns:
+          'id,reference_number,patient_id,profile_first_name,profile_last_name,phone_number_snapshot,hospital_id,requested_department_id,requested_doctor_id,assigned_doctor_id,medical_concern,symptom_duration,preferred_schedule,proposed_schedule,confirmed_schedule,consultation_channel,request_status,official_consultation_id,additional_information_request,rejection_reason,cancellation_reason,created_at,updated_at',
+      orderColumn: 'created_at',
+    );
+  }
+  if (kind == 'guest_consultation_requests' &&
+      {UserRole.doctor, UserRole.hospitalAdministrator}.contains(role)) {
+    return const _WorkspaceTableSpec(
+      table: 'guest_consultation_requests',
+      title: 'Appointment Details',
+      description: 'Review this appointment request.',
+      columns:
+          'id,reference_number,first_name,last_name,full_name,birth_date,sex,mobile_number,email,address,symptoms,symptom_duration,consultation_reason,preferred_hospital_id,preferred_department_id,request_status,identity_review_status,assigned_doctor_id,preferred_consultation_type,preferred_schedule,created_at',
+      orderColumn: 'created_at',
+    );
+  }
+  return null;
 }
 
 String? _orderColumn(String table) => switch (table) {

@@ -25,6 +25,14 @@ void main() {
       addTearDown(harness.dispose);
       await _pumpShell(tester, harness, const Size(1280, 900));
 
+      expect(find.widgetWithText(ListTile, 'Profile'), findsNothing);
+      await tester.tap(find.byKey(const Key('workspace-header-profile')));
+      await tester.pumpAndSettle();
+      expect(harness.router.state.path, '${role.homeLocation}/profile');
+
+      harness.router.go(role.homeLocation);
+      await tester.pumpAndSettle();
+
       await tester.tap(find.widgetWithText(ListTile, target.label));
       await tester.pumpAndSettle();
       expect(harness.router.state.path, target.location);
@@ -85,6 +93,17 @@ void main() {
     await tester.tap(find.byTooltip('Notifications'));
     await tester.pumpAndSettle();
     expect(harness.router.state.path, '/patient/notifications');
+
+    harness.router.go('/patient');
+    await tester.pumpAndSettle();
+    expect(find.text('Profile'), findsOneWidget);
+    expect(
+      find.byKey(const Key('workspace-mobile-header-profile')),
+      findsNothing,
+    );
+    await tester.tap(find.text('Profile').last);
+    await tester.pumpAndSettle();
+    expect(harness.router.state.path, '/patient/profile');
   });
 
   testWidgets('mobile detail back and desktop sign-out callbacks execute', (
@@ -120,6 +139,23 @@ void main() {
     expect(find.text('7'), findsOneWidget);
     expect(find.text('99+'), findsOneWidget);
   });
+
+  testWidgets('hospital administrator sidebar names the assigned hospital', (
+    tester,
+  ) async {
+    final harness = _ShellHarness(
+      UserRole.hospitalAdministrator,
+      assignedHospitalName: 'CareNavigator Regional Hospital (Demo)',
+    );
+    addTearDown(harness.dispose);
+    await _pumpShell(tester, harness, const Size(1280, 900));
+
+    expect(find.text('CareNavigator Regional Hospital (Demo)'), findsOneWidget);
+    expect(
+      find.byTooltip('CareNavigator Regional Hospital (Demo)'),
+      findsOneWidget,
+    );
+  });
 }
 
 Future<void> _pumpShell(
@@ -141,6 +177,7 @@ class _ShellHarness {
     this.detail = false,
     this.unreadMessageCount = 0,
     this.unreadNotificationCount = 0,
+    this.assignedHospitalName,
   }) {
     final locations = <String>{
       role.homeLocation,
@@ -149,6 +186,7 @@ class _ShellHarness {
       if (workspaceMessagesLocation(role) != null)
         workspaceMessagesLocation(role)!,
       '${role.homeLocation}/notifications',
+      '${role.homeLocation}/profile',
     };
     router = GoRouter(
       navigatorKey: rootNavigatorKey,
@@ -163,6 +201,7 @@ class _ShellHarness {
                 status: AccountStatus.active,
                 userId: '${role.name}-user',
                 displayName: 'Test ${role.label}',
+                assignedHospitalName: assignedHospitalName,
               ),
               location: state.uri.path,
               title: role.label,
@@ -184,6 +223,7 @@ class _ShellHarness {
   final bool detail;
   final int unreadMessageCount;
   final int unreadNotificationCount;
+  final String? assignedHospitalName;
   late final GoRouter router;
   int backCount = 0;
   int signOutCount = 0;

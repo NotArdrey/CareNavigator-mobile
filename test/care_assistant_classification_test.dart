@@ -71,6 +71,24 @@ void main() {
       expect(profile.followUpQuestion, contains('chewing or swallowing'));
     });
 
+    test('asks emergency-threshold questions for an unspecified seizure', () {
+      final profile = classifyCareAssistantInput('He had a seizure');
+
+      expect(profile.intent, CareAssistantIntent.medical);
+      expect(profile.urgency, CareAssistantUrgency.urgent);
+      expect(profile.isEmergency, isFalse);
+      expect(profile.followUpQuestion, contains('5 minutes'));
+    });
+
+    test('classifies an ongoing seizure as an emergency', () {
+      final profile = classifyCareAssistantInput(
+        'She is having an ongoing seizure',
+      );
+
+      expect(profile.intent, CareAssistantIntent.emergency);
+      expect(profile.isEmergency, isTrue);
+    });
+
     test('asks for clarification for vague health wording', () {
       final profile = classifyCareAssistantInput('I feel bad');
 
@@ -107,5 +125,65 @@ void main() {
 
     expect(reply.intent, CareAssistantIntent.nonMedical);
     expect(reply.urgency, CareAssistantUrgency.routine);
+  });
+
+  test('structured reply parses complete first-aid guidance', () {
+    final reply = CareAssistantReply.fromMap(const {
+      'message': 'Cool the burn under running water.',
+      'intent': 'medical',
+      'urgency': 'soon',
+      'first_aid': {
+        'immediate_actions': [
+          'Move away from the heat source.',
+          'Cool the burn under clean, cool running water.',
+        ],
+        'avoid': ['Do not apply ice, toothpaste, butter, or creams.'],
+        'warning_signs': [
+          'Get urgent care for a deep, large, facial, hand, genital, or electrical burn.',
+        ],
+      },
+    });
+
+    expect(reply.firstAid, isNotNull);
+    expect(reply.firstAid!.immediateActions, hasLength(2));
+    expect(reply.firstAid!.avoid.single, contains('ice'));
+    expect(reply.firstAid!.warningSigns.single, contains('urgent care'));
+  });
+
+  test('incomplete first-aid payload is discarded', () {
+    final reply = CareAssistantReply.fromMap(const {
+      'message': 'I need one important detail first.',
+      'intent': 'medical',
+      'urgency': 'routine',
+      'first_aid': {
+        'immediate_actions': ['Keep the area safe.'],
+        'avoid': <String>[],
+        'warning_signs': <String>[],
+      },
+    });
+
+    expect(reply.firstAid, isNull);
+  });
+
+  test('emergency bleeding guidance is actionable and includes limits', () {
+    final guidance = emergencyFirstAidFor(
+      'There is severe bleeding from his arm after an accident.',
+    );
+
+    expect(guidance.immediateActions.join(' '), contains('press firmly'));
+    expect(guidance.avoid.join(' '), contains('embedded object'));
+    expect(
+      guidance.warningSigns.join(' '),
+      contains('requiring emergency medical care'),
+    );
+  });
+
+  test('choking guidance distinguishes infant and older-person techniques', () {
+    final guidance = emergencyFirstAidFor('My baby is choking.');
+    final actions = guidance.immediateActions.join(' ');
+
+    expect(actions, contains('infant under 1 year'));
+    expect(actions, contains('adult or child over 1 year'));
+    expect(guidance.avoid.join(' '), contains('blind finger sweep'));
   });
 }

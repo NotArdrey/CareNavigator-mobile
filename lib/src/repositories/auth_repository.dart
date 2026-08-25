@@ -181,7 +181,7 @@ final class SupabaseAuthRepository implements AuthRepository {
     final data = await _client
         .from('users')
         .select(
-          'id, first_name, last_name, account_status, roles!inner(role_name)',
+          'id, first_name, last_name, account_status, roles!inner(role_name), hospital:hospitals(hospital_name)',
         )
         .eq('auth_user_id', authUser.id)
         .maybeSingle();
@@ -198,6 +198,13 @@ final class SupabaseAuthRepository implements AuthRepository {
     final roleName = roleRecord is Map
         ? roleRecord['role_name']?.toString()
         : null;
+    final hospitalData = data['hospital'];
+    final hospitalRecord = hospitalData is List
+        ? (hospitalData.isEmpty ? null : hospitalData.first)
+        : hospitalData;
+    final assignedHospitalName = hospitalRecord is Map
+        ? hospitalRecord['hospital_name']?.toString().trim()
+        : null;
     final firstName = data['first_name']?.toString().trim() ?? '';
     final lastName = data['last_name']?.toString().trim() ?? '';
     final displayName = [
@@ -210,6 +217,10 @@ final class SupabaseAuthRepository implements AuthRepository {
       status: _statusFromDatabase(data['account_status']?.toString()),
       userId: data['id']?.toString() ?? authUser.id,
       displayName: displayName.isEmpty ? authUser.email : displayName,
+      assignedHospitalName:
+          assignedHospitalName == null || assignedHospitalName.isEmpty
+          ? null
+          : assignedHospitalName,
     );
   }
 

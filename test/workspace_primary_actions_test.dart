@@ -55,6 +55,30 @@ void main() {
     ),
     const _PrimaryActionCase(
       role: UserRole.hospitalAdministrator,
+      section: 'availability',
+      button: 'Add facility status',
+      dialogTitle: 'Add facility status',
+    ),
+    const _PrimaryActionCase(
+      role: UserRole.hospitalAdministrator,
+      section: 'beds',
+      button: 'Add bed type',
+      dialogTitle: 'Add bed type',
+    ),
+    const _PrimaryActionCase(
+      role: UserRole.hospitalAdministrator,
+      section: 'rooms',
+      button: 'Add room type',
+      dialogTitle: 'Add room type',
+    ),
+    const _PrimaryActionCase(
+      role: UserRole.hospitalAdministrator,
+      section: 'emergency-room',
+      button: 'Add ER capacity',
+      dialogTitle: 'Confirm emergency capacity',
+    ),
+    const _PrimaryActionCase(
+      role: UserRole.hospitalAdministrator,
       section: 'staff',
       button: 'Add doctor',
       dialogTitle: 'Create doctor account',
@@ -70,6 +94,24 @@ void main() {
       section: 'departments',
       button: 'Add department',
       dialogTitle: 'Add department',
+    ),
+    const _PrimaryActionCase(
+      role: UserRole.superAdministrator,
+      section: 'hospitals',
+      button: 'Add hospital',
+      dialogTitle: 'Add hospital',
+    ),
+    const _PrimaryActionCase(
+      role: UserRole.superAdministrator,
+      section: 'permissions',
+      button: 'Add permission',
+      dialogTitle: 'Add permission',
+    ),
+    const _PrimaryActionCase(
+      role: UserRole.superAdministrator,
+      section: 'settings',
+      button: 'Add setting',
+      dialogTitle: 'Add setting',
     ),
     const _PrimaryActionCase(
       role: UserRole.superAdministrator,

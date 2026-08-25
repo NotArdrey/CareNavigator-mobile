@@ -41,6 +41,14 @@ CareAssistantInputClassification classifyCareAssistantInput(String rawText) {
     'fall',
     'crash',
   ]);
+  final seizureDanger = _hasAny(text, const [
+    'ongoing seizure',
+    'first seizure',
+    'seizure lasting',
+    'multiple seizures',
+    'seizures back to back',
+    'seizure in water',
+  ]);
   final emergency =
       _hasAny(text, const [
         "can't breathe",
@@ -56,7 +64,6 @@ CareAssistantInputClassification classifyCareAssistantInput(String rawText) {
         'unconscious',
         'unresponsive',
         'ongoing seizure',
-        'seizure',
         'stroke',
         'face droop',
         'slurred speech',
@@ -74,6 +81,7 @@ CareAssistantInputClassification classifyCareAssistantInput(String rawText) {
         'hurt myself',
         'self harm',
       ]) ||
+      seizureDanger ||
       (chestPain && hasSeverity) ||
       (trauma &&
           _hasAny(text, const [
@@ -119,6 +127,7 @@ CareAssistantInputClassification classifyCareAssistantInput(String rawText) {
       breathingConcern ||
       swallowingConcern ||
       chestPain ||
+      _hasAny(text, const ['seizure']) ||
       _hasAny(text, const ['heart racing', 'bleeding', 'very dizzy']);
   if (urgentConcern) {
     final question = breathingConcern
@@ -127,6 +136,8 @@ CareAssistantInputClassification classifyCareAssistantInput(String rawText) {
         ? 'Can you swallow liquids and your saliva? Are you drooling, having trouble breathing, or noticing rapidly worsening throat or neck swelling?'
         : chestPain
         ? 'How severe is the chest pain, and are you having trouble breathing, fainting, sweating heavily, or pain spreading to your arm, jaw, or back?'
+        : _hasAny(text, const ['seizure'])
+        ? 'Is the seizure happening now, is this the first one, has it lasted 5 minutes or longer, or have seizures repeated without full recovery?'
         : 'How severe is it right now, and is it worsening or accompanied by fainting, breathing difficulty, or weakness?';
     return CareAssistantInputClassification(
       intent: CareAssistantIntent.medical,
@@ -178,6 +189,20 @@ CareAssistantInputClassification classifyCareAssistantInput(String rawText) {
     'chew',
     'mouth',
     'jaw',
+    'cut',
+    'wound',
+    'burn',
+    'scald',
+    'sprain',
+    'poison',
+    'overdose',
+    'bite',
+    'sting',
+    'nosebleed',
+    'faint',
+    'seizure',
+    'choking',
+    'allergic',
   ]);
   if (medical) {
     return CareAssistantInputClassification(
@@ -218,6 +243,172 @@ CareAssistantInputClassification classifyCareAssistantInput(String rawText) {
         : CareAssistantIntent.nonMedical,
     urgency: CareAssistantUrgency.routine,
     isExplicitlyNonMedical: explicitlyNonMedical,
+  );
+}
+
+// Keep these offline emergency fallbacks aligned with current public guidance:
+// https://www.redcross.org/take-a-class/first-aid/performing-first-aid/first-aid-steps
+// https://www.redcross.org/take-a-class/resources/learn-first-aid/infant-choking
+// https://www.redcross.org/take-a-class/resources/learn-first-aid/seizures
+// https://international.heart.org/resuscitation/hands-only-cpr
+CareAssistantFirstAidGuidance emergencyFirstAidFor(String rawText) {
+  final text = rawText.trim().toLowerCase();
+  const emergencySigns = [
+    'The symptoms described are already warning signs requiring emergency medical care.',
+    'Any loss of responsiveness, absent or abnormal breathing, blue or gray lips, or rapid worsening is immediately life-threatening.',
+  ];
+
+  if (_hasAny(text, const [
+    'suicidal',
+    'suicide',
+    'kill myself',
+    'hurt myself',
+    'self harm',
+    'self-harm',
+  ])) {
+    return const CareAssistantFirstAidGuidance(
+      immediateActions: [
+        'Contact local emergency services or a crisis service now and say there is an immediate self-harm risk.',
+        'Move away from weapons, medicines, heights, traffic, or other immediate dangers if this can be done safely.',
+        'Stay with the person, or ask a trusted adult to stay, until professional help takes over.',
+      ],
+      avoid: [
+        'Do not stay alone or promise to keep the danger secret.',
+        'Do not argue, shame, threaten, or leave to search for help without first contacting emergency support.',
+      ],
+      warningSigns: emergencySigns,
+    );
+  }
+
+  if (_hasAny(text, const ['choking'])) {
+    return const CareAssistantFirstAidGuidance(
+      immediateActions: [
+        'Contact local emergency services now and put the phone on speaker.',
+        'If the person can cough or speak, encourage forceful coughing and watch closely.',
+        'If they cannot cough, speak, or breathe: for an adult or child over 1 year, alternate 5 back blows with 5 abdominal thrusts; use chest thrusts instead during pregnancy.',
+        'For an infant under 1 year, alternate 5 back blows with 5 chest thrusts. Follow the dispatcher’s instructions.',
+        'If the person becomes unresponsive, lower them to a firm surface and begin age-appropriate CPR; use an AED if available.',
+      ],
+      avoid: [
+        'Do not perform a blind finger sweep or try to pull out an object you cannot clearly see.',
+        'Do not give food or drink, and do not use abdominal thrusts on an infant or a pregnant person.',
+      ],
+      warningSigns: emergencySigns,
+    );
+  }
+
+  if (_hasAny(text, const [
+    'uncontrolled bleeding',
+    'severe bleeding',
+    'heavy bleeding',
+  ])) {
+    return const CareAssistantFirstAidGuidance(
+      immediateActions: [
+        'Contact local emergency services now and put the phone on speaker.',
+        'Expose the wound and press firmly and continuously with gauze or a clean cloth.',
+        'If blood soaks through, keep pressing and add more cloth on top without removing the first layer.',
+        'For life-threatening bleeding from an arm or leg, use a commercial tourniquet only if you are trained or the emergency dispatcher directs you.',
+        'Keep the person warm and still while watching their breathing and responsiveness.',
+      ],
+      avoid: [
+        'Do not remove an embedded object; press around it instead.',
+        'Do not repeatedly lift the cloth to check the wound or give food or drink.',
+      ],
+      warningSigns: emergencySigns,
+    );
+  }
+
+  if (_hasAny(text, const ['ongoing seizure', 'seizure'])) {
+    return const CareAssistantFirstAidGuidance(
+      immediateActions: [
+        'Contact local emergency services now and note the time the seizure started.',
+        'Clear hard or sharp objects away, cushion the head, loosen tight clothing around the neck, and protect the person from injury.',
+        'When the shaking stops, place the person on their side if you can do so safely and monitor breathing.',
+        'Stay with the person until they are fully alert or professional help arrives.',
+      ],
+      avoid: [
+        'Do not restrain the person or put anything in their mouth.',
+        'Do not give food, drink, or medicine until they are fully alert and can swallow safely.',
+      ],
+      warningSigns: emergencySigns,
+    );
+  }
+
+  if (_hasAny(text, const ['anaphylaxis', 'severe allergic reaction'])) {
+    return const CareAssistantFirstAidGuidance(
+      immediateActions: [
+        'Contact local emergency services now and put the phone on speaker.',
+        'Use the person’s prescribed epinephrine auto-injector immediately, exactly as directed, if it is available.',
+        'Have the person lie down with legs raised; if breathing is difficult, let them sit up slowly. Keep them still.',
+        'If they become unresponsive and are not breathing normally, begin age-appropriate CPR and use an AED if available.',
+      ],
+      avoid: [
+        'Do not let the person stand or walk, and do not delay emergency care to see whether symptoms improve.',
+        'Do not give food, drink, or an unprescribed medicine.',
+      ],
+      warningSigns: emergencySigns,
+    );
+  }
+
+  if (_hasAny(text, const ['stroke', 'face droop', 'slurred speech'])) {
+    return const CareAssistantFirstAidGuidance(
+      immediateActions: [
+        'Contact local emergency services now and note the exact time symptoms began or the person was last known well.',
+        'Keep the person safe and comfortable, support a weak limb, and monitor breathing and responsiveness.',
+        'If they become unresponsive and are not breathing normally, begin age-appropriate CPR and use an AED if available.',
+      ],
+      avoid: [
+        'Do not drive the person yourself if emergency transport is available.',
+        'Do not give food, drink, aspirin, or other medicine unless an emergency professional instructs you.',
+      ],
+      warningSigns: emergencySigns,
+    );
+  }
+
+  if (_hasAny(text, const ['unconscious', 'unresponsive', 'gasping'])) {
+    return const CareAssistantFirstAidGuidance(
+      immediateActions: [
+        'Make sure the area is safe, contact local emergency services now, and put the phone on speaker.',
+        'Check for a response and normal breathing. Gasping is not normal breathing.',
+        'If the person is not breathing normally, start age-appropriate CPR immediately and follow the dispatcher’s coaching.',
+        'Send someone for an AED, turn it on, and follow its prompts as soon as it arrives.',
+      ],
+      avoid: [
+        'Do not leave the person alone or delay CPR to check for a pulse if you are not a healthcare professional.',
+        'Do not give anything by mouth.',
+      ],
+      warningSigns: emergencySigns,
+    );
+  }
+
+  if (_hasAny(text, const ['major trauma', 'crush', 'ejected'])) {
+    return const CareAssistantFirstAidGuidance(
+      immediateActions: [
+        'Contact local emergency services now, make the scene safe, and put the phone on speaker.',
+        'Keep the person still and support the head and neck in the position found unless there is immediate danger.',
+        'Control severe external bleeding with firm, continuous direct pressure and monitor breathing.',
+        'Keep the person warm until professional help arrives.',
+      ],
+      avoid: [
+        'Do not move, straighten, or sit the person up unless the scene is dangerous or breathing requires it.',
+        'Do not remove an embedded object or give food, drink, or medicine.',
+      ],
+      warningSigns: emergencySigns,
+    );
+  }
+
+  return const CareAssistantFirstAidGuidance(
+    immediateActions: [
+      'Contact local emergency services now and put the phone on speaker.',
+      'Keep the person at rest in the position that makes breathing easiest and loosen tight clothing.',
+      'Help with their own prescribed rescue medicine only if it is intended for this situation, and follow the label or emergency dispatcher’s instructions.',
+      'Monitor breathing and responsiveness; if they become unresponsive and are not breathing normally, begin age-appropriate CPR and use an AED if available.',
+    ],
+    avoid: [
+      'Do not leave the person alone, let them drive, or delay emergency care to continue chatting.',
+      'Do not give food, drink, or someone else’s medicine.',
+    ],
+    warningSigns: emergencySigns,
   );
 }
 

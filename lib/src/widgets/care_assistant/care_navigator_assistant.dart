@@ -196,9 +196,6 @@ class _CareAssistantPanelState extends ConsumerState<_CareAssistantPanel> {
                       controller: _scrollController,
                       padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
                       children: [
-                        for (final message in state.messages)
-                          _MessageBubble(message: message),
-                        if (state.isBusy) const _RespondingIndicator(),
                         if (state.showEmergencyActions)
                           _EmergencyActions(
                             emergencyNumber: emergencyNumber,
@@ -208,6 +205,9 @@ class _CareAssistantPanelState extends ConsumerState<_CareAssistantPanel> {
                                 .read(careAssistantProvider.notifier)
                                 .reset,
                           ),
+                        for (final message in state.messages)
+                          _MessageBubble(message: message),
+                        if (state.isBusy) const _RespondingIndicator(),
                         if (state.recommendations.isNotEmpty)
                           _RecommendationList(
                             directory: directory,
@@ -424,7 +424,7 @@ class _PanelHeader extends StatelessWidget {
               ),
               SizedBox(height: 2),
               Text(
-                'Facility guidance only',
+                'First aid and facility guidance',
                 style: TextStyle(color: AppColors.textMuted, fontSize: 12),
               ),
             ],

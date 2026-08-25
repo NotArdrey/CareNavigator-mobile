@@ -38,18 +38,21 @@ class AppIdentity {
     required this.status,
     this.userId,
     this.displayName,
+    this.assignedHospitalName,
   });
 
   const AppIdentity.guest()
     : role = UserRole.guest,
       status = AccountStatus.active,
       userId = null,
-      displayName = null;
+      displayName = null,
+      assignedHospitalName = null;
 
   final UserRole role;
   final AccountStatus status;
   final String? userId;
   final String? displayName;
+  final String? assignedHospitalName;
 
   bool get isAuthenticated => userId != null;
 }

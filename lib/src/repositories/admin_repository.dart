@@ -65,6 +65,17 @@ abstract interface class AdminRepository {
     required DateTime endsAt,
   });
 
+  Future<void> createManagedRecord({
+    required String table,
+    required Map<String, Object?> values,
+  });
+
+  Future<void> updateManagedRecord({
+    required String table,
+    required String recordId,
+    required Map<String, Object?> changes,
+  });
+
   Future<void> deleteManagedRecord({
     required String table,
     required String recordId,
@@ -158,8 +169,17 @@ class SupabaseAdminRepository implements AdminRepository {
       'maximum_capacity',
     },
     'hospital_facility_status': {'status', 'available_units', 'notes'},
-    'hospital_services': {'availability_status'},
-    'hospital_departments': {'availability_status'},
+    'hospital_services': {
+      'service_name',
+      'description',
+      'department_id',
+      'availability_status',
+    },
+    'hospital_departments': {
+      'department_name',
+      'description',
+      'availability_status',
+    },
   };
   static const _operationalStatuses = <String, Set<String>>{
     'hospital_rooms': {'available', 'limited', 'unavailable'},
@@ -174,9 +194,87 @@ class SupabaseAdminRepository implements AdminRepository {
     'hospital_departments': {'available', 'limited', 'unavailable'},
   };
   static const _deletableTables = {
+    'hospital_beds',
+    'hospital_rooms',
+    'emergency_room_status',
+    'hospital_facility_status',
     'hospital_services',
     'hospital_departments',
+    'hospitals',
+    'role_permissions',
+    'system_settings',
     'maintenance_windows',
+  };
+  static const _managedCreateColumns = <String, Set<String>>{
+    'hospital_beds': {
+      'department_id',
+      'bed_type',
+      'total_beds',
+      'available_beds',
+      'occupied_beds',
+    },
+    'hospital_rooms': {
+      'room_type',
+      'total_rooms',
+      'available_rooms',
+      'occupied_rooms',
+      'status',
+    },
+    'emergency_room_status': {
+      'status',
+      'available_beds',
+      'current_patient_count',
+      'maximum_capacity',
+      'occupied_beds',
+      'closed_or_unstaffed_beds',
+      'reserved_beds',
+    },
+    'hospital_facility_status': {
+      'facility_type',
+      'status',
+      'available_units',
+      'notes',
+    },
+    'hospitals': {
+      'hospital_name',
+      'address',
+      'city',
+      'province',
+      'contact_number',
+      'emergency_contact_number',
+      'email',
+      'description',
+      'operating_status',
+      'verification_status',
+    },
+    'role_permissions': {'role_id', 'permission', 'is_allowed'},
+    'system_settings': {'key', 'value', 'description', 'is_public'},
+  };
+  static const _managedUpdateColumns = <String, Set<String>>{
+    'hospitals': {
+      'hospital_name',
+      'address',
+      'city',
+      'province',
+      'contact_number',
+      'emergency_contact_number',
+      'email',
+      'description',
+      'operating_status',
+    },
+    'maintenance_windows': {
+      'title',
+      'message',
+      'starts_at',
+      'ends_at',
+      'is_active',
+    },
+  };
+  static const _hospitalScopedManagedTables = {
+    'hospital_beds',
+    'hospital_rooms',
+    'emergency_room_status',
+    'hospital_facility_status',
   };
 
   final SupabaseClient _client;
@@ -515,6 +613,80 @@ class SupabaseAdminRepository implements AdminRepository {
   }
 
   @override
+  Future<void> createManagedRecord({
+    required String table,
+    required Map<String, Object?> values,
+  }) async {
+    final allowed = _managedCreateColumns[table];
+    if (allowed == null ||
+        values.isEmpty ||
+        !allowed.containsAll(values.keys)) {
+      throw ArgumentError.value(
+        table,
+        'table',
+        'Unsupported managed creation target or fields.',
+      );
+    }
+    final appUser = await _currentAppUser();
+    final payload = <String, Object?>{...values};
+    if (_hospitalScopedManagedTables.contains(table)) {
+      final hospitalId = appUser['hospital_id']?.toString();
+      if (hospitalId == null || hospitalId.isEmpty) {
+        throw StateError('An assigned hospital is required.');
+      }
+      payload['hospital_id'] = hospitalId;
+    }
+    if (table == 'hospitals') {
+      final authUserId = _client.auth.currentUser?.id;
+      if (authUserId == null || authUserId.isEmpty) {
+        throw StateError('Your session has expired. Sign in again.');
+      }
+      payload['created_by'] = authUserId;
+    }
+    if (table == 'system_settings') payload['updated_by'] = appUser['id'];
+    final idColumn = table == 'system_settings' ? 'key' : 'id';
+    await _client.from(table).insert(payload).select(idColumn).single();
+  }
+
+  @override
+  Future<void> updateManagedRecord({
+    required String table,
+    required String recordId,
+    required Map<String, Object?> changes,
+  }) async {
+    final allowed = _managedUpdateColumns[table];
+    if (allowed == null ||
+        changes.isEmpty ||
+        !allowed.containsAll(changes.keys)) {
+      throw ArgumentError.value(
+        table,
+        'table',
+        'Unsupported managed update target or fields.',
+      );
+    }
+    if (recordId.trim().isEmpty) {
+      throw ArgumentError('A managed record is required for this update.');
+    }
+    final payload = <String, Object?>{...changes};
+    if (table == 'maintenance_windows') {
+      final startsAt = DateTime.tryParse(
+        payload['starts_at']?.toString() ?? '',
+      );
+      final endsAt = DateTime.tryParse(payload['ends_at']?.toString() ?? '');
+      if (startsAt == null || endsAt == null || !endsAt.isAfter(startsAt)) {
+        throw ArgumentError('Maintenance must end after it starts.');
+      }
+    }
+    final idColumn = table == 'system_settings' ? 'key' : 'id';
+    await _client
+        .from(table)
+        .update(payload)
+        .eq(idColumn, recordId)
+        .select(idColumn)
+        .single();
+  }
+
+  @override
   Future<void> deleteManagedRecord({
     required String table,
     required String recordId,
@@ -525,7 +697,13 @@ class SupabaseAdminRepository implements AdminRepository {
     if (recordId.trim().isEmpty) {
       throw ArgumentError('A managed record is required for deletion.');
     }
-    await _client.from(table).delete().eq('id', recordId).select('id').single();
+    final idColumn = table == 'system_settings' ? 'key' : 'id';
+    await _client
+        .from(table)
+        .delete()
+        .eq(idColumn, recordId)
+        .select(idColumn)
+        .single();
   }
 
   @override

@@ -83,10 +83,10 @@ String _pageTitle(UserRole role, String? section, String? itemId) {
       UserRole.guest => 'CareNavigator PH',
     };
   }
+  if (itemId != null && {'appointments', 'consultations'}.contains(section)) {
+    return 'Appointment Details';
+  }
   if (role == UserRole.patient) {
-    if (itemId != null && {'appointments', 'consultations'}.contains(section)) {
-      return 'Appointment Details';
-    }
     return switch (section) {
       'medical-records' || 'records' => 'Medical Overview',
       'labs' => 'Diagnostics',

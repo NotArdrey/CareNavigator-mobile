@@ -36,6 +36,12 @@ type CheckupAttachmentInput = {
 type Intent = "medical" | "emergency" | "non_medical" | "unclear";
 type Urgency = "routine" | "soon" | "urgent" | "emergency";
 
+type FirstAidGuidance = {
+  immediate_actions: string[];
+  avoid: string[];
+  warning_signs: string[];
+};
+
 type Facility = {
   id: string;
   name: string;
@@ -237,15 +243,20 @@ Deno.serve(async (request: Request) => {
             "In message, write one or two natural sentences that briefly acknowledge what the user said. Do not use robotic phrases such as reported, input received, more information is needed, or to better assist you.",
             "Put the single next question only in follow_up_question, not in message. Do not repeat a question already answered in the conversation.",
             "You are not a doctor and must never diagnose, prescribe, or claim that a symptom has a specific cause.",
+            "When immediate first aid could safely help, provide evidence-based layperson guidance in first_aid. Give 2 to 6 short, ordered immediate_actions, 1 to 4 things to avoid, and 2 to 5 warning_signs that require professional medical care. Keep message to a brief acknowledgement and care-level summary instead of duplicating those lists.",
+            "First aid must be appropriate to facts actually known about the person's age, pregnancy status, condition, and situation. Never assume an adult technique is safe for an infant or child. If age, consciousness, breathing, cause, severity, location of injury, ongoing danger, or another detail is essential to choosing safe steps, ask one essential question and omit any step that depends on the missing fact. You may still give universally safe actions that do not delay emergency care.",
+            "Use only widely accepted first-aid measures a layperson can perform. Do not give a diagnosis, medication dose, invasive procedure, improvised remedy, or advice to use another person's medicine. Mention a prescribed rescue medicine or epinephrine auto-injector only when relevant and instruct the user to use it exactly as prescribed.",
+            "Never tell someone to put anything in a seizing person's mouth, restrain a seizure, move a person with possible spine injury unless there is immediate danger, induce vomiting after poisoning, apply ice directly to skin, put creams or household substances on a burn, remove an embedded object, or perform a blind finger sweep for choking.",
+            "For every non-null first_aid response, warning_signs must be specific and first aid must be framed as temporary help while arranging appropriate care, never as a diagnosis or replacement for professional treatment. Do not provide first_aid for non-medical requests.",
             "When images are attached, consider them together and describe only visible features relevant to choosing care. Do not identify a disease, confirm an allergy, judge severity from images alone, or imply that photos rule out a serious problem. Ask about symptoms, timing, cause, and warning signs when needed.",
             "Help the user choose a type of nearby facility using only the supplied facility facts.",
             "Ask at most one short follow-up question when a decision cannot yet be made.",
             "First classify the latest user message as medical, emergency, non_medical, or unclear. Non-medical requests must never be emergencies. For unclear medical wording, ask one follow-up question rather than escalating.",
             "You—not a keyword list—decide whether ordinary language is medical, non_medical, or unclear by its complete meaning and conversation context. Phrases describing difficulty eating, swallowing, breathing, sleeping, moving, or other bodily functions are medical even when they do not use clinical vocabulary.",
-            "Set urgency to emergency only for clear indicators such as severe difficulty breathing, unconsciousness, severe chest pain, uncontrolled bleeding, seizure, stroke symptoms, severe allergic reaction, major trauma, or an immediate suicide/self-harm risk.",
+            "Set urgency to emergency only for clear indicators such as severe difficulty breathing, unconsciousness, severe chest pain, uncontrolled bleeding, an ongoing or first seizure (or one lasting 5 minutes or recurring without recovery), stroke symptoms, severe allergic reaction, major trauma, or an immediate suicide/self-harm risk.",
             "Breathing, chest pain, bleeding, dizziness, swallowing difficulty, and similar words are not emergency triggers by themselves. If severity is unclear, use medical/urgent and ask one concise severity question.",
             "Examples: hard time breathing, shortness of breath while still able to talk, chest pain without severe warning signs, and difficulty swallowing are urgent clarification cases, not automatic emergencies. Inability to breathe, gasping, blue lips, severe crushing chest pain, choking, or inability to handle saliva with breathing distress are emergencies.",
-            "For an emergency, say that it may require immediate medical attention and direct the user to local emergency services or the nearest emergency department. Do not assume a country-specific telephone number.",
+            "For an emergency, put contacting local emergency services first, say not to wait for chat, then give only safe actions that can be done while help is coming. Do not assume a country-specific telephone number.",
             "Never invent availability, bed counts, specialists, services, operating status, distance, or travel time.",
             "When distance_km is present, it is a straight-line estimate from the signed-in user's saved profile address. If the user asks for the nearest, closest, nearby, or near-me facility, prioritize suitable facilities with the smallest distance_km.",
             "Do not describe straight-line distance as driving distance or travel time.",
@@ -254,7 +265,7 @@ Deno.serve(async (request: Request) => {
               : "The signed-in user's saved profile address was geocoded successfully; use the supplied distance_km facts when comparing facilities.",
             "If a fact is missing or a facility is marked availability unknown, say \"Availability unknown\".",
             "Recommend only facility IDs from the supplied list.",
-            "Return JSON only with exactly these keys: intent (medical, emergency, non_medical, or unclear), urgency (routine, soon, urgent, or emergency), message (string), follow_up_question (string or null), recommendation_ids (array of strings, maximum 3), recommendation_summary (string or null).",
+            "Return JSON only with exactly these keys: intent (medical, emergency, non_medical, or unclear), urgency (routine, soon, urgent, or emergency), message (string), follow_up_question (string or null), first_aid (null or an object with exactly immediate_actions, avoid, and warning_signs arrays of strings), recommendation_ids (array of strings, maximum 3), recommendation_summary (string or null).",
           ].join(" "),
         },
         {
@@ -339,6 +350,9 @@ Deno.serve(async (request: Request) => {
             : "What symptoms are you experiencing, when did they start, and are they getting worse?",
           recommendation_ids: [],
           recommendation_summary: null,
+          first_aid: emergency
+            ? emergencyFirstAidGuidance(latestUserMessage)
+            : null,
           facility_distances: {},
           location_used: false,
           image_review_unavailable: true,
@@ -391,6 +405,11 @@ Deno.serve(async (request: Request) => {
         (asksForNearest && userLocation === null
           ? stringValue(parsed.follow_up_question) ?? "What city or barangay are you currently in so I can compare nearby facilities?"
           : stringValue(parsed.follow_up_question));
+    const firstAid = intent === "medical" || intent === "emergency"
+      ? emergency
+        ? emergencyFirstAidGuidance(latestUserMessage)
+        : firstAidValue(parsed.first_aid)
+      : null;
     const facilityDistances = Object.fromEntries(
       distanceAwareFacilities
         .filter((facility) => facility.distance_km !== null)
@@ -402,6 +421,7 @@ Deno.serve(async (request: Request) => {
       showEmergencyActions: urgency === "emergency",
       message,
       follow_up_question: followUpQuestion,
+      first_aid: firstAid,
       recommendation_ids: recommendationIds,
       recommendation_summary: emergency ? null : stringValue(parsed.recommendation_summary),
       facility_distances: emergency ? {} : facilityDistances,
@@ -1486,7 +1506,7 @@ function classifyMessage(value: string): {
   isExplicitlyNonMedical?: boolean;
 } {
   const text = value.toLowerCase().trim();
-  const emergency = /\b(can(?:not|'t) breathe|unable to breathe|gasping(?: for air)?|can(?:not|'t) catch (?:my |their )?breath|struggling to breathe|blue lips|choking|unconscious|unresponsive|ongoing seizure|stroke|face droop|slurred speech|anaphylaxis|severe allergic reaction|uncontrolled bleeding|severe bleeding|major trauma|suicidal|suicide|kill myself|hurt myself|self[- ]harm)\b/i.test(text) ||
+  const emergency = /\b(can(?:not|'t) breathe|unable to breathe|gasping(?: for air)?|can(?:not|'t) catch (?:my |their )?breath|struggling to breathe|blue lips|choking|unconscious|unresponsive|ongoing seizure|first seizure|seizure lasting|multiple seizures|seizures back to back|seizure in water|stroke|face droop|slurred speech|anaphylaxis|severe allergic reaction|uncontrolled bleeding|severe bleeding|major trauma|suicidal|suicide|kill myself|hurt myself|self[- ]harm)\b/i.test(text) ||
     /\bsevere\b.{0,24}\b(chest pain|bleeding|breathing difficulty|difficulty breathing|trouble breathing)\b/i.test(text) ||
     /\b(crushing chest pain|severe breathing difficulty)\b/i.test(text);
   if (emergency) return { intent: "emergency", urgency: "emergency" };
@@ -1495,7 +1515,8 @@ function classifyMessage(value: string): {
   const swallowingConcern = /\b(difficulty swallowing|difficult to swallow|hard time swallowing|trouble swallowing|can(?:not|'t) swallow)\b/i.test(text);
   const eatingConcern = /\b(hard time eating|difficulty eating|difficult to eat|trouble eating|can(?:not|'t) eat)\b/i.test(text);
   const chestConcern = /\b(chest pain|heart pain)\b/i.test(text);
-  const urgentConcern = breathingConcern || swallowingConcern || chestConcern ||
+  const seizureConcern = /\bseizure\b/i.test(text);
+  const urgentConcern = breathingConcern || swallowingConcern || chestConcern || seizureConcern ||
     /\b(heart racing|bleeding|very dizzy)\b/i.test(text);
   if (urgentConcern) {
     const followUpQuestion = breathingConcern
@@ -1504,6 +1525,8 @@ function classifyMessage(value: string): {
       ? "Can you swallow liquids and your saliva? Are you drooling, having trouble breathing, or noticing rapidly worsening throat or neck swelling?"
       : chestConcern
       ? "How severe is the chest pain, and are you having trouble breathing, fainting, sweating heavily, or pain spreading to your arm, jaw, or back?"
+      : seizureConcern
+      ? "Is the seizure happening now, is this the first one, has it lasted 5 minutes or longer, or have seizures repeated without full recovery?"
       : "How severe is it right now, and is it worsening or accompanied by fainting, breathing difficulty, or weakness?";
     return { intent: "medical", urgency: "urgent", followUpQuestion };
   }
@@ -1516,7 +1539,7 @@ function classifyMessage(value: string): {
     };
   }
 
-  const medical = /\b(pain|headache|fever|vomit|rash|infection|dizzy|breath|asthma|chest|stomach|abdominal|belly|injury|fracture|pregnan\w*|doctor|hospital|clinic|healthcare|medical|medicine|checkup|consultation|swallow\w*|throat|tonsil\w*|eat(?:ing)?|appetite|chew\w*|mouth|jaw)\b/i.test(text);
+  const medical = /\b(pain|headache|fever|vomit|rash|infection|dizzy|breath|asthma|chest|stomach|abdominal|belly|injury|fracture|pregnan\w*|doctor|hospital|clinic|healthcare|medical|medicine|checkup|consultation|swallow\w*|throat|tonsil\w*|eat(?:ing)?|appetite|chew\w*|mouth|jaw|cut|wound|burn|scald|sprain|poison\w*|overdose|bite|sting|nosebleed|faint\w*|seizure|choking|allergic)\b/i.test(text);
   if (medical) {
     const soon = /\b(swallow\w*|throat|tonsil\w*)\b/i.test(text);
     return { intent: "medical", urgency: soon ? "soon" : "routine" };
@@ -1766,6 +1789,180 @@ function stringValue(value: unknown): string | null {
 function stringList(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return [...new Set(value.map((item) => stringValue(item)).filter((item): item is string => item !== null))];
+}
+
+function firstAidValue(value: unknown): FirstAidGuidance | null {
+  const record = asRecord(value);
+  if (record === null) return null;
+  const immediateActions = stringList(record.immediate_actions)
+    .map((item) => item.slice(0, 320))
+    .slice(0, 6);
+  const avoid = stringList(record.avoid)
+    .map((item) => item.slice(0, 320))
+    .slice(0, 4);
+  const warningSigns = stringList(record.warning_signs)
+    .map((item) => item.slice(0, 320))
+    .slice(0, 5);
+  if (immediateActions.length === 0 || avoid.length === 0 || warningSigns.length === 0) {
+    return null;
+  }
+  return {
+    immediate_actions: immediateActions,
+    avoid,
+    warning_signs: warningSigns,
+  };
+}
+
+// Offline-safe emergency fallbacks mirror the same Red Cross/AHA sources
+// documented in the Flutter input classifier.
+function emergencyFirstAidGuidance(value: string): FirstAidGuidance {
+  const text = value.toLowerCase();
+  const alreadyEmergency = [
+    "The symptoms described are already warning signs requiring emergency medical care.",
+    "Any loss of responsiveness, absent or abnormal breathing, blue or gray lips, or rapid worsening is immediately life-threatening.",
+  ];
+
+  if (/\b(suicidal|suicide|kill myself|hurt myself|self[- ]harm)\b/i.test(text)) {
+    return {
+      immediate_actions: [
+        "Contact local emergency services or a crisis service now and tell them there is an immediate self-harm risk.",
+        "Move away from weapons, medicines, heights, traffic, or other immediate dangers if this can be done safely.",
+        "Stay with the person, or ask a trusted adult to stay, until professional help takes over.",
+      ],
+      avoid: [
+        "Do not stay alone or promise to keep the danger secret.",
+        "Do not argue, shame, threaten, or leave to search for help without first contacting emergency support.",
+      ],
+      warning_signs: alreadyEmergency,
+    };
+  }
+
+  if (/\b(choking)\b/i.test(text)) {
+    return {
+      immediate_actions: [
+        "Contact local emergency services now and put the phone on speaker.",
+        "If the person can cough or speak, encourage forceful coughing and watch closely.",
+        "If they cannot cough, speak, or breathe: for an adult or child over 1 year, alternate 5 back blows with 5 abdominal thrusts; use chest thrusts instead during pregnancy.",
+        "For an infant under 1 year, alternate 5 back blows with 5 chest thrusts. Follow the dispatcher’s instructions.",
+        "If the person becomes unresponsive, lower them to a firm surface and begin age-appropriate CPR; use an AED if available.",
+      ],
+      avoid: [
+        "Do not perform a blind finger sweep or try to pull out an object you cannot clearly see.",
+        "Do not give food or drink, and do not use abdominal thrusts on an infant or a pregnant person.",
+      ],
+      warning_signs: alreadyEmergency,
+    };
+  }
+
+  if (/\b(uncontrolled bleeding|severe bleeding|heavy bleeding)\b/i.test(text)) {
+    return {
+      immediate_actions: [
+        "Contact local emergency services now and put the phone on speaker.",
+        "Expose the wound and press firmly and continuously with gauze or a clean cloth.",
+        "If blood soaks through, keep pressing and add more cloth on top without removing the first layer.",
+        "For life-threatening bleeding from an arm or leg, use a commercial tourniquet only if you are trained or the emergency dispatcher directs you.",
+        "Keep the person warm and still while watching their breathing and responsiveness.",
+      ],
+      avoid: [
+        "Do not remove an embedded object; press around it instead.",
+        "Do not repeatedly lift the cloth to check the wound or give food or drink.",
+      ],
+      warning_signs: alreadyEmergency,
+    };
+  }
+
+  if (/\b(ongoing seizure|seizure)\b/i.test(text)) {
+    return {
+      immediate_actions: [
+        "Contact local emergency services now and note the time the seizure started.",
+        "Clear hard or sharp objects away, cushion the head, loosen tight clothing around the neck, and protect the person from injury.",
+        "When the shaking stops, place the person on their side if you can do so safely and monitor breathing.",
+        "Stay with the person until they are fully alert or professional help arrives.",
+      ],
+      avoid: [
+        "Do not restrain the person or put anything in their mouth.",
+        "Do not give food, drink, or medicine until they are fully alert and can swallow safely.",
+      ],
+      warning_signs: alreadyEmergency,
+    };
+  }
+
+  if (/\b(anaphylaxis|severe allergic reaction)\b/i.test(text)) {
+    return {
+      immediate_actions: [
+        "Contact local emergency services now and put the phone on speaker.",
+        "Use the person's prescribed epinephrine auto-injector immediately, exactly as directed, if it is available.",
+        "Have the person lie down with legs raised; if breathing is difficult, let them sit up slowly. Keep them still.",
+        "If they become unresponsive and are not breathing normally, begin age-appropriate CPR and use an AED if available.",
+      ],
+      avoid: [
+        "Do not let the person stand or walk, and do not delay emergency care to see whether symptoms improve.",
+        "Do not give food, drink, or an unprescribed medicine.",
+      ],
+      warning_signs: alreadyEmergency,
+    };
+  }
+
+  if (/\b(stroke|face droop|slurred speech)\b/i.test(text)) {
+    return {
+      immediate_actions: [
+        "Contact local emergency services now and note the exact time symptoms began or the person was last known well.",
+        "Keep the person safe and comfortable, support a weak limb, and monitor breathing and responsiveness.",
+        "If they become unresponsive and are not breathing normally, begin age-appropriate CPR and use an AED if available.",
+      ],
+      avoid: [
+        "Do not drive the person yourself if emergency transport is available.",
+        "Do not give food, drink, aspirin, or other medicine unless an emergency professional instructs you.",
+      ],
+      warning_signs: alreadyEmergency,
+    };
+  }
+
+  if (/\b(unconscious|unresponsive|gasping)\b/i.test(text)) {
+    return {
+      immediate_actions: [
+        "Make sure the area is safe, contact local emergency services now, and put the phone on speaker.",
+        "Check for a response and normal breathing. Gasping is not normal breathing.",
+        "If the person is not breathing normally, start age-appropriate CPR immediately and follow the dispatcher's coaching.",
+        "Send someone for an AED, turn it on, and follow its prompts as soon as it arrives.",
+      ],
+      avoid: [
+        "Do not leave the person alone or delay CPR to check for a pulse if you are not a healthcare professional.",
+        "Do not give anything by mouth.",
+      ],
+      warning_signs: alreadyEmergency,
+    };
+  }
+
+  if (/\b(major trauma|crush|ejected)\b/i.test(text)) {
+    return {
+      immediate_actions: [
+        "Contact local emergency services now, make the scene safe, and put the phone on speaker.",
+        "Keep the person still and support the head and neck in the position found unless there is immediate danger.",
+        "Control severe external bleeding with firm, continuous direct pressure and monitor breathing.",
+        "Keep the person warm until professional help arrives.",
+      ],
+      avoid: [
+        "Do not move, straighten, or sit the person up unless the scene is dangerous or breathing requires it.",
+        "Do not remove an embedded object or give food, drink, or medicine.",
+      ],
+      warning_signs: alreadyEmergency,
+    };
+  }
+
+  return {
+    immediate_actions: [
+      "Contact local emergency services now and put the phone on speaker.",
+      "Keep the person at rest in the position that makes breathing easiest and loosen tight clothing.",
+      "Help with their own prescribed rescue medicine only if it is intended for this situation, and follow the label or emergency dispatcher's instructions.",
+      "Monitor breathing and responsiveness; if they become unresponsive and are not breathing normally, begin age-appropriate CPR and use an AED if available.",
+    ],
+    avoid: [
+      "Do not leave the person alone, let them drive, or delay emergency care to continue chatting.",
+      "Do not give food, drink, or someone else's medicine.",
+    ],
+    warning_signs: alreadyEmergency,
+  };
 }
 
 function numberValue(value: unknown): number | null {

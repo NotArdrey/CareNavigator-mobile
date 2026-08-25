@@ -97,11 +97,14 @@ void main() {
       container.read(careAssistantProvider).status,
       CareAssistantStatus.emergency,
     );
-    await tester.drag(
-      find.byKey(const Key('care-assistant-messages')),
-      const Offset(0, -420),
-    );
-    await tester.pumpAndSettle();
+    final emergencyReply = container
+        .read(careAssistantProvider)
+        .messages
+        .last
+        .text;
+    expect(emergencyReply, contains('Immediate first aid'));
+    expect(emergencyReply, contains('What to avoid'));
+    expect(emergencyReply, contains('not a diagnosis'));
     expect(find.text('Call 911'), findsOneWidget);
     expect(find.text('Open emergency facilities'), findsOneWidget);
   });

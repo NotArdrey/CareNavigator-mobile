@@ -41,16 +41,27 @@ class WorkspaceShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final destinations = workspaceDestinations(identity.role);
     final desktop = MediaQuery.sizeOf(context).width >= 960;
+    final desktopDestinations = destinations
+        .where((destination) => destination.label != 'Profile')
+        .toList(growable: false);
     final enlargedText = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
-    final selected = _selectedIndex(destinations);
+    final selected = _selectedIndex(
+      desktop ? desktopDestinations : destinations,
+    );
     final messagesLocation = workspaceMessagesLocation(identity.role);
+    final profileLocation = identity.role == UserRole.guest
+        ? null
+        : '${identity.role.homeLocation}/profile';
     final onMessages = messagesLocation == null
         ? null
         : () => context.go(messagesLocation);
+    final onProfile = profileLocation == null
+        ? null
+        : () => context.go(profileLocation);
 
     if (desktop) {
       return _WorkspaceKeyboardScope(
-        onSearch: () => _openWorkspaceSearch(destinations, selected),
+        onSearch: () => _openWorkspaceSearch(desktopDestinations, selected),
         child: Scaffold(
           floatingActionButton: showAssistant
               ? const CareNavigatorAssistant()
@@ -60,7 +71,7 @@ class WorkspaceShell extends StatelessWidget {
               _Sidebar(
                 identity: identity,
                 location: location,
-                destinations: destinations,
+                destinations: desktopDestinations,
                 selectedIndex: selected,
                 onSignOut: onSignOut,
               ),
@@ -72,6 +83,7 @@ class WorkspaceShell extends StatelessWidget {
                       identity: identity,
                       onMessages: onMessages,
                       onNotifications: onNotifications,
+                      onProfile: onProfile,
                       unreadMessageCount: unreadMessageCount,
                       unreadNotificationCount: unreadNotificationCount,
                     ),
@@ -443,6 +455,7 @@ class _Sidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final assignedHospitalName = identity.assignedHospitalName?.trim();
     return Container(
       width: 248,
       color: const Color(0xFF063B4C),
@@ -464,6 +477,41 @@ class _Sidebar extends StatelessWidget {
                 fontWeight: FontWeight.w700,
               ),
             ),
+            if (identity.role == UserRole.hospitalAdministrator &&
+                assignedHospitalName != null &&
+                assignedHospitalName.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Semantics(
+                label: 'Assigned hospital: $assignedHospitalName',
+                child: Tooltip(
+                  message: assignedHospitalName,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.local_hospital_outlined,
+                        size: 17,
+                        color: Color(0xFFDCECEF),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          assignedHospitalName,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            height: 1.3,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 10),
             Expanded(
               child: SingleChildScrollView(
@@ -638,6 +686,7 @@ class _UtilityBar extends StatelessWidget {
     required this.identity,
     required this.onMessages,
     required this.onNotifications,
+    required this.onProfile,
     required this.unreadMessageCount,
     required this.unreadNotificationCount,
   });
@@ -646,6 +695,7 @@ class _UtilityBar extends StatelessWidget {
   final AppIdentity identity;
   final VoidCallback? onMessages;
   final VoidCallback onNotifications;
+  final VoidCallback? onProfile;
   final int unreadMessageCount;
   final int unreadNotificationCount;
 
@@ -682,41 +732,73 @@ class _UtilityBar extends StatelessWidget {
             badgeCount: unreadNotificationCount,
           ),
           const SizedBox(width: 10),
-          const CircleAvatar(
-            radius: 17,
-            backgroundColor: AppColors.selected,
-            child: Icon(
-              Icons.person_outline,
-              size: 19,
-              color: AppColors.primary,
-            ),
-          ),
-          const SizedBox(width: 10),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 240),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  identity.displayName ?? identity.role.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                Text(
-                  identity.role.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ),
-          ),
+          _WorkspaceHeaderProfile(identity: identity, onPressed: onProfile),
         ],
       ),
     );
   }
+}
+
+class _WorkspaceHeaderProfile extends StatelessWidget {
+  const _WorkspaceHeaderProfile({
+    required this.identity,
+    required this.onPressed,
+  });
+
+  final AppIdentity identity;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+    message: 'Open profile',
+    child: Material(
+      color: Colors.transparent,
+      child: InkWell(
+        key: const Key('workspace-header-profile'),
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(AppRadius.control),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircleAvatar(
+                radius: 17,
+                backgroundColor: AppColors.selected,
+                child: Icon(
+                  Icons.person_outline,
+                  size: 19,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(width: 10),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 240),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      identity.displayName ?? identity.role.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    Text(
+                      identity.role.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 class _WorkspaceHeaderAction extends StatelessWidget {

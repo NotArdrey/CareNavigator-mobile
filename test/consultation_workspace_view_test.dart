@@ -5,8 +5,86 @@ import 'package:care_navigator_ph/src/repositories/workspace_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 
 void main() {
+  testWidgets('appointment request opens its specific record details', (
+    tester,
+  ) async {
+    const item = WorkspaceItem(
+      id: 'online-request-id',
+      kind: 'online_consultation_requests',
+      title: 'ONL-20260825-000001',
+      subtitle: 'Persistent cough',
+      status: 'submitted',
+      data: {
+        'reference_number': 'ONL-20260825-000001',
+        'medical_concern': 'Persistent cough',
+        'symptom_duration': 'Three days',
+        'consultation_channel': 'online',
+        'preferred_schedule': '2026-08-28T10:00:00+08:00',
+      },
+    );
+    final router = GoRouter(
+      initialLocation: '/patient/appointments',
+      routes: [
+        GoRoute(
+          path: '/patient/appointments',
+          builder: (context, state) => const Scaffold(
+            body: LiveWorkspaceView(
+              role: UserRole.patient,
+              section: 'appointments',
+            ),
+          ),
+          routes: [
+            GoRoute(
+              path: ':itemId',
+              builder: (context, state) => Scaffold(
+                body: LiveWorkspaceView(
+                  role: UserRole.patient,
+                  section: 'appointments',
+                  itemId: state.pathParameters['itemId'],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          workspaceSnapshotProvider.overrideWith((ref, request) async {
+            return WorkspaceSnapshot(
+              title: request.itemId == null
+                  ? 'Appointments'
+                  : 'Appointment Details',
+              description: 'Appointment records',
+              items: const [item],
+            );
+          }),
+        ],
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('ONL-20260825-000001'));
+    await tester.pumpAndSettle();
+
+    expect(
+      router.state.uri.path,
+      '/patient/appointments/online-request~online-request-id',
+    );
+    expect(find.text('Appointment Details'), findsOneWidget);
+    expect(find.text('Medical Concern'), findsOneWidget);
+    expect(find.text('Persistent cough'), findsWidgets);
+    expect(find.text('Symptom Duration'), findsOneWidget);
+    expect(find.text('Three days'), findsOneWidget);
+  });
+
   testWidgets('doctor appointments separate current records from history', (
     tester,
   ) async {
