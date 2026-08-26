@@ -35,6 +35,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'map',
             builder: (context, state) => HospitalMapScreen(
+              key: ValueKey('hospital-map-${state.uri}'),
               initialQuery: state.uri.queryParameters['q'],
               selectedHospitalId: state.uri.queryParameters['hospitalId'],
               selectionSource: state.uri.queryParameters['source'],

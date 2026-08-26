@@ -370,7 +370,9 @@ class _CareAssistantPanelState extends ConsumerState<_CareAssistantPanel> {
   void _navigateTo(String location) {
     final router = GoRouter.of(context);
     if (widget.isSheet) {
-      Navigator.of(context).pop();
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
     } else {
       widget.onClose?.call();
     }

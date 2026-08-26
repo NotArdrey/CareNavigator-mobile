@@ -402,6 +402,248 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets(
+    'care assistant Show in Maps redirects consistently across multiple selections and returns',
+    (tester) async {
+      final hospital1 = _publishedHospital();
+      final hospital2 = HospitalDirectoryEntry(
+        id: 'tarlac-provincial',
+        name: 'Tarlac Provincial Hospital',
+        city: 'Tarlac City',
+        province: 'Tarlac',
+        careLevel: 'Tertiary Hospital',
+        services: const ['Emergency Room', 'Internal Medicine'],
+        departments: const ['Emergency Medicine', 'Internal Medicine'],
+        doctors: const [],
+        isAvailable: true,
+        latitude: 15.4802,
+        longitude: 120.5979,
+        address: 'Hospital Drive, Tarlac City, Tarlac',
+        emergencyContactNumber: '045-982-1234',
+        operatingStatus: 'open',
+        emergencyStatus: 'available',
+        availableBeds: 10,
+        totalBeds: 50,
+      );
+
+      final container = ProviderContainer(
+        overrides: [
+          publicConfigProvider.overrideWithValue(
+            const PublicConfig(
+              supabaseUrl: '',
+              supabasePublishableKey: '',
+              appBaseUrl: '',
+            ),
+          ),
+          appIdentityProvider.overrideWith(
+            _TestAuthenticatedIdentityController.new,
+          ),
+          hospitalRepositoryProvider.overrideWithValue(
+            _MultiHospitalRepository([hospital1, hospital2]),
+          ),
+          careAssistantProvider.overrideWith(
+            () => _MultiRecommendedCareAssistant([hospital1.id, hospital2.id]),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      tester.view.physicalSize = const Size(482, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const CareNavigatorApp(),
+        ),
+      );
+
+      container.read(appRouterProvider).go('/hospitals');
+      await tester.pumpAndSettle();
+
+      // Open assistant
+      await tester.tap(find.byType(FloatingActionButton).last);
+      await tester.pumpAndSettle();
+
+      // Scroll to recommendations
+      await tester.drag(
+        find.byKey(const Key('care-assistant-messages')),
+        const Offset(0, -500),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Show in Maps'), findsNWidgets(2));
+
+      // Click Show in Maps for first hospital
+      final messagesScrollable = find.descendant(
+        of: find.byKey(const Key('care-assistant-messages')),
+        matching: find.byType(Scrollable),
+      );
+      await tester.scrollUntilVisible(
+        find.text('Show in Maps').first,
+        200,
+        scrollable: messagesScrollable,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Show in Maps').first);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Hospital map'), findsOneWidget);
+      expect(
+        find.textContaining('Showing recommended hospital ${hospital1.name}'),
+        findsOneWidget,
+      );
+
+      // Open assistant again while on map screen
+      await tester.tap(find.byType(FloatingActionButton).last);
+      await tester.pumpAndSettle();
+
+      final modalMessagesScrollable = find.descendant(
+        of: find.byKey(const Key('care-assistant-messages')),
+        matching: find.byType(Scrollable),
+      );
+      // Scroll to second recommendation
+      await tester.scrollUntilVisible(
+        find.text('Show in Maps').last,
+        200,
+        scrollable: modalMessagesScrollable,
+      );
+      await tester.pumpAndSettle();
+
+      // Click Show in Maps for second hospital
+      await tester.tap(find.text('Show in Maps').last);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Hospital map'), findsOneWidget);
+      expect(
+        find.textContaining('Showing recommended hospital ${hospital2.name}'),
+        findsOneWidget,
+      );
+
+      // Return to hospital list
+      container.read(appRouterProvider).go('/hospitals');
+      await tester.pumpAndSettle();
+
+      // Open assistant again from list
+      await tester.tap(find.byType(FloatingActionButton).last);
+      await tester.pumpAndSettle();
+
+      final returnedMessagesScrollable = find.descendant(
+        of: find.byKey(const Key('care-assistant-messages')),
+        matching: find.byType(Scrollable),
+      );
+      await tester.scrollUntilVisible(
+        find.text('Show in Maps').first,
+        200,
+        scrollable: returnedMessagesScrollable,
+      );
+      await tester.pumpAndSettle();
+
+      // Click Show in Maps for first hospital again
+      await tester.tap(find.text('Show in Maps').first);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Hospital map'), findsOneWidget);
+      expect(
+        find.textContaining('Showing recommended hospital ${hospital1.name}'),
+        findsOneWidget,
+      );
+    },
+  );
+}
+
+class _MultiHospitalRepository implements HospitalRepository {
+  const _MultiHospitalRepository(this.hospitals);
+
+  final List<HospitalDirectoryEntry> hospitals;
+
+  @override
+  Future<HospitalSummary> getHospital(String hospitalId) async {
+    final match = hospitals.firstWhere((h) => h.id == hospitalId);
+    return HospitalSummary(
+      id: match.id,
+      name: match.name,
+      locationLabel: match.locationLabel,
+      isVerified: true,
+      latitude: match.latitude,
+      longitude: match.longitude,
+    );
+  }
+
+  @override
+  Future<List<String>> listDepartments(String hospitalId) async => const [];
+
+  @override
+  Future<List<String>> listServices(String hospitalId) async => const [];
+
+  @override
+  Future<List<HospitalDirectoryEntry>> loadPublicDirectory() async => hospitals;
+
+  @override
+  Stream<void> watchDirectoryUpdates() => const Stream.empty();
+
+  @override
+  Future<PageResult<HospitalSummary>> searchHospitals({
+    required HospitalSearchCriteria criteria,
+    required PageRequest page,
+  }) async => PageResult(
+    items: [
+      for (final h in hospitals)
+        HospitalSummary(
+          id: h.id,
+          name: h.name,
+          locationLabel: h.locationLabel,
+          isVerified: true,
+          latitude: h.latitude,
+          longitude: h.longitude,
+        ),
+    ],
+  );
+
+  @override
+  Stream<HospitalSummary> watchPublicAvailability(String hospitalId) {
+    final match = hospitals.firstWhere((h) => h.id == hospitalId);
+    return Stream.value(
+      HospitalSummary(
+        id: match.id,
+        name: match.name,
+        locationLabel: match.locationLabel,
+        isVerified: true,
+        latitude: match.latitude,
+        longitude: match.longitude,
+      ),
+    );
+  }
+}
+
+class _MultiRecommendedCareAssistant extends CareAssistantController {
+  _MultiRecommendedCareAssistant(this.hospitalIds);
+
+  final List<String> hospitalIds;
+
+  @override
+  CareAssistantState build() => CareAssistantState(
+    messages: const [
+      CareAssistantMessage(
+        role: CareAssistantChatMessageRole.assistant,
+        text: careAssistantWelcomeMessage,
+      ),
+    ],
+    status: CareAssistantStatus.recommendationReady,
+    recommendations: [
+      for (final id in hospitalIds)
+        CareAssistantRecommendation(
+          hospitalId: id,
+          distanceKm: 4.2,
+          relevantServices: const ['Emergency Medicine'],
+          reasons: const ['Recommended facility'],
+        ),
+    ],
+    conversationId: 'multi-recommended-chat',
+    conversationTitle: 'Hospital Search',
+  );
 }
 
 HospitalDirectoryEntry _publishedHospital({DateTime? emergencyLastUpdated}) =>

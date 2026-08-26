@@ -219,6 +219,9 @@ class HospitalMapScreen extends ConsumerWidget {
                 )
               else
                 _HospitalMap(
+                  key: ValueKey(
+                    'hospital-map-widget-${selectedHospitalId ?? 'all'}-${points.length}',
+                  ),
                   points: points,
                   selectedHospitalId: selectedHospitalId,
                   selectionSource: selectionSource,
@@ -1630,6 +1633,7 @@ final _philippinesMapBounds = LatLngBounds(
 
 class _HospitalMap extends StatefulWidget {
   const _HospitalMap({
+    super.key,
     required this.points,
     this.selectedHospitalId,
     this.selectionSource,
@@ -1665,6 +1669,31 @@ class _HospitalMapState extends State<_HospitalMap> {
     if (initialLocation != null &&
         _philippinesMapBounds.contains(initialLocation)) {
       _liveLocation = initialLocation;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && widget.selectedHospitalId != null) {
+        _focusOnSelectedHospital();
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _HospitalMap oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.selectedHospitalId != oldWidget.selectedHospitalId ||
+        widget.selectionSource != oldWidget.selectionSource ||
+        widget.initialUserLocation != oldWidget.initialUserLocation ||
+        widget.points != oldWidget.points) {
+      if (widget.initialUserLocation != null &&
+          widget.initialUserLocation != oldWidget.initialUserLocation &&
+          _philippinesMapBounds.contains(widget.initialUserLocation!)) {
+        _liveLocation = widget.initialUserLocation;
+      }
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _focusOnSelectedHospital();
+        }
+      });
     }
   }
 
@@ -1859,12 +1888,62 @@ class _HospitalMapState extends State<_HospitalMap> {
   }
 
   void _clearRoute() {
+    if (!mounted) return;
     setState(() {
       _routePoints = const [];
       _routeHospitalId = null;
       _routeDistanceMeters = null;
       _routeDurationSeconds = null;
     });
+  }
+
+  void _focusOnSelectedHospital() {
+    if (!mounted) return;
+    HospitalDirectoryEntry? selectedHospital;
+    for (final hospital in widget.points) {
+      if (hospital.id == widget.selectedHospitalId) {
+        selectedHospital = hospital;
+        break;
+      }
+    }
+    if (_routeHospitalId != null &&
+        _routeHospitalId != widget.selectedHospitalId) {
+      _clearRoute();
+    }
+    _followLiveLocation = false;
+
+    if (selectedHospital != null && selectedHospital.hasCoordinates) {
+      final selectedPoint = LatLng(
+        selectedHospital.latitude!,
+        selectedHospital.longitude!,
+      );
+      if (_liveLocation != null) {
+        final routeBounds = LatLngBounds.fromPoints([
+          selectedPoint,
+          _liveLocation!,
+        ]);
+        _mapController.fitCamera(
+          CameraFit.bounds(
+            bounds: routeBounds,
+            padding: const EdgeInsets.all(54),
+            minZoom: 7.25,
+            maxZoom: 15,
+          ),
+        );
+      } else {
+        _mapController.move(selectedPoint, 15.0);
+      }
+    } else if (widget.points.isNotEmpty) {
+      final focusBounds = _publishedLocationsBounds(widget.points);
+      _mapController.fitCamera(
+        CameraFit.bounds(
+          bounds: focusBounds,
+          padding: const EdgeInsets.all(42),
+          minZoom: 7.25,
+          maxZoom: 10,
+        ),
+      );
+    }
   }
 
   @override
