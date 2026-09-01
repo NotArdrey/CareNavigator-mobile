@@ -7850,9 +7850,10 @@ class _PrescriptionDialogState extends State<_PrescriptionDialog> {
                     TextFormField(
                       controller: _diagnosisController,
                       textCapitalization: TextCapitalization.sentences,
+                      maxLength: 300,
                       decoration: const InputDecoration(
-                        labelText: 'Diagnosis or reason for medication',
-                        hintText: 'Clinical indication for this medicine',
+                        labelText: 'Why it was prescribed',
+                        hintText: 'Short diagnosis or reason',
                       ),
                       validator: _requiredClinicalValue,
                     ),
@@ -8102,11 +8103,13 @@ class _PrescriptionDialogState extends State<_PrescriptionDialog> {
             const SizedBox(height: AppSpacing.x4),
             TextFormField(
               controller: medication.instructionsController,
-              minLines: 2,
-              maxLines: 5,
-              maxLength: 2000,
+              minLines: 1,
+              maxLines: 3,
+              maxLength: 500,
               decoration: const InputDecoration(
-                labelText: 'Instructions (optional)',
+                labelText: 'Extra instructions (optional)',
+                helperText:
+                    'Only add details not already covered by dose, frequency, or duration.',
                 alignLabelWithHint: true,
               ),
             ),
@@ -8949,13 +8952,13 @@ class _LaboratoryResultUploadDialogState
             TextFormField(
               controller: report.technicalSummaryController,
               textCapitalization: TextCapitalization.sentences,
-              minLines: 3,
-              maxLines: 10,
-              maxLength: 10000,
+              minLines: 2,
+              maxLines: 5,
+              maxLength: 800,
               decoration: const InputDecoration(
-                labelText: 'Technical summary',
+                labelText: 'Short clinical summary',
                 helperText:
-                    'Abnormal findings first; comparisons use only report-stated reference ranges.',
+                    'Up to 3 key points, with important findings first.',
                 alignLabelWithHint: true,
               ),
             ),
@@ -8963,13 +8966,13 @@ class _LaboratoryResultUploadDialogState
             TextFormField(
               controller: report.patientFriendlySummaryController,
               textCapitalization: TextCapitalization.sentences,
-              minLines: 3,
-              maxLines: 10,
-              maxLength: 10000,
+              minLines: 2,
+              maxLines: 4,
+              maxLength: 500,
               decoration: const InputDecoration(
-                labelText: 'Patient-friendly summary',
+                labelText: 'Simple patient summary',
                 helperText:
-                    'Plain-language explanation only; verify it before saving.',
+                    'Main result in 1–2 short sentences; verify before saving.',
                 alignLabelWithHint: true,
               ),
             ),

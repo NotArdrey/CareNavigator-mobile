@@ -216,7 +216,7 @@ void main() {
 
     expect(find.text('Attach and scan first (optional)'), findsOneWidget);
     expect(find.text('Attach and scan file'), findsOneWidget);
-    expect(find.text('Diagnosis or reason for medication'), findsOneWidget);
+    expect(find.text('Why it was prescribed'), findsOneWidget);
     expect(find.text('Medication form and strength'), findsOneWidget);
     expect(find.text('Route'), findsOneWidget);
     expect(find.text('Exact dose per intake'), findsOneWidget);
@@ -233,7 +233,7 @@ void main() {
       of: find.text(label),
       matching: find.byType(TextFormField),
     );
-    await tester.enterText(field('Diagnosis or reason for medication'), 'Pain');
+    await tester.enterText(field('Why it was prescribed'), 'Pain');
     await tester.enterText(field('Medication name'), 'Paracetamol');
     await tester.enterText(
       field('Medication form and strength'),
@@ -485,8 +485,8 @@ void main() {
     expect(find.text('Care Navigator Medical Center'), findsOneWidget);
     expect(find.text('Dr. Juan Dela Cruz'), findsOneWidget);
     expect(find.text('No acute findings.'), findsOneWidget);
-    expect(find.text('Technical summary'), findsOneWidget);
-    expect(find.text('Patient-friendly summary'), findsOneWidget);
+    expect(find.text('Short clinical summary'), findsOneWidget);
+    expect(find.text('Simple patient summary'), findsOneWidget);
     expect(find.text('Uploaded from the facility portal.'), findsNothing);
     expect(find.text('Needs verification (optional)'), findsNothing);
     expect(find.text('Other report notes (optional)'), findsNothing);
