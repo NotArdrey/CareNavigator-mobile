@@ -1,0 +1,65 @@
+flowchart TB
+    classDef actor fill:#E6F7F7,stroke:#078A8C,color:#0B2545,stroke-width:1.5px
+    classDef client fill:#FFFFFF,stroke:#0B2545,color:#0B2545,stroke-width:1.5px
+    classDef backend fill:#EEF4F7,stroke:#476575,color:#0B2545,stroke-width:1.5px
+    classDef external fill:#FFF7E8,stroke:#B7791F,color:#5B3A00,stroke-width:1.5px
+
+    subgraph Actors[Users and stakeholders]
+        Guest[Guest]
+        Patient[Patient]
+        Doctor[Doctor]
+        HospitalAdmin[Hospital administrator]
+        SuperAdmin[Super administrator]
+    end
+
+    subgraph Flutter[Flutter mobile and web client]
+        UI[Feature screens and shared clinical UI]
+        Router[GoRouter routes, redirects, and role guards]
+        State[Riverpod state, futures, and realtime streams]
+        Repo[Typed Dart repositories]
+        UI --> Router
+        UI --> State
+        State --> Repo
+    end
+
+    subgraph Supabase[Supabase security and data platform]
+        Auth[Auth and JWT sessions]
+        API[PostgREST and RPC boundary]
+        RLS[PostgreSQL with RLS, constraints, and triggers]
+        RT[Realtime publication]
+        Storage[Private Storage and signed URLs]
+        Edge[Edge Functions: care-navigator-chat and privileged workflows]
+        Cron[Cron and pg_net]
+        API --> RLS
+        RLS --> RT
+        Cron --> Edge
+    end
+
+    subgraph Services[External services]
+        Groq[Groq AI]
+        Email[Gmail SMTP]
+        Video[Jitsi video rooms]
+        Maps[OpenStreetMap and OSRM]
+    end
+
+    Guest --> UI
+    Patient --> UI
+    Doctor --> UI
+    HospitalAdmin --> UI
+    SuperAdmin --> UI
+
+    Repo -->|publishable key plus user JWT| Auth
+    Repo --> API
+    Repo --> Storage
+    RT --> State
+    Edge --> RLS
+    Edge --> Storage
+    Edge --> Groq
+    Edge --> Email
+    UI --> Video
+    UI --> Maps
+
+    class Guest,Patient,Doctor,HospitalAdmin,SuperAdmin actor
+    class UI,Router,State,Repo client
+    class Auth,API,RLS,RT,Storage,Edge,Cron backend
+    class Groq,Email,Video,Maps external

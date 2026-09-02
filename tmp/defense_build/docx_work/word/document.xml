@@ -1,0 +1,4668 @@
+﻿<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:w10="urn:schemas-microsoft-com:office:word" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture" xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape" xmlns:wpg="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:wp14="http://schemas.microsoft.com/office/word/2010/wordprocessingDrawing" xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml" xmlns:w15="http://schemas.microsoft.com/office/word/2012/wordml" mc:Ignorable="w14 wp14 w15">
+  <w:body>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="0" />
+        <w:ind w:hanging="0" w:start="0" w:end="0" />
+        <w:jc w:val="center" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:drawing>
+          <wp:inline distT="0" distB="0" distL="0" distR="0">
+            <wp:extent cx="1051560" cy="1051560" />
+            <wp:effectExtent l="0" t="0" r="0" b="0" />
+            <wp:docPr id="1" name="Image1" title="CareNavigator PH application icon">
+            </wp:docPr>
+            <wp:cNvGraphicFramePr>
+              <a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1" />
+            </wp:cNvGraphicFramePr>
+            <a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+              <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
+                <pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
+                  <pic:nvPicPr>
+                    <pic:cNvPr id="1" name="Image1" title="CareNavigator PH application icon">
+                    </pic:cNvPr>
+                    <pic:cNvPicPr>
+                      <a:picLocks noChangeAspect="1" noChangeArrowheads="1" />
+                    </pic:cNvPicPr>
+                  </pic:nvPicPr>
+                  <pic:blipFill>
+                    <a:blip r:embed="rId2">
+                    </a:blip>
+                    <a:stretch>
+                      <a:fillRect />
+                    </a:stretch>
+                  </pic:blipFill>
+                  <pic:spPr bwMode="auto">
+                    <a:xfrm>
+                      <a:off x="0" y="0" />
+                      <a:ext cx="1051560" cy="1051560" />
+                    </a:xfrm>
+                    <a:prstGeom prst="rect">
+                      <a:avLst />
+                    </a:prstGeom>
+                    <a:noFill />
+                  </pic:spPr>
+                </pic:pic>
+              </a:graphicData>
+            </a:graphic>
+          </wp:inline>
+        </w:drawing>
+      </w:r>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t xml:space="preserve"> </w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:bidi w:val="0" />
+        <w:spacing w:before="360" w:after="120" />
+        <w:ind w:hanging="0" w:start="0" w:end="0" />
+        <w:jc w:val="center" />
+        <w:rPr>
+          <w:b />
+          <w:color w:val="0B2545" />
+          <w:sz w:val="56" />
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:b />
+          <w:color w:val="0B2545" />
+          <w:sz w:val="56" />
+        </w:rPr>
+        <w:t>CareNavigator PH</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:bidi w:val="0" />
+        <w:spacing w:before="160" w:after="360" />
+        <w:ind w:hanging="0" w:start="160" w:end="160" />
+        <w:jc w:val="center" />
+        <w:rPr>
+          <w:b />
+          <w:color w:val="008B8B" />
+          <w:sz w:val="36" />
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:b />
+          <w:color w:val="008B8B" />
+          <w:sz w:val="36" />
+        </w:rPr>
+        <w:t>System Defense and Project Documentation</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="560" />
+        <w:ind w:hanging="0" w:start="0" w:end="0" />
+        <w:jc w:val="center" />
+        <w:rPr>
+          <w:color w:val="5B7080" />
+          <w:sz w:val="26" />
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:color w:val="5B7080" />
+          <w:sz w:val="26" />
+        </w:rPr>
+        <w:t>A role-aware healthcare navigation and digital care platform for the Philippines</w:t>
+      </w:r>
+    </w:p>
+    <w:tbl>
+      <w:tblPr>
+        <w:tblW w:w="3922" w:type="dxa" />
+        <w:jc w:val="center" />
+        <w:tblInd w:w="0" w:type="dxa" />
+        <w:tblLayout w:type="fixed" />
+        <w:tblCellMar>
+          <w:top w:w="28" w:type="dxa" />
+          <w:start w:w="28" w:type="dxa" />
+          <w:bottom w:w="28" w:type="dxa" />
+          <w:end w:w="28" w:type="dxa" />
+        </w:tblCellMar>
+      </w:tblPr>
+      <w:tblGrid>
+        <w:gridCol w:w="1494" />
+        <w:gridCol w:w="2428" />
+      </w:tblGrid>
+      <w:tr>
+        <w:trPr>
+        </w:trPr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="1494" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Project title</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="2428" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>CareNavigator PH</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:trPr>
+        </w:trPr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="1494" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Prepared for</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="2428" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>System / project defense</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:trPr>
+        </w:trPr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="1494" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Proponents</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="2428" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>[Insert names]</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:trPr>
+        </w:trPr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="1494" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Adviser / Panel</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="2428" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>[Insert name or panel]</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:trPr>
+        </w:trPr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="1494" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Date</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="2428" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>02 September 2026</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+    </w:tbl>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyTextmuted" />
+        <w:bidi w:val="0" />
+        <w:jc w:val="center" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rStyle w:val="Emphasis" />
+        </w:rPr>
+        <w:t>Defense-ready working draft based on the current repository implementation and local verification.</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="Heading1" />
+        <w:keepNext w:val="true" />
+        <w:bidi w:val="0" />
+        <w:spacing w:before="320" w:after="160" />
+        <w:ind w:start="320" w:end="320" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+        <w:pageBreakBefore />
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>Contents</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="120" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>Executive Summary</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="120" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>1. Project Title and Description</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="120" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>2. Project Objectives Defined</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="120" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>3. Scope and Limitations Identified</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="120" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>4. Updated System Flowchart and Architecture Diagram</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="120" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>5. Database Design (ERD / Schema)</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="120" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>6. Project Progress Report (Current Accomplishments)</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="120" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>7. Defense Conclusion</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="120" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>Appendix A. Source-of-Truth Locations</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="Heading1page-break" />
+        <w:bidi w:val="0" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+        <w:pageBreakBefore />
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>Executive Summary</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="120" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>CareNavigator PH is a Flutter mobile-and-web healthcare-navigation and digital-care platform. It unifies verified hospital and clinician discovery, safety-aware care guidance, guest consultation intake, authenticated patient and doctor workflows, hospital operations, and platform governance in one role-aware system backed by Supabase.</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="120" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>The current prototype demonstrates an end-to-end care pathway and a deliberate security model: UI guards support usability, typed repositories isolate data access, while JWT validation, Row Level Security, private Storage, constraints, triggers, and server-side authorization enforce access. The project is functionally substantial, but it is not represented as production-ready; live credentialed journeys, provider/device validation, formal compliance work, and visual-baseline review remain.</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="Heading1" />
+        <w:keepNext w:val="true" />
+        <w:bidi w:val="0" />
+        <w:spacing w:before="320" w:after="160" />
+        <w:ind w:start="320" w:end="320" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>1. Project Title and Description</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="Heading2" />
+        <w:keepNext w:val="true" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="0" />
+        </w:numPr>
+        <w:bidi w:val="0" />
+        <w:spacing w:before="240" w:after="120" />
+        <w:ind w:start="240" w:end="240" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>Project Title</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:bidi w:val="0" />
+        <w:spacing w:before="160" w:after="240" />
+        <w:ind w:hanging="0" w:start="160" w:end="160" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rStyle w:val="Strong" />
+          <w:shd w:fill="E4F7F4" w:val="clear" />
+        </w:rPr>
+        <w:t>CareNavigator PH: A Role-Aware Healthcare Navigation and Digital Care Platform</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="Heading2" />
+        <w:keepNext w:val="true" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="0" />
+        </w:numPr>
+        <w:bidi w:val="0" />
+        <w:spacing w:before="240" w:after="120" />
+        <w:ind w:start="240" w:end="240" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>Project Description</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="120" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>CareNavigator PH helps users find an appropriate healthcare facility and continue through consultation, clinical documentation, communication, and follow-up without losing context. Guests can discover verified care and submit a protected consultation request. Patients can book and manage care, communicate with clinicians, and access authorized records. Doctors can manage schedules, consultations, structured checkups, prescriptions, laboratories, and review workflows. Hospital administrators operate assigned facilities, while super administrators manage platform governance.</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="120" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>The application uses one adaptive Flutter codebase. GoRouter manages deep links and role-based routing, Riverpod manages state and Realtime streams, typed Dart repositories form the data-access boundary, and Supabase provides Auth, PostgreSQL, RLS, Realtime, private Storage, RPCs, Edge Functions, triggers, and scheduled jobs. External integrations include Groq, Gmail SMTP, Jitsi, OpenStreetMap, and OSRM.</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="Heading1" />
+        <w:keepNext w:val="true" />
+        <w:bidi w:val="0" />
+        <w:spacing w:before="320" w:after="160" />
+        <w:ind w:start="320" w:end="320" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>2. Project Objectives Defined</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="Heading2" />
+        <w:keepNext w:val="true" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="0" />
+        </w:numPr>
+        <w:bidi w:val="0" />
+        <w:spacing w:before="240" w:after="120" />
+        <w:ind w:start="240" w:end="240" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>General Objective</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="120" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>To design and implement a secure, responsive, role-aware healthcare platform that helps people discover appropriate care and supports the care lifecycle across authorized guests, patients, clinicians, hospital personnel, and platform administrators.</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="Heading2" />
+        <w:keepNext w:val="true" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="0" />
+        </w:numPr>
+        <w:bidi w:val="0" />
+        <w:spacing w:before="240" w:after="120" />
+        <w:ind w:start="240" w:end="240" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>Specific Objectives</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="2" />
+        </w:numPr>
+        <w:tabs>
+          <w:tab w:val="clear" w:pos="1134" />
+          <w:tab w:val="left" w:pos="709" w:leader="none" />
+        </w:tabs>
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="0" />
+        <w:ind w:hanging="283" w:start="709" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t xml:space="preserve">Provide searchable, verified hospital, service, clinician, schedule, availability, map, and route information. </w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="2" />
+        </w:numPr>
+        <w:tabs>
+          <w:tab w:val="clear" w:pos="1134" />
+          <w:tab w:val="left" w:pos="709" w:leader="none" />
+        </w:tabs>
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="0" />
+        <w:ind w:hanging="283" w:start="709" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t xml:space="preserve">Provide safety-aware preliminary guidance that detects emergency signals and directs users to appropriate care without presenting AI output as a diagnosis. </w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="2" />
+        </w:numPr>
+        <w:tabs>
+          <w:tab w:val="clear" w:pos="1134" />
+          <w:tab w:val="left" w:pos="709" w:leader="none" />
+        </w:tabs>
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="0" />
+        <w:ind w:hanging="283" w:start="709" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t xml:space="preserve">Connect guest consultation intake, verification, registered-patient booking, consultation, messaging, document processing, and follow-up. </w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="2" />
+        </w:numPr>
+        <w:tabs>
+          <w:tab w:val="clear" w:pos="1134" />
+          <w:tab w:val="left" w:pos="709" w:leader="none" />
+        </w:tabs>
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="0" />
+        <w:ind w:hanging="283" w:start="709" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t xml:space="preserve">Provide role-specific workspaces and actions for patients, doctors, hospital administrators, and super administrators. </w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="2" />
+        </w:numPr>
+        <w:tabs>
+          <w:tab w:val="clear" w:pos="1134" />
+          <w:tab w:val="left" w:pos="709" w:leader="none" />
+        </w:tabs>
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="0" />
+        <w:ind w:hanging="283" w:start="709" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t xml:space="preserve">Protect clinical and identity data through backend-enforced authorization, private file storage, short-lived access, clinical invariants, and auditing. </w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="2" />
+        </w:numPr>
+        <w:tabs>
+          <w:tab w:val="clear" w:pos="1134" />
+          <w:tab w:val="left" w:pos="709" w:leader="none" />
+        </w:tabs>
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="0" />
+        <w:ind w:hanging="283" w:start="709" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t xml:space="preserve">Support maintainability through a layered architecture, typed models and repositories, centralized design components, migrations, and automated tests. </w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="2" />
+        </w:numPr>
+        <w:tabs>
+          <w:tab w:val="clear" w:pos="1134" />
+          <w:tab w:val="left" w:pos="709" w:leader="none" />
+        </w:tabs>
+        <w:bidi w:val="0" />
+        <w:ind w:hanging="283" w:start="709" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t xml:space="preserve">Provide evidence-based project reporting that distinguishes implemented work from remaining production validation. </w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="Heading1" />
+        <w:keepNext w:val="true" />
+        <w:bidi w:val="0" />
+        <w:spacing w:before="320" w:after="160" />
+        <w:ind w:start="320" w:end="320" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>3. Scope and Limitations Identified</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="Heading2" />
+        <w:keepNext w:val="true" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="0" />
+        </w:numPr>
+        <w:bidi w:val="0" />
+        <w:spacing w:before="240" w:after="120" />
+        <w:ind w:start="240" w:end="240" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>Scope</w:t>
+      </w:r>
+    </w:p>
+    <w:tbl>
+      <w:tblPr>
+        <w:tblW w:w="9360" w:type="dxa" />
+        <w:jc w:val="start" />
+        <w:tblInd w:w="0" w:type="dxa" />
+        <w:tblLayout w:type="fixed" />
+        <w:tblCellMar>
+          <w:top w:w="28" w:type="dxa" />
+          <w:start w:w="28" w:type="dxa" />
+          <w:bottom w:w="28" w:type="dxa" />
+          <w:end w:w="28" w:type="dxa" />
+        </w:tblCellMar>
+      </w:tblPr>
+      <w:tblGrid>
+        <w:gridCol w:w="1630" />
+        <w:gridCol w:w="7730" />
+      </w:tblGrid>
+      <w:tr>
+        <w:trPr>
+        </w:trPr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="1630" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableHeading" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:ind w:hanging="0" w:start="0" w:end="0" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Area</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="7730" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableHeading" />
+              <w:suppressLineNumbers />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Included capabilities</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:trPr>
+        </w:trPr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="1630" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Public access</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="7730" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Hospital and clinician discovery, maps/routes, assistant guidance, guest consultation request and verification</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:trPr>
+        </w:trPr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="1630" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Patient care</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="7730" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Booking, rescheduling/cancellation, consultations, messages, notifications, records, prescriptions, diagnostics, files, profile and preferences</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:trPr>
+        </w:trPr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="1630" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Doctor care</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="7730" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Patient relationships, scheduling, consultation lifecycle, structured notes/checkups, prescriptions, laboratory requests/results, document review</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:trPr>
+        </w:trPr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="1630" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Hospital operations</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="7730" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Appointments, staff, departments, services, facilities, beds/capacity, emergency-room status, reports and audit views</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:trPr>
+        </w:trPr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="1630" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Platform governance</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="7730" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Hospital approval, accounts, permissions, settings, analytics, security, maintenance and audit</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:trPr>
+        </w:trPr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="1630" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Technical platform</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="7730" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Flutter, GoRouter, Riverpod, typed repositories, Supabase Auth/PostgreSQL/RLS/Realtime/Storage/RPC/Edge Functions/Cron</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:trPr>
+        </w:trPr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="1630" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>External integration</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="7730" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Groq AI, Gmail SMTP, Jitsi, OpenStreetMap and OSRM</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+    </w:tbl>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="Heading2" />
+        <w:keepNext w:val="true" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="0" />
+        </w:numPr>
+        <w:bidi w:val="0" />
+        <w:spacing w:before="240" w:after="120" />
+        <w:ind w:start="240" w:end="240" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>Limitations</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="3" />
+        </w:numPr>
+        <w:tabs>
+          <w:tab w:val="clear" w:pos="1134" />
+          <w:tab w:val="left" w:pos="709" w:leader="none" />
+        </w:tabs>
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="0" />
+        <w:ind w:hanging="283" w:start="709" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t xml:space="preserve">Care-assistant and document-analysis outputs remain preliminary and must not be treated as a diagnosis, prescription, or replacement for professional care. </w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="3" />
+        </w:numPr>
+        <w:tabs>
+          <w:tab w:val="clear" w:pos="1134" />
+          <w:tab w:val="left" w:pos="709" w:leader="none" />
+        </w:tabs>
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="0" />
+        <w:ind w:hanging="283" w:start="709" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t xml:space="preserve">External services require configured credentials, network access, and provider availability; those production side effects were not triggered for this defense document. </w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="3" />
+        </w:numPr>
+        <w:tabs>
+          <w:tab w:val="clear" w:pos="1134" />
+          <w:tab w:val="left" w:pos="709" w:leader="none" />
+        </w:tabs>
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="0" />
+        <w:ind w:hanging="283" w:start="709" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t xml:space="preserve">The ordinary local test run skipped credential-dependent live Supabase journeys because live test variables and demo passwords were not supplied. </w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="3" />
+        </w:numPr>
+        <w:tabs>
+          <w:tab w:val="clear" w:pos="1134" />
+          <w:tab w:val="left" w:pos="709" w:leader="none" />
+        </w:tabs>
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="0" />
+        <w:ind w:hanging="283" w:start="709" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t xml:space="preserve">The project still needs physical Android tests, an iOS/macOS build-and-device pass, load testing, backup/recovery drills, production monitoring, key rotation, and a formal privacy/security/compliance assessment. </w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="3" />
+        </w:numPr>
+        <w:tabs>
+          <w:tab w:val="clear" w:pos="1134" />
+          <w:tab w:val="left" w:pos="709" w:leader="none" />
+        </w:tabs>
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="0" />
+        <w:ind w:hanging="283" w:start="709" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t xml:space="preserve">When public Supabase configuration is absent, the interface intentionally shows explicit unavailable states instead of fabricated hospital or clinical data. </w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="3" />
+        </w:numPr>
+        <w:tabs>
+          <w:tab w:val="clear" w:pos="1134" />
+          <w:tab w:val="left" w:pos="709" w:leader="none" />
+        </w:tabs>
+        <w:bidi w:val="0" />
+        <w:ind w:hanging="283" w:start="709" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t xml:space="preserve">Eight visual regression cases currently differ from their approved golden images and require an intentional UI review and baseline decision. </w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="Heading1page-break" />
+        <w:bidi w:val="0" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+        <w:pageBreakBefore />
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>4. Updated System Flowchart and Architecture Diagram</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="Heading2" />
+        <w:keepNext w:val="true" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="0" />
+        </w:numPr>
+        <w:bidi w:val="0" />
+        <w:spacing w:before="240" w:after="120" />
+        <w:ind w:start="240" w:end="240" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>End-to-End System Flow</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:keepLines />
+        <w:bidi w:val="0" />
+        <w:spacing w:before="160" w:after="80" />
+        <w:ind w:hanging="0" w:start="160" w:end="160" />
+        <w:jc w:val="center" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:drawing>
+          <wp:inline distT="0" distB="0" distL="0" distR="0">
+            <wp:extent cx="5943600" cy="3343275" />
+            <wp:effectExtent l="0" t="0" r="0" b="0" />
+            <wp:docPr id="2" name="Image2" title="CareNavigator PH end-to-end system flow">
+            </wp:docPr>
+            <wp:cNvGraphicFramePr>
+              <a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1" />
+            </wp:cNvGraphicFramePr>
+            <a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+              <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
+                <pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
+                  <pic:nvPicPr>
+                    <pic:cNvPr id="2" name="Image2" title="CareNavigator PH end-to-end system flow">
+                    </pic:cNvPr>
+                    <pic:cNvPicPr>
+                      <a:picLocks noChangeAspect="1" noChangeArrowheads="1" />
+                    </pic:cNvPicPr>
+                  </pic:nvPicPr>
+                  <pic:blipFill>
+                    <a:blip r:embed="rId3">
+                    </a:blip>
+                    <a:stretch>
+                      <a:fillRect />
+                    </a:stretch>
+                  </pic:blipFill>
+                  <pic:spPr bwMode="auto">
+                    <a:xfrm>
+                      <a:off x="0" y="0" />
+                      <a:ext cx="5943600" cy="3343275" />
+                    </a:xfrm>
+                    <a:prstGeom prst="rect">
+                      <a:avLst />
+                    </a:prstGeom>
+                    <a:noFill />
+                  </pic:spPr>
+                </pic:pic>
+              </a:graphicData>
+            </a:graphic>
+          </wp:inline>
+        </w:drawing>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyTextcaption" />
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="200" />
+        <w:jc w:val="center" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>Figure 1. Core CareNavigator PH workflow from discovery through protected follow-up.</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="120" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>The flow preserves user and clinical context across discovery, guidance, consultation entry, scheduling, care delivery, documentation, and follow-up. At every transition, the system separates usability controls in Flutter from authoritative policy and data checks in Supabase.</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="Heading2" />
+        <w:keepNext w:val="true" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="0" />
+        </w:numPr>
+        <w:bidi w:val="0" />
+        <w:spacing w:before="240" w:after="120" />
+        <w:ind w:start="240" w:end="240" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>Logical Architecture</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:keepLines />
+        <w:bidi w:val="0" />
+        <w:spacing w:before="160" w:after="80" />
+        <w:ind w:hanging="0" w:start="160" w:end="160" />
+        <w:jc w:val="center" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:drawing>
+          <wp:inline distT="0" distB="0" distL="0" distR="0">
+            <wp:extent cx="5943600" cy="3343275" />
+            <wp:effectExtent l="0" t="0" r="0" b="0" />
+            <wp:docPr id="3" name="Image3" title="CareNavigator PH layered architecture">
+            </wp:docPr>
+            <wp:cNvGraphicFramePr>
+              <a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1" />
+            </wp:cNvGraphicFramePr>
+            <a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+              <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
+                <pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
+                  <pic:nvPicPr>
+                    <pic:cNvPr id="3" name="Image3" title="CareNavigator PH layered architecture">
+                    </pic:cNvPr>
+                    <pic:cNvPicPr>
+                      <a:picLocks noChangeAspect="1" noChangeArrowheads="1" />
+                    </pic:cNvPicPr>
+                  </pic:nvPicPr>
+                  <pic:blipFill>
+                    <a:blip r:embed="rId4">
+                    </a:blip>
+                    <a:stretch>
+                      <a:fillRect />
+                    </a:stretch>
+                  </pic:blipFill>
+                  <pic:spPr bwMode="auto">
+                    <a:xfrm>
+                      <a:off x="0" y="0" />
+                      <a:ext cx="5943600" cy="3343275" />
+                    </a:xfrm>
+                    <a:prstGeom prst="rect">
+                      <a:avLst />
+                    </a:prstGeom>
+                    <a:noFill />
+                  </pic:spPr>
+                </pic:pic>
+              </a:graphicData>
+            </a:graphic>
+          </wp:inline>
+        </w:drawing>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyTextcaption" />
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="200" />
+        <w:jc w:val="center" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>Figure 2. Layered client, repository, Supabase, and external-service architecture.</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="120" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t xml:space="preserve">Editable Mermaid sources for VS Code are provided in </w:t>
+      </w:r>
+      <w:r>
+        <w:rPr>
+          <w:rStyle w:val="SourceText" />
+        </w:rPr>
+        <w:t>docs/defense/system_flowchart.mmd</w:t>
+      </w:r>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t xml:space="preserve"> and </w:t>
+      </w:r>
+      <w:r>
+        <w:rPr>
+          <w:rStyle w:val="SourceText" />
+        </w:rPr>
+        <w:t>docs/defense/system_architecture.mmd</w:t>
+      </w:r>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t xml:space="preserve">. The companion </w:t>
+      </w:r>
+      <w:r>
+        <w:rPr>
+          <w:rStyle w:val="SourceText" />
+        </w:rPr>
+        <w:t>docs/defense/CareNavigator_PH_Diagrams.md</w:t>
+      </w:r>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t xml:space="preserve"> supports Markdown Preview with a Mermaid extension.</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="Heading1page-break" />
+        <w:bidi w:val="0" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+        <w:pageBreakBefore />
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>5. Database Design (ERD / Schema)</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:keepLines />
+        <w:bidi w:val="0" />
+        <w:spacing w:before="160" w:after="80" />
+        <w:ind w:hanging="0" w:start="160" w:end="160" />
+        <w:jc w:val="center" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:drawing>
+          <wp:inline distT="0" distB="0" distL="0" distR="0">
+            <wp:extent cx="5943600" cy="3343275" />
+            <wp:effectExtent l="0" t="0" r="0" b="0" />
+            <wp:docPr id="4" name="Image4" title="CareNavigator PH conceptual ERD">
+            </wp:docPr>
+            <wp:cNvGraphicFramePr>
+              <a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1" />
+            </wp:cNvGraphicFramePr>
+            <a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+              <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
+                <pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
+                  <pic:nvPicPr>
+                    <pic:cNvPr id="4" name="Image4" title="CareNavigator PH conceptual ERD">
+                    </pic:cNvPr>
+                    <pic:cNvPicPr>
+                      <a:picLocks noChangeAspect="1" noChangeArrowheads="1" />
+                    </pic:cNvPicPr>
+                  </pic:nvPicPr>
+                  <pic:blipFill>
+                    <a:blip r:embed="rId5">
+                    </a:blip>
+                    <a:stretch>
+                      <a:fillRect />
+                    </a:stretch>
+                  </pic:blipFill>
+                  <pic:spPr bwMode="auto">
+                    <a:xfrm>
+                      <a:off x="0" y="0" />
+                      <a:ext cx="5943600" cy="3343275" />
+                    </a:xfrm>
+                    <a:prstGeom prst="rect">
+                      <a:avLst />
+                    </a:prstGeom>
+                    <a:noFill />
+                  </pic:spPr>
+                </pic:pic>
+              </a:graphicData>
+            </a:graphic>
+          </wp:inline>
+        </w:drawing>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyTextcaption" />
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="200" />
+        <w:jc w:val="center" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>Figure 3. Defense-oriented conceptual ERD emphasizing identity, hospital, care-relationship, consultation, communication, and clinical-record domains.</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="120" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>The central design decision is to model care authorization as an explicit relationship among the patient, hospital, doctor, consultation, purpose, scope, status, and time boundary. This prevents a role label alone from granting broad clinical access. Multi-hospital identifiers and doctor employments preserve facility-specific context, while consultations produce structured records, prescriptions, laboratory orders/results, messages, documents, notifications, and audit evidence.</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="Heading2" />
+        <w:keepNext w:val="true" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="0" />
+        </w:numPr>
+        <w:bidi w:val="0" />
+        <w:spacing w:before="240" w:after="120" />
+        <w:ind w:start="240" w:end="240" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>Database Design Principles</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="4" />
+        </w:numPr>
+        <w:tabs>
+          <w:tab w:val="clear" w:pos="1134" />
+          <w:tab w:val="left" w:pos="709" w:leader="none" />
+        </w:tabs>
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="0" />
+        <w:ind w:hanging="283" w:start="709" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t xml:space="preserve">Use UUID primary and foreign keys for authoritative entities and exact-ID actions. </w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="4" />
+        </w:numPr>
+        <w:tabs>
+          <w:tab w:val="clear" w:pos="1134" />
+          <w:tab w:val="left" w:pos="709" w:leader="none" />
+        </w:tabs>
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="0" />
+        <w:ind w:hanging="283" w:start="709" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t xml:space="preserve">Use foreign keys, uniqueness constraints, check constraints, and clinical lifecycle triggers to preserve invariants. </w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="4" />
+        </w:numPr>
+        <w:tabs>
+          <w:tab w:val="clear" w:pos="1134" />
+          <w:tab w:val="left" w:pos="709" w:leader="none" />
+        </w:tabs>
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="0" />
+        <w:ind w:hanging="283" w:start="709" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t xml:space="preserve">Enable Row Level Security for client-accessible tables and enforce patient, doctor, hospital, relationship, and action scope. </w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="4" />
+        </w:numPr>
+        <w:tabs>
+          <w:tab w:val="clear" w:pos="1134" />
+          <w:tab w:val="left" w:pos="709" w:leader="none" />
+        </w:tabs>
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="0" />
+        <w:ind w:hanging="283" w:start="709" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t xml:space="preserve">Store sensitive clinical and identity documents in private buckets; issue short-lived signed URLs only after authorization. </w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="4" />
+        </w:numPr>
+        <w:tabs>
+          <w:tab w:val="clear" w:pos="1134" />
+          <w:tab w:val="left" w:pos="709" w:leader="none" />
+        </w:tabs>
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="0" />
+        <w:ind w:hanging="283" w:start="709" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t xml:space="preserve">Use RPCs and Edge Functions for privileged, transactional, provider-facing, and auditable workflows. </w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="4" />
+        </w:numPr>
+        <w:tabs>
+          <w:tab w:val="clear" w:pos="1134" />
+          <w:tab w:val="left" w:pos="709" w:leader="none" />
+        </w:tabs>
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="0" />
+        <w:ind w:hanging="283" w:start="709" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t xml:space="preserve">Use indexes for relationship lookups, status queues, schedules, recent activity, and conversation history. </w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="4" />
+        </w:numPr>
+        <w:tabs>
+          <w:tab w:val="clear" w:pos="1134" />
+          <w:tab w:val="left" w:pos="709" w:leader="none" />
+        </w:tabs>
+        <w:bidi w:val="0" />
+        <w:ind w:hanging="283" w:start="709" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t xml:space="preserve">Preserve observability through status history, audit/security logs, processing jobs, and notification outboxes. </w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="Heading2" />
+        <w:keepNext w:val="true" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="0" />
+        </w:numPr>
+        <w:bidi w:val="0" />
+        <w:spacing w:before="240" w:after="120" />
+        <w:ind w:start="240" w:end="240" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>Mermaid ERD Source</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="120" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t xml:space="preserve">Open </w:t>
+      </w:r>
+      <w:r>
+        <w:rPr>
+          <w:rStyle w:val="SourceText" />
+        </w:rPr>
+        <w:t>docs/defense/database_erd.mmd</w:t>
+      </w:r>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t xml:space="preserve"> in VS Code with a Mermaid extension. The file includes the main field-level entities and relationships used in the defense; the full physical schema remains defined by the Supabase database and the 63 migration files under </w:t>
+      </w:r>
+      <w:r>
+        <w:rPr>
+          <w:rStyle w:val="SourceText" />
+        </w:rPr>
+        <w:t>supabase/migrations/</w:t>
+      </w:r>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>.</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="Heading1page-break" />
+        <w:bidi w:val="0" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+        <w:pageBreakBefore />
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>6. Project Progress Report (Current Accomplishments)</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="Heading2" />
+        <w:keepNext w:val="true" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="0" />
+        </w:numPr>
+        <w:bidi w:val="0" />
+        <w:spacing w:before="240" w:after="120" />
+        <w:ind w:start="240" w:end="240" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>Progress Snapshot</w:t>
+      </w:r>
+    </w:p>
+    <w:tbl>
+      <w:tblPr>
+        <w:tblW w:w="9360" w:type="dxa" />
+        <w:jc w:val="start" />
+        <w:tblInd w:w="0" w:type="dxa" />
+        <w:tblLayout w:type="fixed" />
+        <w:tblCellMar>
+          <w:top w:w="28" w:type="dxa" />
+          <w:start w:w="28" w:type="dxa" />
+          <w:bottom w:w="28" w:type="dxa" />
+          <w:end w:w="28" w:type="dxa" />
+        </w:tblCellMar>
+      </w:tblPr>
+      <w:tblGrid>
+        <w:gridCol w:w="1901" />
+        <w:gridCol w:w="1751" />
+        <w:gridCol w:w="3631" />
+        <w:gridCol w:w="2077" />
+      </w:tblGrid>
+      <w:tr>
+        <w:trPr>
+        </w:trPr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="1901" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableHeading" />
+              <w:suppressLineNumbers />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Workstream</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="1751" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableHeading" />
+              <w:suppressLineNumbers />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Status</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="3631" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableHeading" />
+              <w:suppressLineNumbers />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Current evidence</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="2077" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableHeading" />
+              <w:suppressLineNumbers />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Remaining work</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:trPr>
+        </w:trPr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="1901" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:ind w:hanging="0" w:start="0" w:end="0" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Architecture and UI foundation</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="1751" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+                <w:b />
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+                <w:b />
+              </w:rPr>
+              <w:t>Implemented</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="3631" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Adaptive Flutter shells; centralized theme/widgets; GoRouter; Riverpod; typed repositories</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="2077" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Continue accessibility/device validation</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:trPr>
+        </w:trPr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="1901" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:ind w:hanging="0" w:start="0" w:end="0" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Public discovery and guest access</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="1751" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+                <w:b />
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+                <w:b />
+              </w:rPr>
+              <w:t>Implemented</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="3631" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Hospitals, clinicians, map/routing, assistant, request/verification flows, explicit unavailable states</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="2077" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Live provider and credentialed browser journeys</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:trPr>
+        </w:trPr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="1901" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:ind w:hanging="0" w:start="0" w:end="0" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Patient and doctor care</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="1751" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+                <w:b />
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+                <w:b />
+              </w:rPr>
+              <w:t>Implemented</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="3631" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Booking, scheduling, consultation lifecycle, messaging, documents, checkups, prescriptions, diagnostics and labs</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="2077" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Live multi-role acceptance pass</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:trPr>
+        </w:trPr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="1901" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:ind w:hanging="0" w:start="0" w:end="0" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Hospital and platform administration</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="1751" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+                <w:b />
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+                <w:b />
+              </w:rPr>
+              <w:t>Implemented</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="3631" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Hospital operations, staff/services/departments, capacity/ER, approvals, accounts, permissions, settings, maintenance and audits</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="2077" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Operational runbooks and production monitoring</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:trPr>
+        </w:trPr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="1901" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:ind w:hanging="0" w:start="0" w:end="0" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Security and data model</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="1751" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+                <w:b />
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+                <w:b />
+              </w:rPr>
+              <w:t>Implemented; review remains</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="3631" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>RLS-oriented access, private Storage, multi-hospital grants, constraints, triggers, RPCs and audit patterns</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="2077" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Independent security/privacy/compliance review</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:trPr>
+        </w:trPr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="1901" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:ind w:hanging="0" w:start="0" w:end="0" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Quality verification</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="1751" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+                <w:b />
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+                <w:b />
+              </w:rPr>
+              <w:t>Partially complete</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="3631" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Static analysis clean; 243 tests passed; 11 credentialed tests skipped; 8 golden tests passed and 8 differed</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="2077" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Review visual changes; rerun live and device suites</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+    </w:tbl>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="Heading2" />
+        <w:keepNext w:val="true" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="0" />
+        </w:numPr>
+        <w:bidi w:val="0" />
+        <w:spacing w:before="240" w:after="120" />
+        <w:ind w:start="240" w:end="240" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>Current Accomplishments</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="5" />
+        </w:numPr>
+        <w:tabs>
+          <w:tab w:val="clear" w:pos="1134" />
+          <w:tab w:val="left" w:pos="709" w:leader="none" />
+        </w:tabs>
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="0" />
+        <w:ind w:hanging="283" w:start="709" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t xml:space="preserve">Implemented one responsive Flutter application for web and mobile with public, patient, doctor, hospital-administrator, and super-administrator experiences. </w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="5" />
+        </w:numPr>
+        <w:tabs>
+          <w:tab w:val="clear" w:pos="1134" />
+          <w:tab w:val="left" w:pos="709" w:leader="none" />
+        </w:tabs>
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="0" />
+        <w:ind w:hanging="283" w:start="709" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t xml:space="preserve">Established a repository-only Supabase boundary and role-aware routing/state architecture. </w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="5" />
+        </w:numPr>
+        <w:tabs>
+          <w:tab w:val="clear" w:pos="1134" />
+          <w:tab w:val="left" w:pos="709" w:leader="none" />
+        </w:tabs>
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="0" />
+        <w:ind w:hanging="283" w:start="709" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t xml:space="preserve">Implemented public hospital and clinician discovery, OpenStreetMap/OSRM routing, guest intake, account flows, and explicit unavailable states. </w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="5" />
+        </w:numPr>
+        <w:tabs>
+          <w:tab w:val="clear" w:pos="1134" />
+          <w:tab w:val="left" w:pos="709" w:leader="none" />
+        </w:tabs>
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="0" />
+        <w:ind w:hanging="283" w:start="709" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t xml:space="preserve">Implemented booking and consultation lifecycle workflows, secure Jitsi room access, Realtime messaging/notifications, and private file handling. </w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="5" />
+        </w:numPr>
+        <w:tabs>
+          <w:tab w:val="clear" w:pos="1134" />
+          <w:tab w:val="left" w:pos="709" w:leader="none" />
+        </w:tabs>
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="0" />
+        <w:ind w:hanging="283" w:start="709" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t xml:space="preserve">Implemented structured checkups, prescriptions, diagnostic result extraction, laboratory requests/results, review states, and medication reminder workflows. </w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="5" />
+        </w:numPr>
+        <w:tabs>
+          <w:tab w:val="clear" w:pos="1134" />
+          <w:tab w:val="left" w:pos="709" w:leader="none" />
+        </w:tabs>
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="0" />
+        <w:ind w:hanging="283" w:start="709" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t xml:space="preserve">Added multi-hospital identities, clinician employment, patient care relationships, grants/scopes, online consultation requests, and cross-source authorization. </w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="5" />
+        </w:numPr>
+        <w:tabs>
+          <w:tab w:val="clear" w:pos="1134" />
+          <w:tab w:val="left" w:pos="709" w:leader="none" />
+        </w:tabs>
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="0" />
+        <w:ind w:hanging="283" w:start="709" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t xml:space="preserve">Added persistent patient conversations and persistent care-assistant conversation history. </w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="5" />
+        </w:numPr>
+        <w:tabs>
+          <w:tab w:val="clear" w:pos="1134" />
+          <w:tab w:val="left" w:pos="709" w:leader="none" />
+        </w:tabs>
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="0" />
+        <w:ind w:hanging="283" w:start="709" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t xml:space="preserve">Added a </w:t>
+      </w:r>
+      <w:r>
+        <w:rPr>
+          <w:rStyle w:val="SourceText" />
+        </w:rPr>
+        <w:t>care-navigator-chat</w:t>
+      </w:r>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t xml:space="preserve"> Edge Function for safety-aware conversation, document extraction, hospital recommendation, and email-related workflows. </w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="5" />
+        </w:numPr>
+        <w:tabs>
+          <w:tab w:val="clear" w:pos="1134" />
+          <w:tab w:val="left" w:pos="709" w:leader="none" />
+        </w:tabs>
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="0" />
+        <w:ind w:hanging="283" w:start="709" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t xml:space="preserve">Accumulated 63 focused Supabase migration files and seven SQL acceptance-test scripts in the repository. </w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="5" />
+        </w:numPr>
+        <w:tabs>
+          <w:tab w:val="clear" w:pos="1134" />
+          <w:tab w:val="left" w:pos="709" w:leader="none" />
+        </w:tabs>
+        <w:bidi w:val="0" />
+        <w:ind w:hanging="283" w:start="709" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t xml:space="preserve">Verified the current code with </w:t>
+      </w:r>
+      <w:r>
+        <w:rPr>
+          <w:rStyle w:val="SourceText" />
+        </w:rPr>
+        <w:t>flutter analyze</w:t>
+      </w:r>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t xml:space="preserve">: no issues found. </w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="Heading2" />
+        <w:keepNext w:val="true" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="0" />
+        </w:numPr>
+        <w:bidi w:val="0" />
+        <w:spacing w:before="240" w:after="120" />
+        <w:ind w:start="240" w:end="240" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>Latest Verification Results</w:t>
+      </w:r>
+    </w:p>
+    <w:tbl>
+      <w:tblPr>
+        <w:tblW w:w="9360" w:type="dxa" />
+        <w:jc w:val="start" />
+        <w:tblInd w:w="0" w:type="dxa" />
+        <w:tblLayout w:type="fixed" />
+        <w:tblCellMar>
+          <w:top w:w="28" w:type="dxa" />
+          <w:start w:w="28" w:type="dxa" />
+          <w:bottom w:w="28" w:type="dxa" />
+          <w:end w:w="28" w:type="dxa" />
+        </w:tblCellMar>
+      </w:tblPr>
+      <w:tblGrid>
+        <w:gridCol w:w="1723" />
+        <w:gridCol w:w="3376" />
+        <w:gridCol w:w="4261" />
+      </w:tblGrid>
+      <w:tr>
+        <w:trPr>
+        </w:trPr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="1723" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableHeading" />
+              <w:suppressLineNumbers />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Check</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="3376" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableHeading" />
+              <w:suppressLineNumbers />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Result</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="4261" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableHeading" />
+              <w:suppressLineNumbers />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Defense interpretation</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:trPr>
+        </w:trPr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="1723" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+                <w:rStyle w:val="SourceText" />
+              </w:rPr>
+              <w:t>flutter analyze</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="3376" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>PASS - no issues</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="4261" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Static analysis is clean on the current repository state.</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:trPr>
+        </w:trPr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="1723" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+                <w:rStyle w:val="SourceText" />
+              </w:rPr>
+              <w:t>flutter test</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="3376" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>243 passed; 11 skipped; 8 failed</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="4261" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Functional coverage is broad. Skips require live credentials. Failures are visual-golden differences.</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:trPr>
+        </w:trPr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="1723" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Visual regression subset</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="3376" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>8 passed; 8 failed</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="4261" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Hospital-admin and super-admin baselines passed; guest, patient, doctor, and prescription views require review.</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:trPr>
+        </w:trPr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="1723" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Repository inventory</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="3376" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>60 Dart implementation files; 39 Dart test files; 63 migration files; 7 SQL test files</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="4261" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>The prototype has substantial breadth, but file counts are not substitutes for live acceptance.</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:trPr>
+        </w:trPr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="1723" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Previous documented builds</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="3376" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Web release and Android debug passed in the August verification record</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="4261" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>These are historical evidence and should be rerun before release.</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+    </w:tbl>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:bidi w:val="0" />
+        <w:spacing w:before="160" w:after="240" />
+        <w:ind w:hanging="0" w:start="160" w:end="160" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+          <w:rStyle w:val="Strong" />
+          <w:shd w:fill="FFF5DA" w:val="clear" />
+        </w:rPr>
+        <w:t>Important:</w:t>
+      </w:r>
+      <w:r>
+        <w:rPr>
+          <w:shd w:fill="FFF5DA" w:val="clear" />
+        </w:rPr>
+        <w:t xml:space="preserve"> The project should not be described as having a completely passing test suite until the eight visual differences are reviewed and the credential-dependent tests are executed in an approved non-production environment.</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="Heading2" />
+        <w:keepNext w:val="true" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="0" />
+        </w:numPr>
+        <w:bidi w:val="0" />
+        <w:spacing w:before="240" w:after="120" />
+        <w:ind w:start="240" w:end="240" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>Immediate Next Steps</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="6" />
+        </w:numPr>
+        <w:tabs>
+          <w:tab w:val="clear" w:pos="1134" />
+          <w:tab w:val="left" w:pos="709" w:leader="none" />
+        </w:tabs>
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="0" />
+        <w:ind w:hanging="283" w:start="709" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t xml:space="preserve">Review the eight visual diffs and approve or reject the corresponding UI changes before refreshing baselines. </w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="6" />
+        </w:numPr>
+        <w:tabs>
+          <w:tab w:val="clear" w:pos="1134" />
+          <w:tab w:val="left" w:pos="709" w:leader="none" />
+        </w:tabs>
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="0" />
+        <w:ind w:hanging="283" w:start="709" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t xml:space="preserve">Run seeded, non-production patient, doctor, hospital-admin, and super-admin journeys with live Supabase configuration. </w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="6" />
+        </w:numPr>
+        <w:tabs>
+          <w:tab w:val="clear" w:pos="1134" />
+          <w:tab w:val="left" w:pos="709" w:leader="none" />
+        </w:tabs>
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="0" />
+        <w:ind w:hanging="283" w:start="709" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t xml:space="preserve">Exercise Groq, SMTP, Jitsi, scheduled notification dispatch, private-file access, and mobile permissions in controlled environments. </w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="6" />
+        </w:numPr>
+        <w:tabs>
+          <w:tab w:val="clear" w:pos="1134" />
+          <w:tab w:val="left" w:pos="709" w:leader="none" />
+        </w:tabs>
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="0" />
+        <w:ind w:hanging="283" w:start="709" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t xml:space="preserve">Run physical Android and iOS tests, browser console/interaction verification, load tests, and accessibility checks. </w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:numPr>
+          <w:ilvl w:val="0" />
+          <w:numId w:val="6" />
+        </w:numPr>
+        <w:tabs>
+          <w:tab w:val="clear" w:pos="1134" />
+          <w:tab w:val="left" w:pos="709" w:leader="none" />
+        </w:tabs>
+        <w:bidi w:val="0" />
+        <w:ind w:hanging="283" w:start="709" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t xml:space="preserve">Complete privacy, security, compliance, retention, backup, recovery, observability, incident-response, and key-rotation procedures. </w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="Heading1" />
+        <w:keepNext w:val="true" />
+        <w:bidi w:val="0" />
+        <w:spacing w:before="320" w:after="160" />
+        <w:ind w:start="320" w:end="320" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>7. Defense Conclusion</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="120" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>CareNavigator PH is a defensible integrated prototype: it addresses a clear healthcare-navigation problem, defines measurable objectives, covers the principal care and governance workflows, separates interface behavior from backend authority, and provides concrete implementation and test evidence. Its strongest architectural claim is not that one role can see everything, but that access is derived from verified identity, hospital context, care relationship, clinical purpose, and permitted action.</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="120" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>The recommended defense position is to approve continued development toward live end-to-end validation and production-readiness controls. The remaining gaps are documented as engineering and governance work - not hidden as completed functionality.</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="Heading1page-break" />
+        <w:bidi w:val="0" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+        <w:pageBreakBefore />
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>Appendix A. Source-of-Truth Locations</w:t>
+      </w:r>
+    </w:p>
+    <w:tbl>
+      <w:tblPr>
+        <w:tblW w:w="9360" w:type="dxa" />
+        <w:jc w:val="start" />
+        <w:tblInd w:w="0" w:type="dxa" />
+        <w:tblLayout w:type="fixed" />
+        <w:tblCellMar>
+          <w:top w:w="28" w:type="dxa" />
+          <w:start w:w="28" w:type="dxa" />
+          <w:bottom w:w="28" w:type="dxa" />
+          <w:end w:w="28" w:type="dxa" />
+        </w:tblCellMar>
+      </w:tblPr>
+      <w:tblGrid>
+        <w:gridCol w:w="2920" />
+        <w:gridCol w:w="6440" />
+      </w:tblGrid>
+      <w:tr>
+        <w:trPr>
+        </w:trPr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="2920" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableHeading" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:ind w:hanging="0" w:start="0" w:end="0" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Area</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="6440" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableHeading" />
+              <w:suppressLineNumbers />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Repository location</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:trPr>
+        </w:trPr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="2920" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Application entry and bootstrap</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="6440" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+                <w:rStyle w:val="SourceText" />
+              </w:rPr>
+              <w:t>lib/main.dart</w:t>
+            </w:r>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t xml:space="preserve">; </w:t>
+            </w:r>
+            <w:r>
+              <w:rPr>
+                <w:rStyle w:val="SourceText" />
+              </w:rPr>
+              <w:t>lib/bootstrap.dart</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:trPr>
+        </w:trPr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="2920" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Routing and role guards</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="6440" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+                <w:rStyle w:val="SourceText" />
+              </w:rPr>
+              <w:t>lib/src/routing/app_router.dart</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:trPr>
+        </w:trPr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="2920" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>State and providers</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="6440" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+                <w:rStyle w:val="SourceText" />
+              </w:rPr>
+              <w:t>lib/src/providers/</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:trPr>
+        </w:trPr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="2920" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Repository boundary</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="6440" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+                <w:rStyle w:val="SourceText" />
+              </w:rPr>
+              <w:t>lib/src/repositories/</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:trPr>
+        </w:trPr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="2920" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Domain models</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="6440" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+                <w:rStyle w:val="SourceText" />
+              </w:rPr>
+              <w:t>lib/src/models/</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:trPr>
+        </w:trPr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="2920" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Shared UI and theme</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="6440" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+                <w:rStyle w:val="SourceText" />
+              </w:rPr>
+              <w:t>lib/src/widgets/</w:t>
+            </w:r>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t xml:space="preserve">; </w:t>
+            </w:r>
+            <w:r>
+              <w:rPr>
+                <w:rStyle w:val="SourceText" />
+              </w:rPr>
+              <w:t>lib/src/theme/</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:trPr>
+        </w:trPr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="2920" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Database migrations</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="6440" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+                <w:rStyle w:val="SourceText" />
+              </w:rPr>
+              <w:t>supabase/migrations/</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:trPr>
+        </w:trPr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="2920" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Edge Function</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="6440" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+                <w:rStyle w:val="SourceText" />
+              </w:rPr>
+              <w:t>supabase/functions/care-navigator-chat/</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:trPr>
+        </w:trPr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="2920" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Flutter and SQL tests</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="6440" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+                <w:rStyle w:val="SourceText" />
+              </w:rPr>
+              <w:t>test/</w:t>
+            </w:r>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t xml:space="preserve">; </w:t>
+            </w:r>
+            <w:r>
+              <w:rPr>
+                <w:rStyle w:val="SourceText" />
+              </w:rPr>
+              <w:t>supabase/tests/</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:trPr>
+        </w:trPr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="2920" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Mermaid diagrams</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="6440" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+                <w:rStyle w:val="SourceText" />
+              </w:rPr>
+              <w:t>docs/defense/*.mmd</w:t>
+            </w:r>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t xml:space="preserve">; </w:t>
+            </w:r>
+            <w:r>
+              <w:rPr>
+                <w:rStyle w:val="SourceText" />
+              </w:rPr>
+              <w:t>docs/defense/CareNavigator_PH_Diagrams.md</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:trPr>
+        </w:trPr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="2920" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t>Architecture and verification records</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="6440" w:type="dxa" />
+            <w:tcBorders>
+            </w:tcBorders>
+            <w:vAlign w:val="center" />
+          </w:tcPr>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="TableContents" />
+              <w:bidi w:val="0" />
+              <w:spacing w:before="0" w:after="120" />
+              <w:jc w:val="start" />
+              <w:rPr>
+              </w:rPr>
+            </w:pPr>
+            <w:r>
+              <w:rPr>
+                <w:rStyle w:val="SourceText" />
+              </w:rPr>
+              <w:t>SYSTEM_ARCHITECTURE.md</w:t>
+            </w:r>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t xml:space="preserve">; </w:t>
+            </w:r>
+            <w:r>
+              <w:rPr>
+                <w:rStyle w:val="SourceText" />
+              </w:rPr>
+              <w:t>README.md</w:t>
+            </w:r>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t xml:space="preserve">; </w:t>
+            </w:r>
+            <w:r>
+              <w:rPr>
+                <w:rStyle w:val="SourceText" />
+              </w:rPr>
+              <w:t>PRE_BUILD_REPORT.md</w:t>
+            </w:r>
+            <w:r>
+              <w:rPr>
+              </w:rPr>
+              <w:t xml:space="preserve">; </w:t>
+            </w:r>
+            <w:r>
+              <w:rPr>
+                <w:rStyle w:val="SourceText" />
+              </w:rPr>
+              <w:t>VERIFICATION_REPORT.md</w:t>
+            </w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+    </w:tbl>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="BodyText" />
+        <w:bidi w:val="0" />
+        <w:spacing w:before="0" w:after="120" />
+        <w:jc w:val="start" />
+        <w:rPr>
+        </w:rPr>
+      </w:pPr>
+      <w:r>
+        <w:rPr>
+        </w:rPr>
+        <w:t>Verification date: 02 September 2026 (Asia/Manila). Counts and test results reflect the local repository state reviewed for this document. Team and adviser metadata remain placeholders because they were not present in the repository.</w:t>
+      </w:r>
+    </w:p>
+    <w:sectPr>
+      <w:headerReference w:type="default" r:id="rId10" />
+      <w:footerReference w:type="default" r:id="rId11" />
+      <w:type w:val="nextPage" />
+      <w:pgSz w:w="12240" w:h="15840" />
+      <w:pgMar w:left="1440" w:right="1440" w:gutter="0" w:header="0" w:top="1440" w:footer="0" w:bottom="1440" />
+      <w:pgNumType w:fmt="decimal" />
+      <w:formProt w:val="false" />
+      <w:textDirection w:val="lrTb" />
+      <w:docGrid w:type="default" w:linePitch="600" w:charSpace="36864" />
+    </w:sectPr>
+  </w:body>
+</w:document>

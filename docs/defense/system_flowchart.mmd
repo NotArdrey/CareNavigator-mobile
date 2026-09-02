@@ -1,0 +1,15 @@
+flowchart LR
+    A[Discover verified hospitals and clinicians] --> B{Need guidance?}
+    B -->|Yes| C[Care assistant classifies concern and checks emergency signals]
+    B -->|No| D[Select hospital, department, clinician, and schedule]
+    C -->|Emergency| E[Immediate emergency instruction and nearest appropriate facility]
+    C -->|Routine or urgent| D
+    D --> F{Existing account?}
+    F -->|Guest| G[Submit consultation request and verify email]
+    F -->|Patient| H[Book an available consultation slot]
+    G --> I[Authorized review and patient/account linking]
+    I --> H
+    H --> J[Doctor consultation: in person, email-assisted, or video]
+    J --> K[Structured checkup, diagnosis, prescription, and laboratory workflow]
+    K --> L[Private documents, notifications, reminders, and follow-up]
+    L --> M[Audited, role-scoped longitudinal care record]
