@@ -7717,8 +7717,19 @@ class _PrescriptionDialogState extends State<_PrescriptionDialog> {
     setState(() => _medications.add(_EditablePrescriptionMedication()));
   }
 
-  void _removeMedication(_EditablePrescriptionMedication medication) {
+  Future<void> _removeMedication(
+    _EditablePrescriptionMedication medication,
+    int index,
+  ) async {
     if (_medications.length == 1) return;
+    final confirmed = await confirmRootAction(
+      title: 'Delete medication ${index + 1}?',
+      message:
+          'This removes the medication and all of its entered details from the prescription draft.',
+      confirmLabel: 'Delete medication',
+      destructive: true,
+    );
+    if (!confirmed || !mounted || !_medications.contains(medication)) return;
     setState(() => _medications.remove(medication));
     medication.dispose();
   }
@@ -7959,8 +7970,8 @@ class _PrescriptionDialogState extends State<_PrescriptionDialog> {
                 ),
                 if (_medications.length > 1)
                   IconButton(
-                    tooltip: 'Remove medication ${index + 1}',
-                    onPressed: () => _removeMedication(medication),
+                    tooltip: 'Delete medication ${index + 1}',
+                    onPressed: () => _removeMedication(medication, index),
                     icon: const Icon(Icons.delete_outline),
                   ),
               ],

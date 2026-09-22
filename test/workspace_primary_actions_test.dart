@@ -229,6 +229,33 @@ void main() {
     expect(find.text('Apply my electronic signature'), findsNothing);
     expect(find.text('Preview prescription'), findsOneWidget);
 
+    final addMedicationButton = find.widgetWithText(
+      OutlinedButton,
+      'Add another medication',
+    );
+    await tester.ensureVisible(addMedicationButton);
+    await tester.tap(addMedicationButton);
+    await tester.pumpAndSettle();
+    expect(find.text('Medication 2'), findsOneWidget);
+
+    final deleteMedicationButton = find.byTooltip('Delete medication 2');
+    await tester.ensureVisible(deleteMedicationButton);
+    await tester.tap(deleteMedicationButton);
+    await tester.pumpAndSettle();
+    expect(find.text('Delete medication 2?'), findsOneWidget);
+    await tester.tap(find.widgetWithText(TextButton, 'Cancel').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Medication 2'), findsOneWidget);
+
+    await tester.ensureVisible(deleteMedicationButton);
+    await tester.tap(deleteMedicationButton);
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.widgetWithText(FilledButton, 'Delete medication').last,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Medication 2'), findsNothing);
+
     Finder field(String label) => find.ancestor(
       of: find.text(label),
       matching: find.byType(TextFormField),
