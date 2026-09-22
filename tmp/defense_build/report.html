@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CareNavigator PH - System Defense and Project Documentation</title>
+<style>
+  @page { size: 8.5in 11in; margin: 1in; }
+  body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; line-height: 1.10; color: #163041; margin: 0; }
+  h1 { font-size: 16pt; color: #2E74B5; margin: 16pt 0 8pt; page-break-after: avoid; }
+  h2 { font-size: 13pt; color: #2E74B5; margin: 12pt 0 6pt; page-break-after: avoid; }
+  h3 { font-size: 12pt; color: #0B2545; margin: 8pt 0 4pt; page-break-after: avoid; }
+  p { margin: 0 0 6pt; }
+  ul { margin: 3pt 0 8pt 0.50in; padding: 0; }
+  li { margin: 0 0 8pt; line-height: 1.167; }
+  table { width: 6.5in; border-collapse: collapse; margin: 8pt 0 10pt; page-break-inside: avoid; }
+  th, td { border: 1px solid #BFCBD3; padding: 5pt 6pt; vertical-align: top; }
+  th { background: #F2F4F7; color: #0B2545; font-weight: bold; text-align: left; }
+  .cover { text-align: center; page-break-after: always; padding-top: 0.15in; }
+  .cover img { width: 1.15in; height: 1.15in; }
+  .cover-title { font-size: 28pt; font-weight: bold; color: #0B2545; margin-top: 18pt; }
+  .cover-subtitle { font-size: 18pt; font-weight: bold; color: #008B8B; margin: 8pt 0 18pt; }
+  .cover-desc { font-size: 13pt; color: #5B7080; margin: 0 auto 28pt; width: 5.8in; }
+  .metadata td:first-child { width: 1.55in; font-weight: bold; color: #0B2545; }
+  .metadata td:last-child { width: 4.95in; }
+  .muted { color: #5B7080; }
+  .small { font-size: 9pt; }
+  .center { text-align: center; }
+  .page-break { page-break-before: always; }
+  .figure { text-align: center; margin: 8pt 0 4pt; page-break-inside: avoid; }
+  .figure img { width: 6.5in; height: auto; border: 1px solid #CFDBE2; }
+  .caption { text-align: center; font-size: 9pt; font-style: italic; color: #5B7080; margin-bottom: 10pt; }
+  .callout { border: 1px solid #008B8B; background: #E4F7F4; padding: 10pt 12pt; margin: 8pt 0 12pt; }
+  .warning { border: 1px solid #A66900; background: #FFF5DA; padding: 10pt 12pt; margin: 8pt 0 12pt; }
+  .contents p { margin-bottom: 7pt; }
+  .status { font-weight: bold; }
+  code { font-family: Consolas, monospace; font-size: 9pt; color: #0B2545; }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <img src="../../assets/images/app_icon.png" alt="CareNavigator PH application icon">
+  <div class="cover-title">CareNavigator PH</div>
+  <div class="cover-subtitle">System Defense and Project Documentation</div>
+  <div class="cover-desc">A role-aware healthcare navigation and digital care platform for the Philippines</div>
+  <table class="metadata">
+    <tr><td>Project title</td><td>CareNavigator PH</td></tr>
+    <tr><td>Prepared for</td><td>System / project defense</td></tr>
+    <tr><td>Proponents</td><td>[Insert names]</td></tr>
+    <tr><td>Adviser / Panel</td><td>[Insert name or panel]</td></tr>
+    <tr><td>Date</td><td>02 September 2026</td></tr>
+  </table>
+  <p class="muted"><em>Defense-ready working draft based on the current repository implementation and local verification.</em></p>
+</div>
+
+<div class="contents">
+  <h1>Contents</h1>
+  <p>Executive Summary</p>
+  <p>1. Project Title and Description</p>
+  <p>2. Project Objectives Defined</p>
+  <p>3. Scope and Limitations Identified</p>
+  <p>4. Updated System Flowchart and Architecture Diagram</p>
+  <p>5. Database Design (ERD / Schema)</p>
+  <p>6. Project Progress Report (Current Accomplishments)</p>
+  <p>7. Defense Conclusion</p>
+  <p>Appendix A. Source-of-Truth Locations</p>
+</div>
+
+<h1 class="page-break">Executive Summary</h1>
+<p>CareNavigator PH is a Flutter mobile-and-web healthcare-navigation and digital-care platform. It unifies verified hospital and clinician discovery, safety-aware care guidance, guest consultation intake, authenticated patient and doctor workflows, hospital operations, and platform governance in one role-aware system backed by Supabase.</p>
+<p>The current prototype demonstrates an end-to-end care pathway and a deliberate security model: UI guards support usability, typed repositories isolate data access, while JWT validation, Row Level Security, private Storage, constraints, triggers, and server-side authorization enforce access. The project is functionally substantial, but it is not represented as production-ready; live credentialed journeys, provider/device validation, formal compliance work, and visual-baseline review remain.</p>
+
+<h1>1. Project Title and Description</h1>
+<h2>Project Title</h2>
+<div class="callout"><strong>CareNavigator PH: A Role-Aware Healthcare Navigation and Digital Care Platform</strong></div>
+<h2>Project Description</h2>
+<p>CareNavigator PH helps users find an appropriate healthcare facility and continue through consultation, clinical documentation, communication, and follow-up without losing context. Guests can discover verified care and submit a protected consultation request. Patients can book and manage care, communicate with clinicians, and access authorized records. Doctors can manage schedules, consultations, structured checkups, prescriptions, laboratories, and review workflows. Hospital administrators operate assigned facilities, while super administrators manage platform governance.</p>
+<p>The application uses one adaptive Flutter codebase. GoRouter manages deep links and role-based routing, Riverpod manages state and Realtime streams, typed Dart repositories form the data-access boundary, and Supabase provides Auth, PostgreSQL, RLS, Realtime, private Storage, RPCs, Edge Functions, triggers, and scheduled jobs. External integrations include Groq, Gmail SMTP, Jitsi, OpenStreetMap, and OSRM.</p>
+
+<h1>2. Project Objectives Defined</h1>
+<h2>General Objective</h2>
+<p>To design and implement a secure, responsive, role-aware healthcare platform that helps people discover appropriate care and supports the care lifecycle across authorized guests, patients, clinicians, hospital personnel, and platform administrators.</p>
+<h2>Specific Objectives</h2>
+<ul>
+  <li>Provide searchable, verified hospital, service, clinician, schedule, availability, map, and route information.</li>
+  <li>Provide safety-aware preliminary guidance that detects emergency signals and directs users to appropriate care without presenting AI output as a diagnosis.</li>
+  <li>Connect guest consultation intake, verification, registered-patient booking, consultation, messaging, document processing, and follow-up.</li>
+  <li>Provide role-specific workspaces and actions for patients, doctors, hospital administrators, and super administrators.</li>
+  <li>Protect clinical and identity data through backend-enforced authorization, private file storage, short-lived access, clinical invariants, and auditing.</li>
+  <li>Support maintainability through a layered architecture, typed models and repositories, centralized design components, migrations, and automated tests.</li>
+  <li>Provide evidence-based project reporting that distinguishes implemented work from remaining production validation.</li>
+</ul>
+
+<h1>3. Scope and Limitations Identified</h1>
+<h2>Scope</h2>
+<table>
+  <tr><th style="width:1.55in">Area</th><th style="width:4.95in">Included capabilities</th></tr>
+  <tr><td>Public access</td><td>Hospital and clinician discovery, maps/routes, assistant guidance, guest consultation request and verification</td></tr>
+  <tr><td>Patient care</td><td>Booking, rescheduling/cancellation, consultations, messages, notifications, records, prescriptions, diagnostics, files, profile and preferences</td></tr>
+  <tr><td>Doctor care</td><td>Patient relationships, scheduling, consultation lifecycle, structured notes/checkups, prescriptions, laboratory requests/results, document review</td></tr>
+  <tr><td>Hospital operations</td><td>Appointments, staff, departments, services, facilities, beds/capacity, emergency-room status, reports and audit views</td></tr>
+  <tr><td>Platform governance</td><td>Hospital approval, accounts, permissions, settings, analytics, security, maintenance and audit</td></tr>
+  <tr><td>Technical platform</td><td>Flutter, GoRouter, Riverpod, typed repositories, Supabase Auth/PostgreSQL/RLS/Realtime/Storage/RPC/Edge Functions/Cron</td></tr>
+  <tr><td>External integration</td><td>Groq AI, Gmail SMTP, Jitsi, OpenStreetMap and OSRM</td></tr>
+</table>
+<h2>Limitations</h2>
+<ul>
+  <li>Care-assistant and document-analysis outputs remain preliminary and must not be treated as a diagnosis, prescription, or replacement for professional care.</li>
+  <li>External services require configured credentials, network access, and provider availability; those production side effects were not triggered for this defense document.</li>
+  <li>The ordinary local test run skipped credential-dependent live Supabase journeys because live test variables and demo passwords were not supplied.</li>
+  <li>The project still needs physical Android tests, an iOS/macOS build-and-device pass, load testing, backup/recovery drills, production monitoring, key rotation, and a formal privacy/security/compliance assessment.</li>
+  <li>When public Supabase configuration is absent, the interface intentionally shows explicit unavailable states instead of fabricated hospital or clinical data.</li>
+  <li>Eight visual regression cases currently differ from their approved golden images and require an intentional UI review and baseline decision.</li>
+</ul>
+
+<h1 class="page-break">4. Updated System Flowchart and Architecture Diagram</h1>
+<h2>End-to-End System Flow</h2>
+<div class="figure"><img src="slides_png/Slide5.PNG" alt="CareNavigator PH end-to-end system flow"></div>
+<p class="caption">Figure 1. Core CareNavigator PH workflow from discovery through protected follow-up.</p>
+<p>The flow preserves user and clinical context across discovery, guidance, consultation entry, scheduling, care delivery, documentation, and follow-up. At every transition, the system separates usability controls in Flutter from authoritative policy and data checks in Supabase.</p>
+<h2>Logical Architecture</h2>
+<div class="figure"><img src="slides_png/Slide7.PNG" alt="CareNavigator PH layered architecture"></div>
+<p class="caption">Figure 2. Layered client, repository, Supabase, and external-service architecture.</p>
+<p>Editable Mermaid sources for VS Code are provided in <code>docs/defense/system_flowchart.mmd</code> and <code>docs/defense/system_architecture.mmd</code>. The companion <code>docs/defense/CareNavigator_PH_Diagrams.md</code> supports Markdown Preview with a Mermaid extension.</p>
+
+<h1 class="page-break">5. Database Design (ERD / Schema)</h1>
+<div class="figure"><img src="slides_png/Slide8.PNG" alt="CareNavigator PH conceptual ERD"></div>
+<p class="caption">Figure 3. Defense-oriented conceptual ERD emphasizing identity, hospital, care-relationship, consultation, communication, and clinical-record domains.</p>
+<p>The central design decision is to model care authorization as an explicit relationship among the patient, hospital, doctor, consultation, purpose, scope, status, and time boundary. This prevents a role label alone from granting broad clinical access. Multi-hospital identifiers and doctor employments preserve facility-specific context, while consultations produce structured records, prescriptions, laboratory orders/results, messages, documents, notifications, and audit evidence.</p>
+<h2>Database Design Principles</h2>
+<ul>
+  <li>Use UUID primary and foreign keys for authoritative entities and exact-ID actions.</li>
+  <li>Use foreign keys, uniqueness constraints, check constraints, and clinical lifecycle triggers to preserve invariants.</li>
+  <li>Enable Row Level Security for client-accessible tables and enforce patient, doctor, hospital, relationship, and action scope.</li>
+  <li>Store sensitive clinical and identity documents in private buckets; issue short-lived signed URLs only after authorization.</li>
+  <li>Use RPCs and Edge Functions for privileged, transactional, provider-facing, and auditable workflows.</li>
+  <li>Use indexes for relationship lookups, status queues, schedules, recent activity, and conversation history.</li>
+  <li>Preserve observability through status history, audit/security logs, processing jobs, and notification outboxes.</li>
+</ul>
+<h2>Mermaid ERD Source</h2>
+<p>Open <code>docs/defense/database_erd.mmd</code> in VS Code with a Mermaid extension. The file includes the main field-level entities and relationships used in the defense; the full physical schema remains defined by the Supabase database and the 63 migration files under <code>supabase/migrations/</code>.</p>
+
+<h1 class="page-break">6. Project Progress Report (Current Accomplishments)</h1>
+<h2>Progress Snapshot</h2>
+<table>
+  <tr><th>Workstream</th><th>Status</th><th>Current evidence</th><th>Remaining work</th></tr>
+  <tr><td>Architecture and UI foundation</td><td class="status">Implemented</td><td>Adaptive Flutter shells; centralized theme/widgets; GoRouter; Riverpod; typed repositories</td><td>Continue accessibility/device validation</td></tr>
+  <tr><td>Public discovery and guest access</td><td class="status">Implemented</td><td>Hospitals, clinicians, map/routing, assistant, request/verification flows, explicit unavailable states</td><td>Live provider and credentialed browser journeys</td></tr>
+  <tr><td>Patient and doctor care</td><td class="status">Implemented</td><td>Booking, scheduling, consultation lifecycle, messaging, documents, checkups, prescriptions, diagnostics and labs</td><td>Live multi-role acceptance pass</td></tr>
+  <tr><td>Hospital and platform administration</td><td class="status">Implemented</td><td>Hospital operations, staff/services/departments, capacity/ER, approvals, accounts, permissions, settings, maintenance and audits</td><td>Operational runbooks and production monitoring</td></tr>
+  <tr><td>Security and data model</td><td class="status">Implemented; review remains</td><td>RLS-oriented access, private Storage, multi-hospital grants, constraints, triggers, RPCs and audit patterns</td><td>Independent security/privacy/compliance review</td></tr>
+  <tr><td>Quality verification</td><td class="status">Partially complete</td><td>Static analysis clean; 243 tests passed; 11 credentialed tests skipped; 8 golden tests passed and 8 differed</td><td>Review visual changes; rerun live and device suites</td></tr>
+</table>
+
+<h2>Current Accomplishments</h2>
+<ul>
+  <li>Implemented one responsive Flutter application for web and mobile with public, patient, doctor, hospital-administrator, and super-administrator experiences.</li>
+  <li>Established a repository-only Supabase boundary and role-aware routing/state architecture.</li>
+  <li>Implemented public hospital and clinician discovery, OpenStreetMap/OSRM routing, guest intake, account flows, and explicit unavailable states.</li>
+  <li>Implemented booking and consultation lifecycle workflows, secure Jitsi room access, Realtime messaging/notifications, and private file handling.</li>
+  <li>Implemented structured checkups, prescriptions, diagnostic result extraction, laboratory requests/results, review states, and medication reminder workflows.</li>
+  <li>Added multi-hospital identities, clinician employment, patient care relationships, grants/scopes, online consultation requests, and cross-source authorization.</li>
+  <li>Added persistent patient conversations and persistent care-assistant conversation history.</li>
+  <li>Added a <code>care-navigator-chat</code> Edge Function for safety-aware conversation, document extraction, hospital recommendation, and email-related workflows.</li>
+  <li>Accumulated 63 focused Supabase migration files and seven SQL acceptance-test scripts in the repository.</li>
+  <li>Verified the current code with <code>flutter analyze</code>: no issues found.</li>
+</ul>
+
+<h2>Latest Verification Results</h2>
+<table>
+  <tr><th>Check</th><th>Result</th><th>Defense interpretation</th></tr>
+  <tr><td><code>flutter analyze</code></td><td>PASS - no issues</td><td>Static analysis is clean on the current repository state.</td></tr>
+  <tr><td><code>flutter test</code></td><td>243 passed; 11 skipped; 8 failed</td><td>Functional coverage is broad. Skips require live credentials. Failures are visual-golden differences.</td></tr>
+  <tr><td>Visual regression subset</td><td>8 passed; 8 failed</td><td>Hospital-admin and super-admin baselines passed; guest, patient, doctor, and prescription views require review.</td></tr>
+  <tr><td>Repository inventory</td><td>60 Dart implementation files; 39 Dart test files; 63 migration files; 7 SQL test files</td><td>The prototype has substantial breadth, but file counts are not substitutes for live acceptance.</td></tr>
+  <tr><td>Previous documented builds</td><td>Web release and Android debug passed in the August verification record</td><td>These are historical evidence and should be rerun before release.</td></tr>
+</table>
+<div class="warning"><strong>Important:</strong> The project should not be described as having a completely passing test suite until the eight visual differences are reviewed and the credential-dependent tests are executed in an approved non-production environment.</div>
+
+<h2>Immediate Next Steps</h2>
+<ul>
+  <li>Review the eight visual diffs and approve or reject the corresponding UI changes before refreshing baselines.</li>
+  <li>Run seeded, non-production patient, doctor, hospital-admin, and super-admin journeys with live Supabase configuration.</li>
+  <li>Exercise Groq, SMTP, Jitsi, scheduled notification dispatch, private-file access, and mobile permissions in controlled environments.</li>
+  <li>Run physical Android and iOS tests, browser console/interaction verification, load tests, and accessibility checks.</li>
+  <li>Complete privacy, security, compliance, retention, backup, recovery, observability, incident-response, and key-rotation procedures.</li>
+</ul>
+
+<h1>7. Defense Conclusion</h1>
+<p>CareNavigator PH is a defensible integrated prototype: it addresses a clear healthcare-navigation problem, defines measurable objectives, covers the principal care and governance workflows, separates interface behavior from backend authority, and provides concrete implementation and test evidence. Its strongest architectural claim is not that one role can see everything, but that access is derived from verified identity, hospital context, care relationship, clinical purpose, and permitted action.</p>
+<p>The recommended defense position is to approve continued development toward live end-to-end validation and production-readiness controls. The remaining gaps are documented as engineering and governance work - not hidden as completed functionality.</p>
+
+<h1 class="page-break">Appendix A. Source-of-Truth Locations</h1>
+<table>
+  <tr><th style="width:2.1in">Area</th><th style="width:4.4in">Repository location</th></tr>
+  <tr><td>Application entry and bootstrap</td><td><code>lib/main.dart</code>; <code>lib/bootstrap.dart</code></td></tr>
+  <tr><td>Routing and role guards</td><td><code>lib/src/routing/app_router.dart</code></td></tr>
+  <tr><td>State and providers</td><td><code>lib/src/providers/</code></td></tr>
+  <tr><td>Repository boundary</td><td><code>lib/src/repositories/</code></td></tr>
+  <tr><td>Domain models</td><td><code>lib/src/models/</code></td></tr>
+  <tr><td>Shared UI and theme</td><td><code>lib/src/widgets/</code>; <code>lib/src/theme/</code></td></tr>
+  <tr><td>Database migrations</td><td><code>supabase/migrations/</code></td></tr>
+  <tr><td>Edge Function</td><td><code>supabase/functions/care-navigator-chat/</code></td></tr>
+  <tr><td>Flutter and SQL tests</td><td><code>test/</code>; <code>supabase/tests/</code></td></tr>
+  <tr><td>Mermaid diagrams</td><td><code>docs/defense/*.mmd</code>; <code>docs/defense/CareNavigator_PH_Diagrams.md</code></td></tr>
+  <tr><td>Architecture and verification records</td><td><code>SYSTEM_ARCHITECTURE.md</code>; <code>README.md</code>; <code>PRE_BUILD_REPORT.md</code>; <code>VERIFICATION_REPORT.md</code></td></tr>
+</table>
+<p class="small muted">Verification date: 02 September 2026 (Asia/Manila). Counts and test results reflect the local repository state reviewed for this document. Team and adviser metadata remain placeholders because they were not present in the repository.</p>
+
+</body>
+</html>

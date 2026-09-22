@@ -596,6 +596,7 @@ async function extractPrescriptionFromAttachment(
           "Use only facts explicitly visible in the attachment. Never infer a diagnosis, calculate a dose or quantity, complete missing directions, or treat uncertain handwriting as fact.",
           "Use null for every unknown scalar field and false for is_prn unless the prescription explicitly says PRN or as needed.",
           "Keep medication units and wording exactly as written. Return dates as YYYY-MM-DD only when explicitly present and unambiguous. If an overall prescription date is visible (e.g. Date: 3/2/23), use it as the start_date (as YYYY-MM-DD) for all prescribed medications unless a medication has its own specific date.",
+          "Keep the editable output concise and easy to scan. Use the shortest exact diagnosis or indication written in the source. Put only additional directions in instructions; do not repeat the medication name, dose, route, frequency, duration, quantity, or PRN details already stored in their own fields. Do not add explanations or commentary.",
           "Return JSON only with exactly these top-level keys: diagnosis_reason and medications. 'medications' must be a JSON array containing one object for EVERY distinct medication visible in the attachment, in document order.",
           "Each medication object in the 'medications' array must have exactly these keys: medication_name, medication_form_strength, route, exact_dose, frequency, duration, quantity_to_dispense, refills, start_date, end_date, is_prn, prn_reason, maximum_daily_dose, instructions.",
           "Never combine multiple medication names or directions into one object. For example, if 4 medications are written (e.g. 1. HMBB 10mg tab, 2. Ciprofloxacin 500mg tab, 3. Sambong 500mg capsule, 4. Tamsulosine 400mcg capsule), the medications array MUST contain 4 separate objects.",
@@ -644,7 +645,7 @@ async function extractPrescriptionFromAttachment(
   const medications = records
     .slice(0, 20)
     .map((medication) => ({
-      diagnosis_reason: limitedString(diagnosisReason ?? medication.diagnosis_reason),
+      diagnosis_reason: limitedString(diagnosisReason ?? medication.diagnosis_reason, 300),
       medication_name: limitedString(medication.medication_name, 300),
       medication_form_strength: limitedString(medication.medication_form_strength, 300),
       route: limitedString(medication.route, 100),
@@ -658,7 +659,7 @@ async function extractPrescriptionFromAttachment(
       is_prn: medication.is_prn === true,
       prn_reason: limitedString(medication.prn_reason, 500),
       maximum_daily_dose: limitedString(medication.maximum_daily_dose, 200),
-      instructions: limitedString(medication.instructions, 2000),
+      instructions: limitedString(medication.instructions, 500),
     }))
     .filter((medication) =>
       medication.medication_name !== null ||
@@ -793,8 +794,9 @@ async function extractDiagnosticResultBatch(
           "For X-ray, CT, MRI, and ultrasound, put the body part, technique, and comparison in procedure_details when stated; preserve findings, impression, and recommendations in their matching fields. Preserve important positive and negative authored findings and uncertainty; never create a radiologic conclusion.",
           "For pathology, put the specimen, diagnosis, grade, margins, and biomarkers in procedure_details when stated. Do not infer stage or prognosis. For ECG, echocardiogram, and other heart tests, put rhythm, rate, and named measurements in procedure_details/results and preserve findings plus the machine- or clinician-authored interpretation when stated.",
           "Put report-authored findings and impression, with their original uncertainty, in official_findings_impression. Put only report-authored recommendations in recommendations; use null when none are stated.",
-          "Write technical_summary with important abnormal report-grounded findings first, exact values, units, and printed ranges, followed briefly by results within their report-stated ranges and unclassified results. Preserve official wording and uncertainty.",
-          "Write patient_friendly_summary in simple language with abnormal findings first but without alarm. Briefly explain important terms, say 'within the report-stated range' rather than declaring the patient healthy, mention important missing context such as fasting status only when relevant and not shown, and advise interpretation with the healthcare provider when appropriate. Do not add a diagnosis or treatment.",
+          "Keep generated summaries short and easy to scan. Do not repeat the full results table or add introductions, conclusions, disclaimers, or filler.",
+          "Write technical_summary as at most 3 short bullet lines and 80 words total. Lead with important abnormal report-grounded findings, keeping only the most useful exact values, units, printed ranges, and official uncertainty. Briefly group the remaining results instead of listing each one again.",
+          "Write patient_friendly_summary as at most 2 short sentences and 45 words total. Use everyday language, mention the main finding first without alarm, and say 'within the report-stated range' when needed. End with a brief prompt to discuss the result with the healthcare provider only when interpretation is needed. Do not add a diagnosis or treatment.",
           "Use notes only for other explicit report remarks. Every AI-filled value will be editable and must be reviewed before saving.",
           "Return JSON only as an object with exactly one key, diagnostic_results, whose value is an array. Every array entry must have exactly these keys: source_file_name, patient_name, result_category, test_procedure_name, test_procedure_name_ai_generated, performed_or_collected_date, performed_or_collected_date_text, result_date, result_date_text, facility, requesting_doctor, procedure_details, results, official_findings_impression, recommendations, technical_summary, patient_friendly_summary, needs_verification, notes.",
         ].join(" "),
@@ -950,8 +952,8 @@ function sanitizeDiagnosticResult(
       30000,
     ),
     recommendations: multilineValue(parsed.recommendations, 10000),
-    technical_summary: limitedString(parsed.technical_summary, 10000),
-    patient_friendly_summary: limitedString(parsed.patient_friendly_summary, 10000),
+    technical_summary: limitedString(parsed.technical_summary, 800),
+    patient_friendly_summary: limitedString(parsed.patient_friendly_summary, 500),
     needs_verification: limitedStringList(parsed.needs_verification),
     notes: limitedString(parsed.notes, 3000),
   };

@@ -1,0 +1,439 @@
+%% CareNavigator PH core database ERD
+%% Open this .mmd file with the Mermaid Chart extension in VS Code.
+%% Source: live Supabase public-schema catalog and committed migrations (2026-09-02).
+%% Operational tables such as audit_logs, security_logs, notification_outbox,
+%% maintenance_windows, and document-processing jobs are intentionally omitted
+%% so the core business model remains readable.
+%%{init: {"theme": "base", "themeVariables": {"primaryColor": "#EAF7F5", "primaryTextColor": "#153B3A", "primaryBorderColor": "#168C84", "lineColor": "#54706E", "secondaryColor": "#FFF4DC", "tertiaryColor": "#F7FAFA"}}}%%
+
+erDiagram
+    %% Identity and organization
+    ROLES ||--o{ USERS : authorizes
+    ROLES ||--o{ ROLE_PERMISSIONS : grants
+    HOSPITAL_CLASSIFICATIONS ||--o{ HOSPITALS : classifies
+    HOSPITALS ||--o{ USERS : employs
+    USERS ||--o| PATIENTS : owns_profile
+    USERS ||--o| DOCTORS : owns_profile
+
+    %% Hospital directory and staffing
+    HOSPITALS ||--o{ HOSPITAL_DEPARTMENTS : contains
+    HOSPITALS ||--o{ HOSPITAL_SERVICES : offers
+    HEALTHCARE_SERVICE_CATEGORIES ||--o{ HOSPITAL_SERVICES : categorizes
+    HOSPITAL_DEPARTMENTS o|--o{ HOSPITAL_SERVICES : groups
+    HOSPITALS ||--o{ DOCTOR_HOSPITAL_EMPLOYMENTS : employs
+    DOCTORS ||--o{ DOCTOR_HOSPITAL_EMPLOYMENTS : serves_at
+    HOSPITAL_DEPARTMENTS o|--o{ DOCTORS : assigns
+    DOCTORS ||--o{ DOCTOR_SCHEDULES : publishes
+    HOSPITALS ||--o{ EMERGENCY_ROOM_STATUS : reports
+
+    %% Patient identity and appointment workflow
+    HOSPITALS o|--o{ PATIENTS : primary_facility
+    PATIENTS ||--o{ PATIENT_HOSPITAL_IDENTIFIERS : has_local_identity
+    HOSPITALS ||--o{ PATIENT_HOSPITAL_IDENTIFIERS : issues
+    HOSPITALS ||--o{ GUEST_CONSULTATION_REQUESTS : receives
+    HOSPITAL_DEPARTMENTS o|--o{ GUEST_CONSULTATION_REQUESTS : routes
+    GUEST_CONSULTATION_REQUESTS o|--o{ CONSULTATIONS : converts_to
+    PATIENTS o|--o{ CONSULTATIONS : attends
+    DOCTORS ||--o{ CONSULTATIONS : conducts
+    HOSPITALS ||--o{ CONSULTATIONS : hosts
+    HOSPITAL_DEPARTMENTS o|--o{ CONSULTATIONS : handles
+    CONSULTATIONS o|--o{ CONSULTATIONS : follows_up
+    CONSULTATIONS ||--o{ CONSULTATION_STATUS_HISTORY : tracks
+    CONSULTATIONS ||--o{ VIDEO_SESSIONS : opens
+
+    %% Reviewed online-care and cross-hospital authorization
+    PATIENTS ||--o{ ONLINE_CONSULTATION_REQUESTS : submits
+    HOSPITALS ||--o{ ONLINE_CONSULTATION_REQUESTS : reviews
+    HOSPITAL_DEPARTMENTS ||--o{ ONLINE_CONSULTATION_REQUESTS : routes
+    ONLINE_CONSULTATION_REQUESTS o|--o| CONSULTATIONS : creates
+    ONLINE_CONSULTATION_REQUESTS ||--o{ ONLINE_CONSULTATION_REQUEST_STATUS_HISTORY : tracks
+    PATIENTS ||--o{ PATIENT_CARE_RELATIONSHIPS : authorizes
+    DOCTORS o|--o{ PATIENT_CARE_RELATIONSHIPS : participates
+    HOSPITALS ||--o{ PATIENT_CARE_RELATIONSHIPS : governs
+    CONSULTATIONS o|--o{ PATIENT_CARE_RELATIONSHIPS : establishes
+    PATIENT_CARE_RELATIONSHIPS ||--o{ PATIENT_CONSENTS : scopes
+    PATIENTS ||--o{ PATIENT_CONSENTS : grants
+    PATIENT_CONSENTS ||--o{ PATIENT_ACCESS_GRANTS : permits
+    PATIENT_CARE_RELATIONSHIPS ||--o{ PATIENT_ACCESS_GRANTS : controls
+    PATIENT_ACCESS_GRANTS ||--o{ PATIENT_ACCESS_SCOPES : limits
+    PATIENT_ACCESS_GRANTS ||--o{ PATIENT_ACCESS_RECORD_SELECTIONS : selects
+    PATIENTS ||--o{ DOCTOR_PATIENT_ASSIGNMENTS : receives
+    DOCTORS ||--o{ DOCTOR_PATIENT_ASSIGNMENTS : accepts
+    PATIENT_CARE_RELATIONSHIPS o|--o{ DOCTOR_PATIENT_ASSIGNMENTS : supports
+
+    %% Clinical records
+    CONSULTATIONS o|--o{ MEDICAL_RECORDS : produces
+    CONSULTATIONS o|--o{ DIAGNOSES : confirms
+    CONSULTATIONS o|--o{ TREATMENT_PLANS : defines
+    CONSULTATIONS o|--o{ PRESCRIPTIONS : issues
+    CONSULTATIONS o|--o{ LABORATORY_REQUESTS : orders
+    CONSULTATIONS o|--o{ LABORATORY_RESULTS : records
+    PATIENTS ||--o{ MEDICAL_RECORDS : owns
+    PATIENTS ||--o{ DIAGNOSES : receives
+    PATIENTS ||--o{ TREATMENT_PLANS : follows
+    PATIENTS ||--o{ PRESCRIPTIONS : receives
+    PATIENTS ||--o{ LABORATORY_REQUESTS : receives
+    PATIENTS ||--o{ LABORATORY_RESULTS : owns
+    PATIENTS ||--o{ MEDICAL_DOCUMENTS : owns
+    HOSPITALS ||--o{ MEDICAL_DOCUMENTS : stores
+    CONSULTATIONS o|--o{ MEDICAL_DOCUMENTS : attaches
+
+    %% Communication
+    PATIENTS o|--o{ CHAT_CONVERSATIONS : joins
+    DOCTORS ||--o{ CHAT_CONVERSATIONS : joins
+    CONSULTATIONS o|--o{ CHAT_CONVERSATIONS : contextualizes
+    CHAT_CONVERSATIONS ||--o{ CHAT_MESSAGES : contains
+    CHAT_MESSAGES ||--o{ CHAT_MESSAGE_ATTACHMENTS : includes
+    GUEST_CONSULTATION_REQUESTS o|--o{ NOTIFICATIONS : triggers
+
+    ROLES {
+        uuid id PK
+        text name UK
+        text description
+    }
+
+    ROLE_PERMISSIONS {
+        uuid id PK
+        uuid role_id FK
+        text permission_key
+    }
+
+    USERS {
+        uuid id PK
+        uuid auth_user_id UK
+        uuid role_id FK
+        uuid hospital_id FK
+        text email
+        text status
+    }
+
+    PATIENTS {
+        uuid id PK
+        uuid user_id FK
+        uuid primary_hospital_id FK
+        text patient_number
+        text blood_type
+        text profile_status
+    }
+
+    DOCTORS {
+        uuid id PK
+        uuid user_id FK
+        uuid hospital_id FK
+        uuid department_id FK
+        text display_name
+        text specialization
+        text license_number
+    }
+
+    HOSPITAL_CLASSIFICATIONS {
+        uuid id PK
+        text name
+    }
+
+    HOSPITALS {
+        uuid id PK
+        uuid classification_id FK
+        text name
+        text verification_status
+        text address
+        numeric latitude
+        numeric longitude
+    }
+
+    HOSPITAL_DEPARTMENTS {
+        uuid id PK
+        uuid hospital_id FK
+        text name
+        boolean is_active
+    }
+
+    HEALTHCARE_SERVICE_CATEGORIES {
+        uuid id PK
+        text name
+        text slug
+    }
+
+    HOSPITAL_SERVICES {
+        uuid id PK
+        uuid hospital_id FK
+        uuid department_id FK
+        uuid category_id FK
+        text service_name
+        text availability_status
+    }
+
+    DOCTOR_HOSPITAL_EMPLOYMENTS {
+        uuid id PK
+        uuid doctor_id FK
+        uuid hospital_id FK
+        text employment_status
+        boolean is_verified
+        timestamptz starts_at
+        timestamptz ends_at
+    }
+
+    DOCTOR_SCHEDULES {
+        uuid id PK
+        uuid doctor_id FK
+        smallint day_of_week
+        time starts_at
+        time ends_at
+        text consultation_type
+        integer slot_minutes
+    }
+
+    EMERGENCY_ROOM_STATUS {
+        uuid id PK
+        uuid hospital_id FK
+        text status
+        integer available_beds
+        timestamptz last_updated
+    }
+
+    PATIENT_HOSPITAL_IDENTIFIERS {
+        uuid id PK
+        uuid patient_id FK
+        uuid hospital_id FK
+        text local_mrn
+        text status
+    }
+
+    GUEST_CONSULTATION_REQUESTS {
+        uuid id PK
+        uuid preferred_hospital_id FK
+        uuid preferred_department_id FK
+        uuid assigned_doctor_id FK
+        text reference_number UK
+        text request_status
+        timestamptz preferred_schedule
+    }
+
+    CONSULTATIONS {
+        uuid id PK
+        uuid patient_id FK
+        uuid guest_request_id FK
+        uuid doctor_id FK
+        uuid hospital_id FK
+        uuid department_id FK
+        uuid follow_up_of FK
+        text consultation_type
+        timestamptz appointment_date
+        text status
+    }
+
+    CONSULTATION_STATUS_HISTORY {
+        bigint id PK
+        uuid consultation_id FK
+        text old_status
+        text new_status
+        uuid changed_by FK
+        timestamptz created_at
+    }
+
+    VIDEO_SESSIONS {
+        uuid id PK
+        uuid consultation_id FK
+        text room_name
+        text status
+        timestamptz started_at
+        timestamptz ended_at
+    }
+
+    ONLINE_CONSULTATION_REQUESTS {
+        uuid id PK
+        uuid patient_id FK
+        uuid hospital_id FK
+        uuid requested_department_id FK
+        uuid requested_doctor_id FK
+        uuid assigned_doctor_id FK
+        uuid consent_id FK
+        uuid care_relationship_id FK
+        uuid official_consultation_id FK
+        text reference_number UK
+        text request_status
+    }
+
+    ONLINE_CONSULTATION_REQUEST_STATUS_HISTORY {
+        bigint id PK
+        uuid request_id FK
+        text old_status
+        text new_status
+        uuid changed_by FK
+        timestamptz created_at
+    }
+
+    PATIENT_CARE_RELATIONSHIPS {
+        uuid id PK
+        uuid patient_id FK
+        uuid hospital_id FK
+        uuid doctor_id FK
+        uuid consultation_id FK
+        uuid online_request_id FK
+        text relationship_type
+        text status
+    }
+
+    PATIENT_CONSENTS {
+        uuid id PK
+        uuid patient_id FK
+        uuid care_relationship_id FK
+        uuid source_hospital_id FK
+        uuid receiving_hospital_id FK
+        text purpose
+        text_array categories
+        text status
+        timestamptz expires_at
+    }
+
+    PATIENT_ACCESS_GRANTS {
+        uuid id PK
+        uuid patient_id FK
+        uuid care_relationship_id FK
+        uuid consent_id FK
+        uuid source_hospital_id FK
+        uuid receiving_hospital_id FK
+        uuid receiving_doctor_id FK
+        text status
+        timestamptz expires_at
+    }
+
+    PATIENT_ACCESS_SCOPES {
+        uuid id PK
+        uuid grant_id FK
+        text record_category
+        boolean can_view
+        boolean can_download
+        boolean can_create
+    }
+
+    PATIENT_ACCESS_RECORD_SELECTIONS {
+        uuid id PK
+        uuid grant_id FK
+        text record_category
+        uuid record_id
+    }
+
+    DOCTOR_PATIENT_ASSIGNMENTS {
+        uuid id PK
+        uuid doctor_id FK
+        uuid patient_id FK
+        uuid hospital_id FK
+        uuid care_relationship_id FK
+        uuid consultation_id FK
+        text assignment_status
+        timestamptz assigned_at
+        timestamptz ended_at
+    }
+
+    MEDICAL_RECORDS {
+        uuid id PK
+        uuid patient_id FK
+        uuid doctor_id FK
+        uuid hospital_id FK
+        uuid consultation_id FK
+        date record_date
+        text record_type
+    }
+
+    DIAGNOSES {
+        uuid id PK
+        uuid patient_id FK
+        uuid doctor_id FK
+        uuid hospital_id FK
+        uuid consultation_id FK
+        text diagnosis
+        text diagnosis_code
+        boolean is_primary
+    }
+
+    TREATMENT_PLANS {
+        uuid id PK
+        uuid patient_id FK
+        uuid doctor_id FK
+        uuid hospital_id FK
+        uuid consultation_id FK
+        text plan
+        text status
+    }
+
+    PRESCRIPTIONS {
+        uuid id PK
+        uuid patient_id FK
+        uuid doctor_id FK
+        uuid hospital_id FK
+        uuid consultation_id FK
+        uuid assignment_id FK
+        text medication_name
+        text exact_dose
+        text status
+        timestamptz electronically_signed_at
+    }
+
+    LABORATORY_REQUESTS {
+        uuid id PK
+        uuid patient_id FK
+        uuid doctor_id FK
+        uuid hospital_id FK
+        uuid consultation_id FK
+        text test_name
+        text priority
+        text status
+    }
+
+    LABORATORY_RESULTS {
+        uuid id PK
+        uuid patient_id FK
+        uuid doctor_id FK
+        uuid hospital_id FK
+        uuid consultation_id FK
+        uuid source_document_id FK
+        text test_name
+        text review_status
+    }
+
+    MEDICAL_DOCUMENTS {
+        uuid id PK
+        uuid patient_id FK
+        uuid hospital_id FK
+        uuid consultation_id FK
+        uuid uploaded_by FK
+        uuid author_doctor_id FK
+        text document_type
+        text storage_path
+    }
+
+    CHAT_CONVERSATIONS {
+        uuid id PK
+        uuid patient_id FK
+        uuid doctor_id FK
+        uuid consultation_id FK
+        text status
+    }
+
+    CHAT_MESSAGES {
+        uuid id PK
+        uuid conversation_id FK
+        uuid sender_id FK
+        text message
+        text message_type
+        timestamptz sent_at
+    }
+
+    CHAT_MESSAGE_ATTACHMENTS {
+        uuid id PK
+        uuid message_id FK
+        uuid uploaded_by FK
+        text storage_path
+        text file_name
+    }
+
+    NOTIFICATIONS {
+        uuid id PK
+        uuid user_id
+        uuid guest_request_id FK
+        text notification_type
+        text title
+        boolean is_read
+        timestamptz created_at
+    }
