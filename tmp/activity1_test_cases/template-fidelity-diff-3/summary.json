@@ -1,0 +1,13 @@
+{
+  "a_docx": "C:\\Users\\Neila\\Downloads\\Activity1_Test_Scenarios_and_Test_Cases.docx",
+  "b_docx": "E:\\Codes\\CareNavigatorPh\\output\\Activity1_CareNavigator_PH_Test_Scenarios_and_Test_Cases.docx",
+  "pages_a": 4,
+  "pages_b": 4,
+  "changed_pages": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "num_changed_pages": 4
+}

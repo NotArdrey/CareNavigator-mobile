@@ -1,0 +1,156 @@
+ACTIVITY 1 – Finals
+Test Scenarios and Test Cases Development
+Course: Software Testing / Software Quality Assurance
+Learning Outcomes
+After completing this activity, you should be able to:
+1. Identify functionalities that require testing in your application.
+2. Create effective Test Scenarios that describe what should be tested.
+3. Develop detailed Test Cases from identified Test Scenarios.
+4. Apply software testing principles to improve software quality.
+Part 1: Application Information 
+Complete the information below:
+Item
+Details
+Application Name
+BookVerse Online Bookstore
+Application Type/Category
+Web Application / E-Commerce Platform
+Main Features/Modules
+1. User Registration & Authentication (Login/Logout)
+2. Book Search & Catalog Browsing
+3. Shopping Cart Management
+4. Order Placement & Checkout
+Part 2: Test Scenarios
+At least six (6) Test Scenarios for the BookVerse application:
+Format: TS-XX: Verify that [user action/feature] works correctly.
+Scenario ID
+Test Scenario
+TS-01
+Verify that a user can successfully register a new account with valid information.
+TS-02
+Verify that a user can successfully log in using valid credentials.
+TS-03
+Verify that the book search functionality returns accurate and relevant results.
+TS-04
+Verify that a user can add books to the shopping cart and update quantities.
+TS-05
+Verify that a user can successfully place an order and complete the checkout process.
+TS-06
+Verify that a user can update their profile information (name, email, password).
+Part 3: Test Cases
+Two Test Scenarios selected (TS-02 and TS-03) with one Positive and one Negative Test Case each.
+Template A: Positive / Happy Path Test Case
+Related Scenario: TS-02 – Verify that a user can successfully log in using valid credentials.
+Field
+Details
+Test Case ID
+TC_AUTH_001
+Title
+Successful Login with Valid Credentials
+Related Scenario
+TS-02
+Preconditions
+1. The BookVerse application is accessible via a supported browser.
+2. A registered user account already exists in the system.
+3. The user is currently logged out.
+Test Steps
+1. Navigate to the BookVerse homepage.
+2. Click on the "Login" button/link.
+3. Enter a valid registered email address in the Email field.
+4. Enter the correct password corresponding to the account.
+5. Click the "Sign In" / "Login" button.
+Test Data
+Email: john.doe@example.com
+Password: SecurePass123!
+Expected Result
+1. The user is successfully authenticated.
+2. The system redirects the user to the homepage or dashboard.
+3. A welcome message or the user's name is displayed.
+4. The Login option is replaced by a Logout option / user menu.
+Template B: Negative / Error Path Test Case
+Related Scenario: TS-02 – Verify that a user can successfully log in using valid credentials.
+Field
+Details
+Test Case ID
+TC_AUTH_002
+Title
+Login Failure with Invalid Password
+Related Scenario
+TS-02
+Preconditions
+1. The BookVerse application is accessible via a supported browser.
+2. A registered user account already exists in the system.
+3. The user is currently logged out.
+Test Steps
+1. Navigate to the BookVerse homepage.
+2. Click on the "Login" button/link.
+3. Enter a valid registered email address in the Email field.
+4. Enter an incorrect password.
+5. Click the "Sign In" / "Login" button.
+Test Data
+Email: john.doe@example.com
+Password: WrongPassword999!  (Invalid/Edge Data)
+Expected Result
+1. The login attempt fails.
+2. An appropriate error message is displayed (e.g., "Invalid email or password").
+3. The user remains on the login page.
+4. No session is created and the user is not granted access to protected pages.
+Additional Positive Test Case (TS-03)
+Related Scenario: TS-03 – Verify that the book search functionality returns accurate and relevant results.
+Field
+Details
+Test Case ID
+TC_SEARCH_001
+Title
+Successful Book Search with Valid Keyword
+Related Scenario
+TS-03
+Preconditions
+1. The BookVerse application is accessible.
+2. The book catalog contains multiple books including titles related to "Harry Potter".
+3. User may be logged in or browsing as a guest.
+Test Steps
+1. Navigate to the BookVerse homepage.
+2. Locate the search bar.
+3. Enter a valid book-related keyword (e.g., "Harry Potter").
+4. Click the Search button or press Enter.
+Test Data
+Search Keyword: Harry Potter
+Expected Result
+1. A list of relevant books matching the keyword is displayed.
+2. Results include titles, authors, prices, and cover images.
+3. The number of results is greater than zero.
+4. Irrelevant books (unrelated to the keyword) are not shown.
+Additional Negative Test Case (TS-03)
+Related Scenario: TS-03 – Verify that the book search functionality returns accurate and relevant results.
+Field
+Details
+Test Case ID
+TC_SEARCH_002
+Title
+Search with No Matching Results (Invalid Keyword)
+Related Scenario
+TS-03
+Preconditions
+1. The BookVerse application is accessible.
+2. The book catalog does not contain any books matching the test keyword.
+Test Steps
+1. Navigate to the BookVerse homepage.
+2. Locate the search bar.
+3. Enter a keyword that does not match any book in the catalog.
+4. Click the Search button or press Enter.
+Test Data
+Search Keyword: xyznonexistentbook999  (Invalid/Edge Data)
+Expected Result
+1. No book results are displayed.
+2. A clear message is shown such as "No results found" or "No books match your search".
+3. The user remains able to perform a new search.
+4. The application does not crash or display an error page.
+Part 4: Reflection
+1. What is the difference between a Test Scenario and a Test Case?
+A Test Scenario is a high-level description of what needs to be tested. It focuses on a particular feature or user action in a broad way (e.g., "Verify that a user can successfully log in using valid credentials"). It answers the question "What should be tested?" In contrast, a Test Case is a detailed, step-by-step set of instructions derived from a Test Scenario. It includes specific preconditions, test steps, test data, and expected results. It answers the questions "How should it be tested?" and "What is the exact expected outcome?" One Test Scenario can generate multiple Test Cases (both positive and negative).
+2. Why is it important to create Test Cases before performing software testing?
+Creating Test Cases before execution ensures that testing is systematic, repeatable, and objective. Well-written Test Cases provide clear guidance on what to test, how to test it, and what the expected results are, which reduces ambiguity and human error during testing. They also serve as documentation for future regression testing, help estimate testing effort, enable better coverage of both positive and negative paths, and allow different testers to execute the same tests consistently. Without predefined Test Cases, testing can become ad-hoc, incomplete, and difficult to track or reproduce.
+3. Which part of the activity was the most challenging and why?
+The most challenging part was designing the Negative Test Cases. While positive (happy path) scenarios are relatively straightforward because they follow the expected successful flow, negative cases require careful consideration of invalid inputs, edge cases, boundary conditions, and potential error messages. It is important to anticipate how the system should respond gracefully to incorrect data without crashing, while still providing useful feedback to the user. Identifying realistic yet meaningful negative data and writing precise expected results for failure paths demanded deeper analysis of the application's validation and error-handling logic.
+— End of Activity 1 —

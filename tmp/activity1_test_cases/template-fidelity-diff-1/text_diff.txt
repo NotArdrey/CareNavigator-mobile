@@ -1,0 +1,187 @@
+--- a
++++ b
+@@ -12,145 +12,107 @@
+ Item
+ Details
+ Application Name
+-BookVerse Online Bookstore
++CareNavigator PH
+ Application Type/Category
+-Web Application / E-Commerce Platform
++Cross-platform Flutter healthcare navigation and care management application (Web and Mobile)
+ Main Features/Modules
+-1. User Registration & Authentication (Login/Logout)
+-2. Book Search & Catalog Browsing
+-3. Shopping Cart Management
+-4. Order Placement & Checkout
++1. Registration, authentication, and role-based workspaces2. Hospital and doctor discovery, maps, and emergency availability3. Consultation requests, reservations, appointments, and secure messaging4. Clinical records, prescriptions, diagnostic results, and hospital administration
+ Part 2: Test Scenarios
+-At least six (6) Test Scenarios for the BookVerse application:
++At least six (6) Test Scenarios for the CareNavigator PH application:
+ Format: TS-XX: Verify that [user action/feature] works correctly.
+ Scenario ID
+ Test Scenario
+ TS-01
+-Verify that a user can successfully register a new account with valid information.
++Verify that a patient can register with valid identity information and complete email verification.
+ TS-02
+-Verify that a user can successfully log in using valid credentials.
++Verify that an active user can sign in with valid credentials and reach the correct role-based workspace.
+ TS-03
+-Verify that the book search functionality returns accurate and relevant results.
++Verify that an authenticated patient can reserve a consultation using an eligible clinician's published, available time slot.
+ TS-04
+-Verify that a user can add books to the shopping cart and update quantities.
++Verify that a public user can search verified, operating hospitals and doctors and view accurate directory and map details.
+ TS-05
+-Verify that a user can successfully place an order and complete the checkout process.
++Verify that an authorized doctor can complete a consultation and save clinical checkup and prescription information for the correct patient.
+ TS-06
+-Verify that a user can update their profile information (name, email, password).
++Verify that route guards and Row Level Security prevent a user from accessing another user's or hospital's protected clinical data.
+ Part 3: Test Cases
+ Two Test Scenarios selected (TS-02 and TS-03) with one Positive and one Negative Test Case each.
+ Template A: Positive / Happy Path Test Case
+-Related Scenario: TS-02 – Verify that a user can successfully log in using valid credentials.
++Related Scenario: TS-02 - Verify that an active user can sign in with valid credentials and reach the correct role-based workspace.
+ Field
+ Details
+ Test Case ID
+ TC_AUTH_001
+ Title
+-Successful Login with Valid Credentials
++Successful Sign-In and Role-Based Redirect
+ Related Scenario
+ TS-02
+ Preconditions
+-1. The BookVerse application is accessible via a supported browser.
+-2. A registered user account already exists in the system.
+-3. The user is currently logged out.
++1. CareNavigator PH is available and connected to the test Supabase project.2. An active patient test account exists.3. The tester is signed out.
+ Test Steps
+-1. Navigate to the BookVerse homepage.
+-2. Click on the "Login" button/link.
+-3. Enter a valid registered email address in the Email field.
+-4. Enter the correct password corresponding to the account.
+-5. Click the "Sign In" / "Login" button.
++1. Open CareNavigator PH.2. Select Sign in.3. Enter the active patient's email address.4. Enter the correct password.5. Select Sign in.
+ Test Data
+-Email: john.doe@example.com
+-Password: SecurePass123!
++Email: qa.patient@carenavigator.testPassword: PatientPass1
+ Expected Result
+-1. The user is successfully authenticated.
+-2. The system redirects the user to the homepage or dashboard.
+-3. A welcome message or the user's name is displayed.
+-4. The Login option is replaced by a Logout option / user menu.
++1. Authentication succeeds and a session is created.2. The user is redirected to the Patient workspace.3. Patient navigation and the user's own scoped data are displayed.4. Doctor and administrator workspaces are not granted.
+ Template B: Negative / Error Path Test Case
+-Related Scenario: TS-02 – Verify that a user can successfully log in using valid credentials.
++Related Scenario: TS-02 - Verify that an active user can sign in with valid credentials and reach the correct role-based workspace.
+ Field
+ Details
+ Test Case ID
+ TC_AUTH_002
+ Title
+-Login Failure with Invalid Password
++Sign-In Rejected for an Incorrect Password
+ Related Scenario
+ TS-02
+ Preconditions
+-1. The BookVerse application is accessible via a supported browser.
+-2. A registered user account already exists in the system.
+-3. The user is currently logged out.
++1. CareNavigator PH is available and connected to the test Supabase project.2. The active patient email exists.3. The tester is signed out.
+ Test Steps
+-1. Navigate to the BookVerse homepage.
+-2. Click on the "Login" button/link.
+-3. Enter a valid registered email address in the Email field.
+-4. Enter an incorrect password.
+-5. Click the "Sign In" / "Login" button.
++1. Open CareNavigator PH and select Sign in.2. Enter the registered patient email.3. Enter an incorrect password.4. Select Sign in.5. Attempt to open /patient/appointments.
+ Test Data
+-Email: john.doe@example.com
+-Password: WrongPassword999!  (Invalid/Edge Data)
++Email: qa.patient@carenavigator.testPassword: WrongPassword999 (invalid data)
+ Expected Result
+-1. The login attempt fails.
+-2. An appropriate error message is displayed (e.g., "Invalid email or password").
+-3. The user remains on the login page.
+-4. No session is created and the user is not granted access to protected pages.
++1. Authentication fails and a clear, safe error message is shown.2. The user remains on the sign-in screen.3. No authenticated session is created.4. The protected route redirects to sign-in and exposes no patient data.
+ Additional Positive Test Case (TS-03)
+-Related Scenario: TS-03 – Verify that the book search functionality returns accurate and relevant results.
++Related Scenario: TS-03 - Verify that an authenticated patient can reserve a consultation using an eligible clinician's published, available time slot.
+ Field
+ Details
+ Test Case ID
+-TC_SEARCH_001
++TC_BOOKING_001
+ Title
+-Successful Book Search with Valid Keyword
++Reserve an In-Person Consultation from a Published Slot
+ Related Scenario
+ TS-03
+ Preconditions
+-1. The BookVerse application is accessible.
+-2. The book catalog contains multiple books including titles related to "Harry Potter".
+-3. User may be logged in or browsing as a guest.
++1. An active patient is signed in and has a complete profile.2. A verified, operating hospital has an eligible doctor.3. The doctor has an unoccupied in-person slot at least 24 hours away.
+ Test Steps
+-1. Navigate to the BookVerse homepage.
+-2. Locate the search bar.
+-3. Enter a valid book-related keyword (e.g., "Harry Potter").
+-4. Click the Search button or press Enter.
++1. Open Patient > Appointments.2. Select Reserve consultation.3. Choose the hospital, clinician, and In person care mode.4. Enter the primary care concern.5. Choose a published date and time, then select Reserve consultation.
+ Test Data
+-Search Keyword: Harry Potter
++Hospital: verified/open test hospitalClinician: eligible doctor with a free slotConcern: Recurring headache for two daysSlot: 48 hours from the fixed test time
+ Expected Result
+-1. A list of relevant books matching the keyword is displayed.
+-2. Results include titles, authors, prices, and cover images.
+-3. The number of results is greater than zero.
+-4. Irrelevant books (unrelated to the keyword) are not shown.
++1. One consultation reservation is created for the signed-in patient.2. It appears in upcoming appointments with the selected hospital, doctor, mode, and time.3. The status and displayed time match the saved server record.4. The occupied slot is no longer offered for another reservation.
+ Additional Negative Test Case (TS-03)
+-Related Scenario: TS-03 – Verify that the book search functionality returns accurate and relevant results.
++Related Scenario: TS-03 - Verify that an authenticated patient can reserve a consultation using an eligible clinician's published, available time slot.
+ Field
+ Details
+ Test Case ID
+-TC_SEARCH_002
++TC_BOOKING_002
+ Title
+-Search with No Matching Results (Invalid Keyword)
++Reservation Blocked When No Qualifying Slot Is Available
+ Related Scenario
+ TS-03
+ Preconditions
+-1. The BookVerse application is accessible.
+-2. The book catalog does not contain any books matching the test keyword.
++1. An active patient is signed in.2. The selected doctor has no unoccupied published slot in the next 30 days that is at least 24 hours away.3. No reservation exists for this attempt.
+ Test Steps
+-1. Navigate to the BookVerse homepage.
+-2. Locate the search bar.
+-3. Enter a keyword that does not match any book in the catalog.
+-4. Click the Search button or press Enter.
++1. Open Patient > Appointments and select Reserve consultation.2. Select the hospital and clinician fixture with no qualifying slots.3. Select In person care mode.4. Review the availability area and the submission control.
+ Test Data
+-Search Keyword: xyznonexistentbook999  (Invalid/Edge Data)
++Clinician fixture: no qualifying future slotsSearch window: next 30 daysMinimum lead time: 24 hours (boundary/edge data)
+ Expected Result
+-1. No book results are displayed.
+-2. A clear message is shown such as "No results found" or "No books match your search".
+-3. The user remains able to perform a new search.
+-4. The application does not crash or display an error page.
++1. No date or time can be selected.2. The app explains that no reservable times are published and states the 24-hour notice rule.3. Reserve consultation is disabled.4. No consultation or duplicate appointment record is created.
+ Part 4: Reflection
+ 1. What is the difference between a Test Scenario and a Test Case?
+-A Test Scenario is a high-level description of what needs to be tested. It focuses on a particular feature or user action in a broad way (e.g., "Verify that a user can successfully log in using valid credentials"). It answers the question "What should be tested?" In contrast, a Test Case is a detailed, step-by-step set of instructions derived from a Test Scenario. It includes specific preconditions, test steps, test data, and expected results. It answers the questions "How should it be tested?" and "What is the exact expected outcome?" One Test Scenario can generate multiple Test Cases (both positive and negative).
++A Test Scenario is a high-level statement of what must be verified, such as whether a CareNavigator PH patient can reserve a consultation. A Test Case explains exactly how to verify that scenario through defined preconditions, test data, numbered actions, and observable expected results. One scenario may therefore produce several positive, negative, boundary, security, and role-based test cases.
+ 2. Why is it important to create Test Cases before performing software testing?
+-Creating Test Cases before execution ensures that testing is systematic, repeatable, and objective. Well-written Test Cases provide clear guidance on what to test, how to test it, and what the expected results are, which reduces ambiguity and human error during testing. They also serve as documentation for future regression testing, help estimate testing effort, enable better coverage of both positive and negative paths, and allow different testers to execute the same tests consistently. Without predefined Test Cases, testing can become ad-hoc, incomplete, and difficult to track or reproduce.
++Creating Test Cases before execution makes the work consistent, repeatable, and measurable. For CareNavigator PH, predefined cases help testers cover clinical workflows, role restrictions, scheduling boundaries, and error handling without relying on memory. They also provide regression evidence after code or database changes, allow different testers to reproduce the same result, and make defects easier to trace to a specific requirement and data condition.
+ 3. Which part of the activity was the most challenging and why?
+-The most challenging part was designing the Negative Test Cases. While positive (happy path) scenarios are relatively straightforward because they follow the expected successful flow, negative cases require careful consideration of invalid inputs, edge cases, boundary conditions, and potential error messages. It is important to anticipate how the system should respond gracefully to incorrect data without crashing, while still providing useful feedback to the user. Identifying realistic yet meaningful negative data and writing precise expected results for failure paths demanded deeper analysis of the application's validation and error-handling logic.
++The most challenging part was defining realistic negative cases for a role-aware healthcare application. A failure may be blocked in the Flutter form, rejected by a repository, denied by Row Level Security, or caused by a time-slot race. The expected result must distinguish these layers while still requiring safe feedback, no duplicate or unauthorized record, and no exposure of clinical data. The 24-hour reservation rule and the no-slot state required especially precise preconditions.
+ — End of Activity 1 —

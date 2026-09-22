@@ -1,0 +1,118 @@
+ACTIVITY 1 – Finals
+Test Scenarios and Test Cases Development
+Course: Software Testing / Software Quality Assurance
+Learning Outcomes
+After completing this activity, you should be able to:
+1. Identify functionalities that require testing in your application.
+2. Create effective Test Scenarios that describe what should be tested.
+3. Develop detailed Test Cases from identified Test Scenarios.
+4. Apply software testing principles to improve software quality.
+Part 1: Application Information 
+Complete the information below:
+Item
+Details
+Application Name
+CareNavigator PH
+Application Type/Category
+Cross-platform Flutter healthcare navigation and care management application (Web and Mobile)
+Main Features/Modules
+1. Registration, authentication, and role-based workspaces2. Hospital and doctor discovery, maps, and emergency availability3. Consultation requests, reservations, appointments, and secure messaging4. Clinical records, prescriptions, diagnostic results, and hospital administration
+Part 2: Test Scenarios
+At least six (6) Test Scenarios for the CareNavigator PH application:
+Format: TS-XX: Verify that [user action/feature] works correctly.
+Scenario ID
+Test Scenario
+TS-01
+Verify that a patient can register with valid identity information and complete email verification.
+TS-02
+Verify that an active user can sign in with valid credentials.
+TS-03
+Verify that a patient can reserve an available consultation slot.
+TS-04
+Verify that a public user can search verified, operating hospitals and doctors and view accurate directory and map details.
+TS-05
+Verify that an authorized doctor can complete a consultation and save clinical checkup and prescription information for the correct patient.
+TS-06
+Verify that route guards and Row Level Security prevent a user from accessing another user's or hospital's protected clinical data.
+Part 3: Test Cases
+Two Test Scenarios selected (TS-02 and TS-03) with one Positive and one Negative Test Case each.
+Template A: Positive / Happy Path Test Case
+Related Scenario: TS-02 - Verify that an active user can sign in with valid credentials.
+Field
+Details
+Test Case ID
+TC_AUTH_001
+Title
+Successful Sign-In and Role-Based Redirect
+Related Scenario
+TS-02
+Preconditions
+1. The test Supabase project is available.2. An active patient account exists.3. The tester is signed out.
+Test Steps
+1. Open CareNavigator PH and select Sign in.2. Enter the active patient's email and correct password.3. Select Sign in.4. Verify the destination workspace.
+Test Data
+Email: qa.patient@carenavigator.testPassword: PatientPass1
+Expected Result
+1. Authentication succeeds and a session is created.2. The user is redirected to the Patient workspace.3. Patient navigation and the user's scoped data appear.4. Doctor and administrator access is not granted.
+Template B: Negative / Error Path Test Case
+Related Scenario: TS-02 - Verify that an active user can sign in with valid credentials.
+Field
+Details
+Test Case ID
+TC_AUTH_002
+Title
+Sign-In Rejected for an Incorrect Password
+Related Scenario
+TS-02
+Preconditions
+1. The test Supabase project is available.2. The active patient email exists.3. The tester is signed out.
+Test Steps
+1. Open CareNavigator PH and select Sign in.2. Enter the patient email and an incorrect password.3. Select Sign in.4. Attempt to open /patient/appointments.
+Test Data
+Email: qa.patient@carenavigator.testPassword: WrongPassword999 (invalid data)
+Expected Result
+1. Authentication fails and a safe error message appears.2. The user remains on the sign-in screen.3. No authenticated session is created.4. The protected route returns to sign-in and exposes no patient data.
+Additional Positive Test Case (TS-03)
+Related Scenario: TS-03 - Verify that a patient can reserve an available consultation slot.
+Field
+Details
+Test Case ID
+TC_BOOKING_001
+Title
+Reserve an In-Person Consultation from a Published Slot
+Related Scenario
+TS-03
+Preconditions
+1. An active patient is signed in with a complete profile.2. A verified, operating hospital has an eligible doctor.3. An unoccupied in-person slot is at least 24 hours away.
+Test Steps
+1. Open Patient > Appointments.2. Select Reserve consultation.3. Choose the hospital, clinician, and In person care mode.4. Enter the primary care concern.5. Choose a published date and time, then select Reserve consultation.
+Test Data
+Hospital: verified/open fixtureClinician: eligible doctorConcern: Recurring headache for two daysSlot: 48 hours ahead
+Expected Result
+1. One reservation is created for the signed-in patient.2. It appears with the selected hospital, doctor, mode, and time.3. Its status and time match the server record.4. The occupied slot is no longer offered.
+Additional Negative Test Case (TS-03)
+Related Scenario: TS-03 - Verify that a patient can reserve an available consultation slot.
+Field
+Details
+Test Case ID
+TC_BOOKING_002
+Title
+Reservation Blocked When No Qualifying Slot Is Available
+Related Scenario
+TS-03
+Preconditions
+1. An active patient is signed in.2. The doctor has no qualifying unoccupied slot in the next 30 days.3. No reservation exists for this attempt.
+Test Steps
+1. Open Patient > Appointments and select Reserve consultation.2. Select the clinician fixture with no qualifying slots.3. Select In person care mode.4. Review the availability area and the submission control.
+Test Data
+Clinician: no qualifying future slotsSearch window: next 30 daysMinimum lead time: 24 hours (boundary/edge data)
+Expected Result
+1. No date or time can be selected.2. The no-slot message states the 24-hour notice rule.3. Reserve consultation is disabled.4. No consultation or duplicate record is created.
+Part 4: Reflection
+1. What is the difference between a Test Scenario and a Test Case?
+A Test Scenario is a high-level statement of what must be verified, such as whether a CareNavigator PH patient can reserve a consultation. A Test Case explains exactly how to verify that scenario through defined preconditions, test data, numbered actions, and observable expected results. One scenario may therefore produce several positive, negative, boundary, security, and role-based test cases.
+2. Why is it important to create Test Cases before performing software testing?
+Creating Test Cases before execution makes the work consistent, repeatable, and measurable. For CareNavigator PH, predefined cases help testers cover clinical workflows, role restrictions, scheduling boundaries, and error handling without relying on memory. They also provide regression evidence after code or database changes, allow different testers to reproduce the same result, and make defects easier to trace to a specific requirement and data condition.
+3. Which part of the activity was the most challenging and why?
+The most challenging part was defining realistic negative cases for a role-aware healthcare application. A failure may be blocked in the Flutter form, rejected by a repository, denied by Row Level Security, or caused by a time-slot race. The expected result must distinguish these layers while still requiring safe feedback, no duplicate or unauthorized record, and no exposure of clinical data. The 24-hour reservation rule and the no-slot state required especially precise preconditions.
+— End of Activity 1 —

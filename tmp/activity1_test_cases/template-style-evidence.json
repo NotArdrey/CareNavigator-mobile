@@ -1,0 +1,168 @@
+{
+  "input": "C:\\Users\\Neila\\Downloads\\Activity1_Test_Scenarios_and_Test_Cases.docx",
+  "fonts_by_char_count": {},
+  "direct_run_formatting_runs": 175,
+  "direct_paragraph_formatting_paragraphs": 60,
+  "heading_like_paragraphs_not_heading_style": [
+    {
+      "para_index": 1,
+      "text": "ACTIVITY 1 \u2013 Finals",
+      "style": "Normal"
+    },
+    {
+      "para_index": 2,
+      "text": "Test Scenarios and Test Cases Development",
+      "style": "Normal"
+    },
+    {
+      "para_index": 37,
+      "text": "Item",
+      "style": "Normal"
+    },
+    {
+      "para_index": 38,
+      "text": "Details",
+      "style": "Normal"
+    },
+    {
+      "para_index": 39,
+      "text": "Application Name",
+      "style": "Normal"
+    },
+    {
+      "para_index": 41,
+      "text": "Application Type/Category",
+      "style": "Normal"
+    },
+    {
+      "para_index": 43,
+      "text": "Main Features/Modules",
+      "style": "Normal"
+    },
+    {
+      "para_index": 48,
+      "text": "Scenario ID",
+      "style": "Normal"
+    },
+    {
+      "para_index": 49,
+      "text": "Test Scenario",
+      "style": "Normal"
+    },
+    {
+      "para_index": 50,
+      "text": "TS-01",
+      "style": "Normal"
+    },
+    {
+      "para_index": 52,
+      "text": "TS-02",
+      "style": "Normal"
+    },
+    {
+      "para_index": 54,
+      "text": "TS-03",
+      "style": "Normal"
+    },
+    {
+      "para_index": 56,
+      "text": "TS-04",
+      "style": "Normal"
+    },
+    {
+      "para_index": 58,
+      "text": "TS-05",
+      "style": "Normal"
+    },
+    {
+      "para_index": 60,
+      "text": "TS-06",
+      "style": "Normal"
+    },
+    {
+      "para_index": 62,
+      "text": "Field",
+      "style": "Normal"
+    },
+    {
+      "para_index": 63,
+      "text": "Details",
+      "style": "Normal"
+    },
+    {
+      "para_index": 64,
+      "text": "Test Case ID",
+      "style": "Normal"
+    },
+    {
+      "para_index": 66,
+      "text": "Title",
+      "style": "Normal"
+    },
+    {
+      "para_index": 68,
+      "text": "Related Scenario",
+      "style": "Normal"
+    }
+  ],
+  "examples": {
+    "direct_paragraph_formatting": [
+      {
+        "para_index": 1,
+        "text": "ACTIVITY 1 \u2013 Finals",
+        "style": "Normal"
+      },
+      {
+        "para_index": 2,
+        "text": "Test Scenarios and Test Cases Development",
+        "style": "Normal"
+      },
+      {
+        "para_index": 3,
+        "text": "Course: Software Testing / Software Quality Assurance",
+        "style": "Normal"
+      },
+      {
+        "para_index": 5,
+        "text": "After completing this activity, you should be able to:",
+        "style": "Normal"
+      },
+      {
+        "para_index": 6,
+        "text": "1. Identify functionalities that require testing in your application.",
+        "style": "Normal"
+      }
+    ],
+    "direct_run_formatting": [
+      {
+        "para_index": 1,
+        "run_text": "ACTIVITY ",
+        "style": "Normal"
+      },
+      {
+        "para_index": 1,
+        "run_text": "1 \u2013 Finals",
+        "style": "Normal"
+      },
+      {
+        "para_index": 2,
+        "run_text": "Test Scenarios and Test Cases Development",
+        "style": "Normal"
+      },
+      {
+        "para_index": 3,
+        "run_text": "Course: Software Testing / Software Quality Assurance",
+        "style": "Normal"
+      },
+      {
+        "para_index": 6,
+        "run_text": "1. Identify functionalities that require testing in your application.",
+        "style": "Normal"
+      }
+    ]
+  },
+  "notes": [
+    "Direct formatting is not always wrong, but it often causes inconsistent output when templates change.",
+    "Heading-like paragraphs not using Heading styles can break TOC and accessibility."
+  ]
+}
