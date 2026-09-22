@@ -376,7 +376,11 @@ class _CareAssistantPanelState extends ConsumerState<_CareAssistantPanel> {
     } else {
       widget.onClose?.call();
     }
-    router.go(location);
+    // Opening a suggested facility is a temporary excursion from the signed-in
+    // workspace. Keep the originating route on the stack so Android's back
+    // action returns to that workspace instead of dropping into public/guest
+    // navigation.
+    router.push(location);
   }
 
   Future<void> _callEmergencyServices() async {

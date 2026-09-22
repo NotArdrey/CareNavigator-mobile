@@ -60,6 +60,92 @@ void main() {
     expect(find.byTooltip('Sign in'), findsNothing);
   });
 
+  testWidgets(
+    'chatbot facility links return to the originating signed-in workspace',
+    (tester) async {
+      final hospital = _publishedHospital();
+      final container = ProviderContainer(
+        overrides: [
+          publicConfigProvider.overrideWithValue(
+            const PublicConfig(
+              supabaseUrl: '',
+              supabasePublishableKey: '',
+              appBaseUrl: '',
+            ),
+          ),
+          appIdentityProvider.overrideWith(
+            _TestAuthenticatedIdentityController.new,
+          ),
+          hospitalRepositoryProvider.overrideWithValue(
+            _PublishedHospitalRepository(hospital),
+          ),
+          careAssistantProvider.overrideWith(
+            () => _RecommendedCareAssistant(hospital.id),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      tester.view.physicalSize = const Size(482, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const CareNavigatorApp(),
+        ),
+      );
+      final router = container.read(appRouterProvider);
+      router.go('/patient');
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('care-assistant-launcher')));
+      await tester.pumpAndSettle();
+      await tester.drag(
+        find.byKey(const Key('care-assistant-messages')),
+        const Offset(0, -650),
+      );
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Show in Maps'));
+      await tester.tap(find.text('Show in Maps'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Hospital map'), findsOneWidget);
+      expect(find.byTooltip('Sign in'), findsNothing);
+      expect(find.text('Appointments'), findsOneWidget);
+      expect(container.read(appIdentityProvider).isAuthenticated, isTrue);
+
+      router.pop();
+      await tester.pumpAndSettle();
+      expect(router.routeInformationProvider.value.uri.path, '/patient');
+      expect(find.text('Your care'), findsOneWidget);
+      expect(container.read(appIdentityProvider).isAuthenticated, isTrue);
+
+      await tester.tap(find.byKey(const Key('care-assistant-launcher')));
+      await tester.pumpAndSettle();
+      await tester.drag(
+        find.byKey(const Key('care-assistant-messages')),
+        const Offset(0, -650),
+      );
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('View facility'));
+      await tester.tap(find.text('View facility'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Back to hospitals'), findsOneWidget);
+      expect(find.byTooltip('Sign in'), findsNothing);
+      expect(find.text('Appointments'), findsOneWidget);
+      expect(container.read(appIdentityProvider).isAuthenticated, isTrue);
+
+      router.pop();
+      await tester.pumpAndSettle();
+      expect(router.routeInformationProvider.value.uri.path, '/patient');
+      expect(find.text('Your care'), findsOneWidget);
+      expect(container.read(appIdentityProvider).isAuthenticated, isTrue);
+    },
+  );
+
   testWidgets('hospital directory exposes loading failure without records', (
     tester,
   ) async {

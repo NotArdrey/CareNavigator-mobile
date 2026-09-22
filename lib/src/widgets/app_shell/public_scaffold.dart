@@ -31,11 +31,11 @@ class PublicScaffold extends ConsumerWidget {
     }
 
     final identity = ref.watch(appIdentityProvider);
-    final isPatientCareDirectory =
+    final isAuthenticatedCareDirectory =
         identity.isAuthenticated &&
-        identity.role == UserRole.patient &&
+        identity.role != UserRole.guest &&
         (currentLocation?.startsWith('/hospitals') ?? false);
-    if (isPatientCareDirectory) {
+    if (isAuthenticatedCareDirectory) {
       final unreadMessageCount =
           ref.watch(unreadMessageCountProvider).asData?.value ?? 0;
       final unreadNotificationCount = ref.watch(
@@ -46,7 +46,8 @@ class PublicScaffold extends ConsumerWidget {
         location: currentLocation!,
         title: 'Find care',
         body: body,
-        onNotifications: () => context.go('/patient/notifications'),
+        onNotifications: () =>
+            context.go('${identity.role.homeLocation}/notifications'),
         unreadMessageCount: unreadMessageCount,
         unreadNotificationCount: unreadNotificationCount,
         onSignOut: () async {
