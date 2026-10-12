@@ -116,7 +116,8 @@ class NotificationPreferences {
         appointmentReminders: json?['appointment_reminders'] as bool? ?? true,
         medicalResults: json?['medical_results'] as bool? ?? true,
         prescriptions: json?['prescriptions'] as bool? ?? true,
-        medicationReminders: json?['medication_reminders'] as bool? ??
+        medicationReminders:
+            json?['medication_reminders'] as bool? ??
             json?['prescriptions'] as bool? ??
             true,
         messages: json?['messages'] as bool? ?? true,
@@ -155,6 +156,7 @@ class NotificationPreferenceUpdate {
     'appointment_reminders': appointmentReminders,
     'medical_results': medicalResults,
     'prescriptions': prescriptions,
+    'medication_reminders': medicationReminders,
     'messages': messages,
     'hospital_alerts': hospitalAlerts,
     'email_enabled': emailEnabled,

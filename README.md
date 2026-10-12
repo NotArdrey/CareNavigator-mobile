@@ -68,3 +68,5 @@ On Windows, use the helper to load only the public Supabase values from `env`:
 The live anonymous contract test intentionally skips in the ordinary suite and is run separately with task-specific test environment variables. UI tests cover production unavailable states and emergency-safe behavior; live seeded-account workflows require a configured test project.
 
 Browser-engine verification remains unavailable on this workstation because the in-app browser reported no connected browser. iOS was not built on Windows. These limitations are stated explicitly in the verification report.
+
+The latest [CRUD and fetching verification report](docs/E2E_CRUD_REPORT_2026-10-12.md) supersedes the earlier browser limitation: desktop Playwright runs now work with Brave. Run `node tool/run_e2e.mjs` from this repository root to exercise the live CRUD/fetching matrix with the owned synthetic actors and automatic cleanup. The hospital cascade/audit correction is deployed, and all eleven live database acceptance suites pass.

@@ -115,6 +115,7 @@ class GuestConsultationState {
     required this.busy,
     required this.resendCount,
     this.requestId,
+    this.emailVerified = false,
   });
 
   final GuestConsultationIntakeDraft draft;
@@ -122,6 +123,7 @@ class GuestConsultationState {
   final bool busy;
   final int resendCount;
   final String? requestId;
+  final bool emailVerified;
 
   GuestConsultationState copyWith({
     GuestConsultationIntakeDraft? draft,
@@ -129,11 +131,13 @@ class GuestConsultationState {
     bool? busy,
     int? resendCount,
     String? requestId,
+    bool? emailVerified,
   }) => GuestConsultationState(
     draft: draft ?? this.draft,
     status: status ?? this.status,
     busy: busy ?? this.busy,
     resendCount: resendCount ?? this.resendCount,
     requestId: requestId ?? this.requestId,
+    emailVerified: emailVerified ?? this.emailVerified,
   );
 }

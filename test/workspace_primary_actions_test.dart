@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:care_navigator_ph/src/features/workspaces/live_workspace_view.dart';
 import 'package:care_navigator_ph/src/models/auth/user_role.dart';
+import 'package:care_navigator_ph/src/models/prescription_order_outcome.dart';
 import 'package:care_navigator_ph/src/providers/core_providers.dart';
 import 'package:care_navigator_ph/src/repositories/admin_repository.dart';
 import 'package:care_navigator_ph/src/repositories/care_repository.dart';
@@ -384,10 +385,8 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Confirm & issue'));
     await tester.pumpAndSettle();
     expect(repository.createdMedicationNames, ['Amoxicillin', 'Paracetamol']);
-    expect(repository.createdPrescriptionAttachments, [
-      'prescription.pdf',
-      null,
-    ]);
+    expect(repository.uploadedFileName, 'prescription.pdf');
+    expect(repository.uploadedReferenceId, 'order-id');
     expect(tester.takeException(), isNull);
   });
 
@@ -857,6 +856,23 @@ class _DialogCareRepository implements CareRepository {
   final List<String?> createdPrescriptionAttachments = [];
 
   @override
+  Future<PrescriptionOrderOutcome> issuePrescriptionOrder({
+    required ClinicalRelationship relationship,
+    required String diagnosisReason,
+    required List<Map<String, Object?>> medications,
+    required String idempotencyKey,
+  }) async {
+    createdMedicationNames.addAll(
+      medications.map((m) => m['medication_name'] as String),
+    );
+    return const PrescriptionOrderOutcome(
+      orderId: 'order-id',
+      medicationIds: ['medication-1', 'medication-2'],
+      notificationStatus: 'queued',
+    );
+  }
+
+  @override
   Future<List<ClinicalRelationship>> listClinicalRelationships() async => [
     relationship,
   ];
@@ -988,10 +1004,10 @@ class _DialogCareRepository implements CareRepository {
   }) async {}
 
   @override
-  Future<void> sendDailyMedicationReminderEmail({
+  Future<String> sendDailyMedicationReminderEmail({
     String? patientId,
     String slot = 'all',
-  }) async {}
+  }) async => 'queued';
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

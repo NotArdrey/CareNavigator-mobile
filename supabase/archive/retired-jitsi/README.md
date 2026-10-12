@@ -1,0 +1,1 @@
+The signed Jitsi join module and its cryptographic tests were retired on 12 October 2026 when the user selected doctor-entered Google Meet links. They are retained as historical implementation evidence and are not deployed or used by the current application.

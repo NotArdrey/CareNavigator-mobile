@@ -1,0 +1,161 @@
+{
+  "verifiedAt": "2026-10-11T23:28:06.732Z",
+  "functions": [
+    {
+      "name": "admin-users",
+      "version": 9,
+      "status": "ACTIVE",
+      "verify_jwt": true,
+      "files": [
+        {
+          "name": "index.ts",
+          "sha256": "a8271227bf5a3c07e8fb7b09e4b8cc927db94b29d2849d60759a31882bc332f7"
+        }
+      ],
+      "remoteKeys": [
+        "id",
+        "slug",
+        "name",
+        "status",
+        "version",
+        "created_at",
+        "updated_at",
+        "verify_jwt",
+        "import_map",
+        "entrypoint_path",
+        "ezbr_sha256",
+        "files"
+      ]
+    },
+    {
+      "name": "analyze-medical-result",
+      "version": 11,
+      "status": "ACTIVE",
+      "verify_jwt": true,
+      "files": [
+        {
+          "name": "index.ts",
+          "sha256": "d5d94625207315a7f6f707293c7cfb78934f90ee8e5e424c7df2161d689e27d8"
+        }
+      ],
+      "remoteKeys": [
+        "id",
+        "slug",
+        "name",
+        "status",
+        "version",
+        "created_at",
+        "updated_at",
+        "verify_jwt",
+        "import_map",
+        "entrypoint_path",
+        "ezbr_sha256",
+        "files"
+      ]
+    },
+    {
+      "name": "analyze-symptoms",
+      "version": 15,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "files": [
+        {
+          "name": "index.ts",
+          "sha256": "73a5c3e9546c435e7a971b3f96f4f83c6e70c9c361b6f0f9d9a7d20baf74badb"
+        }
+      ],
+      "remoteKeys": [
+        "id",
+        "slug",
+        "name",
+        "status",
+        "version",
+        "created_at",
+        "updated_at",
+        "verify_jwt",
+        "import_map",
+        "entrypoint_path",
+        "ezbr_sha256",
+        "files"
+      ]
+    },
+    {
+      "name": "care-workflows",
+      "version": 12,
+      "status": "ACTIVE",
+      "verify_jwt": true,
+      "files": [
+        {
+          "name": "index.ts",
+          "sha256": "cae3ff8d8211e5fc8f2a5af317e031309a588ac5b16924a9e314a2a59e19ad7b"
+        }
+      ],
+      "remoteKeys": [
+        "id",
+        "slug",
+        "name",
+        "status",
+        "version",
+        "created_at",
+        "updated_at",
+        "verify_jwt",
+        "import_map",
+        "entrypoint_path",
+        "ezbr_sha256",
+        "files"
+      ]
+    },
+    {
+      "name": "dispatch-notifications",
+      "version": 14,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "files": [
+        {
+          "name": "index.ts",
+          "sha256": "4dc08d85d1803e1baf4309b9fcb3b5dac208e5d92ad9ab80d4732c473c24d801"
+        }
+      ],
+      "remoteKeys": [
+        "id",
+        "slug",
+        "name",
+        "status",
+        "version",
+        "created_at",
+        "updated_at",
+        "verify_jwt",
+        "import_map",
+        "entrypoint_path",
+        "ezbr_sha256",
+        "files"
+      ]
+    },
+    {
+      "name": "care-navigator-chat",
+      "version": 42,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "files": [
+        {
+          "name": "index.ts",
+          "sha256": "83034179ed02d3637be84c43b59532f933d1a5f0ede65bca37db4223637db2a1"
+        }
+      ],
+      "remoteKeys": [
+        "id",
+        "slug",
+        "name",
+        "status",
+        "version",
+        "created_at",
+        "updated_at",
+        "verify_jwt",
+        "import_map",
+        "entrypoint_path",
+        "ezbr_sha256",
+        "files"
+      ]
+    }
+  ]
+}

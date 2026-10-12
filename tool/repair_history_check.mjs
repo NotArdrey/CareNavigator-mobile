@@ -1,0 +1,15 @@
+import {api,accounts} from './repair_fixture_api.mjs';
+import {sql} from './repair_backend.mjs';
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+const account=accounts.accounts.find(a=>a.role==='patient');
+const user=(await sql(`select id from public.users where auth_user_id='${account.id}'`))[0];
+const id=randomUUID();
+await api('patient','rest/v1/care_assistant_conversations?on_conflict=user_id,id',{id,user_id:user.id,title:'SYNTHETIC HISTORY FIXTURE',is_pinned:false,is_title_edited:false,payload:{messages:[{role:'user',text:'Synthetic test'}]}});
+let rows=await api('patient',`rest/v1/care_assistant_conversations?id=eq.${id}`,undefined,'GET');assert.equal(rows.length,1);
+await api('patient',`rest/v1/care_assistant_conversations?id=eq.${id}`,{title:'SYNTHETIC RENAMED FIXTURE',is_pinned:true,is_title_edited:true},'PATCH');
+rows=await api('patient',`rest/v1/care_assistant_conversations?id=eq.${id}`,undefined,'GET');assert.equal(rows[0].is_pinned,true);assert.equal(rows[0].title,'SYNTHETIC RENAMED FIXTURE');
+rows=await api('guest',`rest/v1/care_assistant_conversations?id=eq.${id}`,undefined,'GET');assert.equal(rows.length,0);
+await api('patient',`rest/v1/care_assistant_conversations?id=eq.${id}`,undefined,'DELETE');
+rows=await api('patient',`rest/v1/care_assistant_conversations?id=eq.${id}`,undefined,'GET');assert.equal(rows.length,0);
+console.log('Conversation save, reload, rename, pin, isolation and deletion: PASS');

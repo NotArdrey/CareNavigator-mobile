@@ -1,0 +1,15 @@
+import {readFile,writeFile} from 'node:fs/promises';
+import {randomUUID} from 'node:crypto';
+import {accounts,api,base,publicKey,sessions} from './repair_fixture_api.mjs';
+const account=accounts.accounts.find(a=>a.role==='patient');
+const [user]=await api('patient',`rest/v1/users?auth_user_id=eq.${account.id}&select=id`,undefined,'GET');
+const [patient]=await api('patient',`rest/v1/patients?user_id=eq.${user.id}&select=id`,undefined,'GET');
+const path=`${patient.id}/${randomUUID()}/synthetic-review-fixture.png`;
+const bytes=await readFile('.codex-runtime/repair-prescription-fixture.png');
+const upload=await fetch(`${base}/storage/v1/object/medical-documents/${path}`,{method:'POST',headers:{apikey:publicKey,Authorization:`Bearer ${sessions.patient}`,'Content-Type':'image/png'},body:bytes});
+if(!upload.ok)throw new Error(`Controlled review upload: HTTP ${upload.status}`);
+const title=`SYNTHETIC REVIEW FIXTURE ${Date.now()}`;
+await api('patient','rest/v1/medical_documents',{patient_id:patient.id,uploaded_by:user.id,document_type:'prescription',title,storage_bucket:'medical-documents',storage_path:path,mime_type:'image/png',size_bytes:bytes.length});
+const [document]=await api('patient',`rest/v1/medical_documents?storage_path=eq.${encodeURIComponent(path)}&select=id,origin_type,review_state`,undefined,'GET');
+await writeFile('.codex-runtime/repair-review-upload-fixture.json',JSON.stringify({document_id:document.id,patient_id:patient.id,path,title},null,2));
+console.log('Fresh owned binary upload prepared for browser review; immutable provenance:',document.origin_type,document.review_state);

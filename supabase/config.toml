@@ -1,0 +1,23 @@
+project_id = "CareNavigatorPh"
+
+[db.seed]
+enabled = true
+sql_paths = ["./baseline/reference_seed.sql", "./baseline/storage_seed.sql"]
+
+[functions.care-navigator-chat]
+verify_jwt = false
+
+[functions.dispatch-notifications]
+verify_jwt = false
+
+[functions.analyze-symptoms]
+verify_jwt = false
+
+[functions.analyze-medical-result]
+verify_jwt = true
+
+[functions.care-workflows]
+verify_jwt = true
+
+[functions.admin-users]
+verify_jwt = true

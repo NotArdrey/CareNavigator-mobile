@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/consultation_scheduling.dart';
+import '../models/submission_key.dart';
 import '../models/guest_consultation_models.dart';
 import '../models/shared/patient_identity.dart';
 import '../repositories/consultation_repository.dart' as consultation;
@@ -13,6 +14,7 @@ final guestConsultationProvider =
     );
 
 class GuestConsultationController extends Notifier<GuestConsultationState> {
+  String? _submissionKey;
   @override
   GuestConsultationState build() => const GuestConsultationState(
     draft: GuestConsultationIntakeDraft(),
@@ -192,15 +194,28 @@ class GuestConsultationController extends Notifier<GuestConsultationState> {
       throw StateError('Consultation service is unavailable.');
     }
     if (state.busy) throw StateError('Verification is already in progress.');
+    if (state.emailVerified &&
+        repository is consultation.SupabaseConsultationRepository &&
+        !repository.hasVerifiedGuestEmail(state.draft.email)) {
+      state = state.copyWith(emailVerified: false);
+      throw StateError(
+        'This verified session has ended or the account changed. Resend a code and verify the request email again. Your intake is saved.',
+      );
+    }
     state = state.copyWith(busy: true);
     try {
-      await repository.verifyGuestEmailCode(
-        email: state.draft.email,
-        otp: code,
-      );
+      if (!state.emailVerified) {
+        await repository.verifyGuestEmailCode(
+          email: state.draft.email,
+          otp: code,
+        );
+        state = state.copyWith(emailVerified: true);
+      }
+      _submissionKey ??= newSubmissionKey();
       final draft = state.draft;
       final requestId = await repository.createGuestRequest(
         consultation.GuestConsultationDraft(
+          idempotencyKey: _submissionKey,
           firstName: draft.firstName,
           lastName: draft.lastName,
           birthDate: draft.birthDate!,
@@ -231,6 +246,7 @@ class GuestConsultationController extends Notifier<GuestConsultationState> {
   }
 
   void reset() {
+    _submissionKey = null;
     state = const GuestConsultationState(
       draft: GuestConsultationIntakeDraft(),
       status: GuestRequestStatus.drafting,

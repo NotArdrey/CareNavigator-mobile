@@ -35,6 +35,8 @@ migrate_working_dir/
 /.codex-runtime/
 /supabase/.temp/
 /temp_pg_script/
+/tool/node_modules/
+/tool/.codex-runtime/
 
 # Local environment files may contain deployment and server-only secrets.
 /env

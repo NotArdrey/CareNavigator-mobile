@@ -1,0 +1,12 @@
+import {env,management} from './repair_backend.mjs';
+const recipient=env.SMTP_TEST_RECIPIENT??env.SMTP_USERNAME;
+if(!recipient||!/^\S+@\S+\.\S+$/.test(recipient))throw new Error('env must contain a controlled SMTP_TEST_RECIPIENT or SMTP_USERNAME');
+const auth=await management('config/auth');
+const appUrl=env.APP_BASE_URL??auth.site_url;
+const base=new URL(appUrl);
+if(!['http:','https:'].includes(base.protocol)||base.username||base.password)throw new Error('Invalid application URL');
+await management('secrets',{method:'POST',body:JSON.stringify([{name:'SMTP_TEST_RECIPIENT',value:recipient},{name:'APP_BASE_URL',value:base.origin}])});
+const urls=new Set((auth.uri_allow_list??'').split(',').filter(Boolean));
+for(const origin of [base.origin,'http://localhost:7357','http://127.0.0.1:7357'])urls.add(`${origin}/reset-password`);
+await management('config/auth',{method:'PATCH',body:JSON.stringify({uri_allow_list:[...urls].join(',')})});
+console.log(`Configured the controlled test recipient from env and application links for ${base.origin}. No SMTP password was restored.`);

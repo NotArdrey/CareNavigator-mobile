@@ -1,7 +1,9 @@
 import 'package:supabase/supabase.dart';
 
+import '../models/booking_outcome.dart';
 import '../models/consultation_scheduling.dart';
 import '../models/consultation_type.dart';
+import '../models/google_meet_link.dart';
 import 'repository_failure.dart';
 
 class GuestConsultationDraft {
@@ -19,6 +21,7 @@ class GuestConsultationDraft {
     this.departmentId,
     this.preferredStart,
     this.consultationType = 'guest_online',
+    this.idempotencyKey,
   });
 
   final String firstName;
@@ -34,6 +37,7 @@ class GuestConsultationDraft {
   final String? departmentId;
   final DateTime? preferredStart;
   final String consultationType;
+  final String? idempotencyKey;
 
   String get fullName => [
     firstName.trim(),
@@ -97,7 +101,7 @@ abstract interface class ConsultationRepository {
     int horizonDays = 30,
   });
 
-  Future<String> reserveConsultation({
+  Future<BookingOutcome> reserveConsultation({
     required String doctorId,
     required String hospitalId,
     required String consultationType,
@@ -130,6 +134,10 @@ abstract interface class ConsultationRepository {
   });
 
   Future<void> ensureVideoRoom(String consultationId);
+  Future<void> setGoogleMeetLink({
+    required String consultationId,
+    required String meetingUrl,
+  });
 
   Future<void> reviewGuestRequest({
     required String requestId,
@@ -153,6 +161,18 @@ abstract interface class ConsultationRepository {
     required String reason,
   });
 
+  Future<Map<String, dynamic>> activateApprovedGuest(String requestId);
+  Future<void> respondOnlineRequest({
+    required String requestId,
+    required String action,
+    String? response,
+  });
+  Future<void> transitionOnlineRequest({
+    required String requestId,
+    required String status,
+    String? notes,
+  });
+
   Future<Uri> getApprovedVideoRoom(String consultationId);
 }
 
@@ -160,6 +180,52 @@ final class SupabaseConsultationRepository implements ConsultationRepository {
   SupabaseConsultationRepository(this._client);
 
   final SupabaseClient _client;
+
+  bool hasVerifiedGuestEmail(String email) =>
+      _client.auth.currentSession != null &&
+      !_client.auth.currentSession!.isExpired &&
+      _client.auth.currentUser?.isAnonymous == false &&
+      _client.auth.currentUser?.emailConfirmedAt != null &&
+      _client.auth.currentUser?.email?.toLowerCase() == email.toLowerCase();
+
+  @override
+  Future<Map<String, dynamic>> activateApprovedGuest(String requestId) =>
+      _client.rpc<Map<String, dynamic>>(
+        'activate_approved_guest',
+        params: {'target_request_id': requestId},
+      );
+
+  @override
+  Future<void> respondOnlineRequest({
+    required String requestId,
+    required String action,
+    String? response,
+  }) async {
+    await _client.rpc(
+      'respond_online_consultation_request',
+      params: {
+        'target_request_id': requestId,
+        'response_action': action,
+        'response_text': response,
+      },
+    );
+  }
+
+  @override
+  Future<void> transitionOnlineRequest({
+    required String requestId,
+    required String status,
+    String? notes,
+  }) async {
+    await _client.rpc(
+      'transition_online_consultation_request',
+      params: {
+        'target_request_id': requestId,
+        'target_status': status,
+        'transition_notes': notes,
+      },
+    );
+  }
 
   @override
   Future<List<AvailableConsultationSlot>> listAvailableSlots({
@@ -218,7 +284,7 @@ final class SupabaseConsultationRepository implements ConsultationRepository {
   }
 
   @override
-  Future<String> reserveConsultation({
+  Future<BookingOutcome> reserveConsultation({
     required String doctorId,
     required String hospitalId,
     required String consultationType,
@@ -247,8 +313,8 @@ final class SupabaseConsultationRepository implements ConsultationRepository {
       );
     }
     try {
-      return await _client.rpc<String>(
-        'book_consultation',
+      final response = await _client.rpc<Map<String, dynamic>>(
+        'book_consultation_v2',
         params: {
           'booking_payload': {
             'doctor_id': normalizedDoctorId,
@@ -265,6 +331,7 @@ final class SupabaseConsultationRepository implements ConsultationRepository {
           },
         },
       );
+      return BookingOutcome.fromJson(response);
     } on PostgrestException catch (error) {
       throw PermissionFailure(
         'The appointment could not be reserved. Confirm that the slot is still published and available at least 24 hours in advance.',
@@ -317,10 +384,11 @@ final class SupabaseConsultationRepository implements ConsultationRepository {
       );
     }
     try {
-      final data = await _client
-          .from('guest_consultation_requests')
-          .insert({
-            'submitted_by': authUser.id,
+      return await _client.rpc<String>(
+        'submit_guest_consultation_request',
+        params: {
+          'idempotency_key': draft.idempotencyKey,
+          'request_payload': {
             'first_name': draft.firstName.trim(),
             'last_name': draft.lastName.trim(),
             'full_name': draft.fullName.trim(),
@@ -340,10 +408,9 @@ final class SupabaseConsultationRepository implements ConsultationRepository {
                 .toIso8601String(),
             'otp_verified_at': DateTime.now().toUtc().toIso8601String(),
             'consent_at': DateTime.now().toUtc().toIso8601String(),
-          })
-          .select('id')
-          .single();
-      return data['id'].toString();
+          },
+        },
+      );
     } on PostgrestException catch (error) {
       throw UnexpectedRepositoryFailure(
         'The consultation request could not be submitted.',
@@ -365,13 +432,12 @@ final class SupabaseConsultationRepository implements ConsultationRepository {
         .from('doctors')
         .select('id,display_name,specialization,department_id')
         .eq('hospital_id', normalizedHospitalId)
-        .neq('availability_status', 'unavailable')
-        .order('display_name');
+        .neq('availability_status', 'unavailable');
     final normalizedDepartmentId = departmentId?.trim();
     if (normalizedDepartmentId != null && normalizedDepartmentId.isNotEmpty) {
       query = query.eq('department_id', normalizedDepartmentId);
     }
-    final rows = await query;
+    final rows = await query.order('display_name');
     return (rows as List)
         .cast<Map<String, dynamic>>()
         .map(
@@ -475,6 +541,31 @@ final class SupabaseConsultationRepository implements ConsultationRepository {
   }
 
   @override
+  Future<void> setGoogleMeetLink({
+    required String consultationId,
+    required String meetingUrl,
+  }) async {
+    if (consultationId.trim().isEmpty) {
+      throw ArgumentError('A confirmed appointment is required.');
+    }
+    final uri = parseGoogleMeetLink(meetingUrl);
+    try {
+      await _client.rpc<String>(
+        'set_consultation_meet_link',
+        params: {
+          'target_consultation_id': consultationId.trim(),
+          'meeting_url': uri.toString(),
+        },
+      );
+    } on PostgrestException catch (error) {
+      throw PermissionFailure(
+        'Only the assigned doctor can set a Google Meet link for a confirmed video appointment.',
+        cause: error,
+      );
+    }
+  }
+
+  @override
   Future<void> ensureVideoRoom(String consultationId) async {
     if (consultationId.trim().isEmpty) {
       throw ArgumentError('A consultation is required to open a video room.');
@@ -486,7 +577,7 @@ final class SupabaseConsultationRepository implements ConsultationRepository {
       );
     } on PostgrestException catch (error) {
       throw PermissionFailure(
-        'The secure video room could not be prepared.',
+        'Add a Google Meet link, then join during the appointment window.',
         cause: error,
       );
     }
@@ -635,23 +726,39 @@ final class SupabaseConsultationRepository implements ConsultationRepository {
       throw ArgumentError('A consultation is required to open a video room.');
     }
     try {
-      final rawUrl = await _client.rpc<String>(
-        'get_approved_video_room',
-        params: {'target_consultation_id': consultationId},
+      final result = await _client.functions.invoke(
+        'care-workflows',
+        body: {
+          'action': 'get_video_join_url',
+          'consultation_id': consultationId,
+        },
       );
-      final uri = Uri.tryParse(rawUrl);
+      final data = result.data;
+      final uri = data is Map
+          ? Uri.tryParse(data['join_url']?.toString() ?? '')
+          : null;
+      final provider = data is Map
+          ? Uri.tryParse(data['provider_origin']?.toString() ?? '')
+          : null;
       if (uri == null ||
+          provider == null ||
           uri.scheme != 'https' ||
-          uri.host != 'meet.jit.si' ||
-          !uri.path.startsWith('/cnph-')) {
+          uri.userInfo.isNotEmpty ||
+          uri.origin != provider.origin ||
+          provider.origin != 'https://meet.google.com') {
         throw const ContractUnavailableFailure(
           'The approved video room returned an invalid address.',
         );
       }
-      return uri;
+      return parseGoogleMeetLink(uri.toString());
+    } on FunctionException catch (error) {
+      throw ContractUnavailableFailure(
+        'The doctor has not added the Google Meet link yet, or the appointment is outside its join window. Refresh and retry.',
+        cause: error,
+      );
     } on PostgrestException catch (error) {
       throw ContractUnavailableFailure(
-        'The video room is not ready or is outside its scheduled join window.',
+        'The doctor has not added the Google Meet link yet, or the appointment is outside its join window. Refresh and retry.',
         cause: error,
       );
     }

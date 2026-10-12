@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../models/consultation_scheduling.dart';
 
 import '../../models/guest_consultation_models.dart';
 import '../../providers/core_providers.dart';
@@ -100,7 +102,9 @@ class _GuestVerificationScreenState
                         maxLength: 6,
                         autofillHints: const [AutofillHints.oneTimeCode],
                         decoration: InputDecoration(
-                          labelText: 'Six-digit email code',
+                          labelText: intake.emailVerified
+                              ? 'Email verified ? retry request submission'
+                              : 'Six-digit email code',
                           prefixIcon: const Icon(Icons.password_outlined),
                           errorText: _verificationError,
                         ),
@@ -110,7 +114,8 @@ class _GuestVerificationScreenState
                           }
                         },
                         validator: (value) =>
-                            RegExp(r'^\d{6}$').hasMatch(value?.trim() ?? '')
+                            intake.emailVerified ||
+                                RegExp(r'^\d{6}$').hasMatch(value?.trim() ?? '')
                             ? null
                             : 'Enter a six-digit code.',
                       ),
@@ -140,7 +145,11 @@ class _GuestVerificationScreenState
                               ),
                               FilledButton(
                                 onPressed: intake.busy ? null : _verify,
-                                child: const Text('Verify and continue'),
+                                child: Text(
+                                  intake.emailVerified
+                                      ? 'Retry submission'
+                                      : 'Verify and continue',
+                                ),
                               ),
                             ],
                           ),
@@ -169,8 +178,11 @@ class _GuestVerificationScreenState
   }
 
   Future<void> _verify() async {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
     final intake = ref.read(guestConsultationProvider);
+    if (!intake.emailVerified &&
+        !(_formKey.currentState?.validate() ?? false)) {
+      return;
+    }
     try {
       final requestId = await ref
           .read(guestConsultationProvider.notifier)
@@ -184,7 +196,9 @@ class _GuestVerificationScreenState
       if (mounted) {
         setState(
           () => _verificationError =
-              'Verification or request submission failed. Check the code and try again.',
+              ref.read(guestConsultationProvider).emailVerified
+              ? 'Email verified. Request submission failed; retry without verifying the code again.'
+              : 'The verification code expired or could not be verified. Request a new code and try again.',
         );
       }
     }
@@ -239,7 +253,7 @@ class GuestConfirmationScreen extends ConsumerWidget {
   }
 }
 
-class _TrackedConfirmation extends StatelessWidget {
+class _TrackedConfirmation extends ConsumerWidget {
   const _TrackedConfirmation({
     required this.requestId,
     required this.data,
@@ -251,7 +265,7 @@ class _TrackedConfirmation extends StatelessWidget {
   final VoidCallback onRefresh;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     String value(String key, [String fallback = 'Not yet assigned']) {
       final resolved = data[key]?.toString().trim();
       return resolved == null || resolved.isEmpty ? fallback : resolved;
@@ -291,7 +305,9 @@ class _TrackedConfirmation extends StatelessWidget {
               label: data['confirmed_schedule'] == null
                   ? 'Preferred schedule'
                   : 'Confirmed schedule',
-              value: DateFormat('MMM d, y • h:mm a').format(schedule.toLocal()),
+              value: DateFormat(
+                'MMM d, y • h:mm a',
+              ).format(manilaWallTime(schedule)),
             ),
           if (data['review_notes']?.toString().trim().isNotEmpty ?? false)
             _ConfirmationLine(
@@ -309,6 +325,67 @@ class _TrackedConfirmation extends StatelessWidget {
             runSpacing: 10,
             alignment: WrapAlignment.center,
             children: [
+              if (data['consultation_id'] != null &&
+                  data['consultation_status'] != 'cancelled') ...[
+                FilledButton.icon(
+                  icon: const Icon(Icons.person_add_alt),
+                  label: const Text('Activate patient account'),
+                  onPressed: () async {
+                    try {
+                      final result = await ref
+                          .read(consultationRepositoryProvider)!
+                          .activateApprovedGuest(requestId);
+                      if (result['status'] != 'active') {
+                        showRootMessage(result['resolution_action'].toString());
+                        return;
+                      }
+                      await ref
+                          .read(appIdentityProvider.notifier)
+                          .refreshIdentity();
+                      ref.invalidate(careProfileProvider);
+                      onRefresh();
+                      showRootMessage(
+                        'Patient account activated. Your existing credentials and clinical history are preserved.',
+                      );
+                    } catch (error) {
+                      showRootMessage(error.toString());
+                    }
+                  },
+                ),
+                if (data['consultation_type'] == 'guest_online' &&
+                    data['consultation_status'] != 'completed')
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.videocam_outlined),
+                    label: const Text('Join Google Meet / retry'),
+                    onPressed: () async {
+                      try {
+                        final uri = await ref
+                            .read(consultationRepositoryProvider)!
+                            .getApprovedVideoRoom(
+                              data['consultation_id'].toString(),
+                            );
+                        if (!await launchUrl(
+                          uri,
+                          mode: LaunchMode.externalApplication,
+                        )) {
+                          showRootMessage(
+                            'Google Meet could not be opened. Try again.',
+                          );
+                        }
+                      } catch (_) {
+                        showRootMessage(
+                          'Google Meet opens 15 minutes before the appointment. If the doctor has not added the link yet, refresh and retry.',
+                        );
+                      }
+                    },
+                  ),
+              ],
+              if (ref.watch(appIdentityProvider).role.name == 'patient')
+                TextButton(
+                  onPressed: () =>
+                      context.go('/reset-password?activation=true'),
+                  child: const Text('Set or update my password'),
+                ),
               OutlinedButton.icon(
                 onPressed: onRefresh,
                 icon: const Icon(Icons.refresh),

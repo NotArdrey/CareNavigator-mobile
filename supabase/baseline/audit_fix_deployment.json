@@ -1,0 +1,23 @@
+{
+  "verifiedAt": "2026-10-12T00:52:32.987Z",
+  "projectRef": "crhsbpkuteyqbxjpozrp",
+  "migration": {
+    "version": "20261012005203",
+    "name": "preserve_audit_during_hospital_delete"
+  },
+  "sourceSha256": "cc75b3bf3c205b624ffb69b8b6d63e49b5ffbc3bf5ecb698225bdfaff5a5102d",
+  "functions": [
+    {
+      "schema": "private",
+      "name": "audit_multi_hospital_change",
+      "sha256": "f7aaef384207a500a1d970cf3d6344e32ce3b080934cf4d5d0844f7d2c5ee042",
+      "privilegesPreserved": true
+    },
+    {
+      "schema": "public",
+      "name": "log_audit_event",
+      "sha256": "81431610c699ec2b593bbb81c133607a61f935c9d956934afe2ea1b3f0f365e3",
+      "privilegesPreserved": true
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 import '../models/hospitals/hospital_models.dart';
 import '../models/consultation_type.dart';
+import '../models/consultation_scheduling.dart';
 import '../models/shared/page_result.dart';
 import 'package:supabase/supabase.dart';
 
@@ -47,6 +48,13 @@ final class SupabaseHospitalRepository implements HospitalRepository {
           .inFilter('operating_status', const ['open', 'limited'])
           .order('hospital_name');
       if (hospitalRows.isEmpty) return const [];
+
+      final eligibleOnlineRows = await _client.rpc(
+        'list_online_booking_hospitals',
+      );
+      final onlineHospitalIds = (eligibleOnlineRows as List)
+          .map((row) => (row as Map)['hospital_id'].toString())
+          .toSet();
 
       final hospitalIds = hospitalRows
           .map((row) => row['id'].toString())
@@ -168,9 +176,14 @@ final class SupabaseHospitalRepository implements HospitalRepository {
         // options.
         final patientSchedules = schedules
             .where(
-              (schedule) => ConsultationType.supported.contains(
-                schedule['consultation_type']?.toString(),
-              ),
+              (schedule) =>
+                  ConsultationType.supported.contains(
+                    schedule['consultation_type']?.toString(),
+                  ) &&
+                  (schedule['consultation_type'] != 'online' ||
+                      onlineHospitalIds.contains(
+                        row['hospital_id'].toString(),
+                      )),
             )
             .toList(growable: false);
         final nextAvailability = _nextAvailability(patientSchedules, now);
@@ -221,9 +234,7 @@ final class SupabaseHospitalRepository implements HospitalRepository {
               departmentIds: departmentIds[hospitalId] ?? const {},
               doctors: doctorsByHospital[hospitalId] ?? const [],
               isAvailable:
-                  (operatingStatus == 'open' || operatingStatus == 'limited') &&
-                  erStatus != 'full' &&
-                  erStatus != 'temporarily_closed',
+                  (operatingStatus == 'open' || operatingStatus == 'limited'),
               estimatedWaitMinutes: null,
               availableBeds: _intValue(emergency?['available_beds']),
               totalBeds: _intValue(emergency?['maximum_capacity']),
@@ -403,6 +414,7 @@ final class SupabaseHospitalRepository implements HospitalRepository {
     List<Map<String, dynamic>> schedules,
     DateTime now,
   ) {
+    final manilaNow = manilaWallTime(now.add(reservationMinimumLeadTime));
     DateTime? earliest;
     for (final schedule in schedules) {
       final databaseDay = _intValue(schedule['day_of_week']);
@@ -413,22 +425,22 @@ final class SupabaseHospitalRepository implements HospitalRepository {
       final minute = int.tryParse(time[1]);
       if (hour == null || minute == null) continue;
       for (var offset = 0; offset < 14; offset++) {
-        final date = now.add(Duration(days: offset));
+        final date = manilaNow.add(Duration(days: offset));
         if (date.weekday != weekday) continue;
-        final candidate = DateTime(
+        final candidate = DateTime.utc(
           date.year,
           date.month,
           date.day,
           hour,
           minute,
         );
-        if (!candidate.isAfter(now)) continue;
+        if (candidate.isBefore(manilaNow)) continue;
         if (earliest == null || candidate.isBefore(earliest)) {
           earliest = candidate;
         }
         break;
       }
     }
-    return earliest;
+    return earliest?.subtract(const Duration(hours: 8));
   }
 }

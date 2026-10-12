@@ -1,6 +1,6 @@
 %% CareNavigator PH core database ERD
 %% Open this .mmd file with the Mermaid Chart extension in VS Code.
-%% Source: live Supabase public-schema catalog and committed migrations (2026-09-02).
+%% Source: live Supabase public-schema catalog and committed migrations (2026-10-11).
 %% Operational tables such as audit_logs, security_logs, notification_outbox,
 %% maintenance_windows, and document-processing jobs are intentionally omitted
 %% so the core business model remains readable.
@@ -65,7 +65,12 @@ erDiagram
     CONSULTATIONS o|--o{ MEDICAL_RECORDS : produces
     CONSULTATIONS o|--o{ DIAGNOSES : confirms
     CONSULTATIONS o|--o{ TREATMENT_PLANS : defines
-    CONSULTATIONS o|--o{ PRESCRIPTIONS : issues
+    CONSULTATIONS o|--o{ PRESCRIPTION_ORDERS : issues
+    PRESCRIPTION_ORDERS ||--|{ PRESCRIPTIONS : contains
+    PATIENTS ||--o{ PRESCRIPTION_ORDERS : receives
+    DOCTORS ||--o{ PRESCRIPTION_ORDERS : signs
+    HOSPITALS ||--o{ PRESCRIPTION_ORDERS : originates
+    MEDICAL_DOCUMENTS o|--o{ MEDICAL_RECORDS : reviewed_source
     CONSULTATIONS o|--o{ LABORATORY_REQUESTS : orders
     CONSULTATIONS o|--o{ LABORATORY_RESULTS : records
     PATIENTS ||--o{ MEDICAL_RECORDS : owns
@@ -75,7 +80,7 @@ erDiagram
     PATIENTS ||--o{ LABORATORY_REQUESTS : receives
     PATIENTS ||--o{ LABORATORY_RESULTS : owns
     PATIENTS ||--o{ MEDICAL_DOCUMENTS : owns
-    HOSPITALS ||--o{ MEDICAL_DOCUMENTS : stores
+    HOSPITALS o|--o{ MEDICAL_DOCUMENTS : stores
     CONSULTATIONS o|--o{ MEDICAL_DOCUMENTS : attaches
 
     %% Communication
@@ -87,24 +92,24 @@ erDiagram
     GUEST_CONSULTATION_REQUESTS o|--o{ NOTIFICATIONS : triggers
 
     ROLES {
-        uuid id PK
-        text name UK
+        int2 id PK
+        text role_name UK
         text description
     }
 
     ROLE_PERMISSIONS {
         uuid id PK
-        uuid role_id FK
-        text permission_key
+        int2 role_id FK
+        text permission
     }
 
     USERS {
         uuid id PK
         uuid auth_user_id UK
-        uuid role_id FK
+        int2 role_id FK
         uuid hospital_id FK
         text email
-        text status
+        account_status account_status
     }
 
     PATIENTS {
@@ -114,6 +119,8 @@ erDiagram
         text patient_number
         text blood_type
         text profile_status
+        account_status account_activation_status
+        timestamptz activated_at
     }
 
     DOCTORS {
@@ -128,14 +135,14 @@ erDiagram
 
     HOSPITAL_CLASSIFICATIONS {
         uuid id PK
-        text name
+        text classification_name
     }
 
     HOSPITALS {
         uuid id PK
         uuid classification_id FK
-        text name
-        text verification_status
+        text hospital_name
+        verification_status verification_status
         text address
         numeric latitude
         numeric longitude
@@ -144,14 +151,14 @@ erDiagram
     HOSPITAL_DEPARTMENTS {
         uuid id PK
         uuid hospital_id FK
-        text name
-        boolean is_active
+        text department_name
+        availability_status availability_status
     }
 
     HEALTHCARE_SERVICE_CATEGORIES {
         uuid id PK
-        text name
-        text slug
+        text category_name
+        text description
     }
 
     HOSPITAL_SERVICES {
@@ -160,7 +167,7 @@ erDiagram
         uuid department_id FK
         uuid category_id FK
         text service_name
-        text availability_status
+        availability_status availability_status
     }
 
     DOCTOR_HOSPITAL_EMPLOYMENTS {
@@ -168,7 +175,7 @@ erDiagram
         uuid doctor_id FK
         uuid hospital_id FK
         text employment_status
-        boolean is_verified
+        bool is_verified
         timestamptz starts_at
         timestamptz ends_at
     }
@@ -176,18 +183,18 @@ erDiagram
     DOCTOR_SCHEDULES {
         uuid id PK
         uuid doctor_id FK
-        smallint day_of_week
+        int2 day_of_week
         time starts_at
         time ends_at
-        text consultation_type
-        integer slot_minutes
+        consultation_type consultation_type
+        int4 slot_minutes
     }
 
     EMERGENCY_ROOM_STATUS {
         uuid id PK
         uuid hospital_id FK
-        text status
-        integer available_beds
+        emergency_room_state status
+        int4 available_beds
         timestamptz last_updated
     }
 
@@ -205,8 +212,10 @@ erDiagram
         uuid preferred_department_id FK
         uuid assigned_doctor_id FK
         text reference_number UK
-        text request_status
+        guest_request_status request_status
         timestamptz preferred_schedule
+        uuid submitted_by FK
+        text submission_key
     }
 
     CONSULTATIONS {
@@ -217,16 +226,17 @@ erDiagram
         uuid hospital_id FK
         uuid department_id FK
         uuid follow_up_of FK
-        text consultation_type
+        consultation_type consultation_type
         timestamptz appointment_date
-        text status
+        consultation_status status
+        text outcome_reason
     }
 
     CONSULTATION_STATUS_HISTORY {
-        bigint id PK
+        int8 id PK
         uuid consultation_id FK
-        text old_status
-        text new_status
+        consultation_status old_status
+        consultation_status new_status
         uuid changed_by FK
         timestamptz created_at
     }
@@ -252,13 +262,17 @@ erDiagram
         uuid official_consultation_id FK
         text reference_number UK
         text request_status
+        text patient_response
+        text contact_attempt_notes
+        text outcome_notes
+        timestamptz confirmed_schedule
     }
 
     ONLINE_CONSULTATION_REQUEST_STATUS_HISTORY {
-        bigint id PK
+        int8 id PK
         uuid request_id FK
-        text old_status
-        text new_status
+        text from_status
+        text to_status
         uuid changed_by FK
         timestamptz created_at
     }
@@ -281,8 +295,8 @@ erDiagram
         uuid source_hospital_id FK
         uuid receiving_hospital_id FK
         text purpose
-        text_array categories
-        text status
+        _text categories
+        bool is_granted
         timestamptz expires_at
     }
 
@@ -302,9 +316,9 @@ erDiagram
         uuid id PK
         uuid grant_id FK
         text record_category
-        boolean can_view
-        boolean can_download
-        boolean can_create
+        bool can_view
+        bool can_download
+        bool can_create
     }
 
     PATIENT_ACCESS_RECORD_SELECTIONS {
@@ -334,6 +348,7 @@ erDiagram
         uuid consultation_id FK
         date record_date
         text record_type
+        uuid source_document_id FK
     }
 
     DIAGNOSES {
@@ -344,7 +359,7 @@ erDiagram
         uuid consultation_id FK
         text diagnosis
         text diagnosis_code
-        boolean is_primary
+        bool is_primary
     }
 
     TREATMENT_PLANS {
@@ -366,8 +381,9 @@ erDiagram
         uuid assignment_id FK
         text medication_name
         text exact_dose
-        text status
+        bool is_prn
         timestamptz electronically_signed_at
+        uuid order_id FK
     }
 
     LABORATORY_REQUESTS {
@@ -389,7 +405,7 @@ erDiagram
         uuid consultation_id FK
         uuid source_document_id FK
         text test_name
-        text review_status
+        medical_result_status verification_status
     }
 
     MEDICAL_DOCUMENTS {
@@ -401,6 +417,10 @@ erDiagram
         uuid author_doctor_id FK
         text document_type
         text storage_path
+        text review_state
+        uuid reviewed_by FK
+        timestamptz reviewed_at
+        text review_rejection_reason
     }
 
     CHAT_CONVERSATIONS {
@@ -408,7 +428,7 @@ erDiagram
         uuid patient_id FK
         uuid doctor_id FK
         uuid consultation_id FK
-        text status
+        conversation_status status
     }
 
     CHAT_MESSAGES {
@@ -434,6 +454,22 @@ erDiagram
         uuid guest_request_id FK
         text notification_type
         text title
-        boolean is_read
+        bool is_read
         timestamptz created_at
+        text email_delivery_status
+    }
+
+    PRESCRIPTION_ORDERS {
+        uuid id PK
+        uuid patient_id FK
+        uuid doctor_id FK
+        uuid hospital_id FK
+        uuid consultation_id FK
+        uuid assignment_id FK
+        uuid issued_by FK
+        timestamptz issued_at
+        text diagnosis_reason
+        text idempotency_key
+        text status
+        bool legacy_import
     }

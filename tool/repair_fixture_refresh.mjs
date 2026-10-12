@@ -1,0 +1,18 @@
+import {readFile,writeFile} from 'node:fs/promises';
+import {accounts,fixture,rpc} from './repair_fixture_api.mjs';
+import {management,env} from './repair_backend.mjs';
+const oldGuest=accounts.accounts.find(a=>a.role==='guest');
+const keys=await management('api-keys');
+const service=keys.find(k=>k.name==='service_role')?.api_key;
+if(!service)throw new Error('Fixture admin API unavailable');
+const email=`repair-guest-repeat-${Date.now()}@example.test`;
+const response=await fetch(`${env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/admin/users`,{method:'POST',headers:{apikey:service,Authorization:`Bearer ${service}`,'Content-Type':'application/json'},body:JSON.stringify({email,password:accounts.password,email_confirm:true,user_metadata:{first_name:'Repair',last_name:'Repeat guest fixture'}})});
+const body=await response.json();if(!response.ok)throw new Error(`Fixture creation HTTP ${response.status}`);
+accounts.additionalAccounts=[...(accounts.additionalAccounts??[]),oldGuest];
+accounts.accounts=accounts.accounts.map(a=>a===oldGuest?{role:'guest',email,id:body.id}:a);
+await writeFile('.codex-runtime/repair-test-accounts.json',JSON.stringify(accounts,null,2));
+const slots=await rpc('patient','list_available_consultation_slots',{target_doctor_id:fixture.id,target_type:'online',horizon_days:14});
+const outcome=await rpc('patient','book_consultation_v2',{booking_payload:{doctor_id:fixture.id,hospital_id:fixture.hospital_id,consultation_type:'online',appointment_date:slots[15].starts_at,chief_complaint:'SYNTHETIC all-category laboratory and prescription fixture',symptom_duration:'One day'}});
+const result=await rpc('hospital_admin','review_online_consultation_request',{target_request_id:outcome.request_id,decision:'confirmed',target_doctor_id:fixture.id,target_confirmed_schedule:slots[15].starts_at,target_channel:'video'});
+await writeFile('.codex-runtime/repair-fixture-lab.json',JSON.stringify(result,null,2));
+console.log('Fresh isolated guest and all-category care fixture prepared.');

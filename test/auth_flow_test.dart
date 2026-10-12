@@ -65,6 +65,31 @@ void main() {
     }
   });
 
+  testWidgets(
+    'expired recovery URLs disable password changes and offer retry',
+    (tester) async {
+      final container = createContainer();
+      addTearDown(container.dispose);
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      for (final location in const [
+        '/reset-password?error_code=otp_expired',
+        '/reset-password#error=access_denied&error_code=otp_expired',
+        '/reset-password?status=expired',
+      ]) {
+        await pumpRoute(tester, container, location);
+        expect(find.text('Request a new recovery link'), findsOneWidget);
+        expect(
+          tester
+              .widget<FilledButton>(
+                find.widgetWithText(FilledButton, 'Update password'),
+              )
+              .onPressed,
+          isNull,
+        );
+      }
+    },
+  );
+
   testWidgets('registration uses the mobile width and compact field layout', (
     tester,
   ) async {

@@ -9,3 +9,7 @@ bool meetsReservationLeadTime(DateTime scheduledFor, {DateTime? now}) {
 
 const reservationLeadTimeMessage =
     'Choose a reservation time at least 24 hours from now.';
+
+// A Manila wall-clock date for comparing recurring hospital schedules.
+DateTime manilaWallTime(DateTime instant) =>
+    instant.toUtc().add(const Duration(hours: 8));

@@ -11,6 +11,8 @@ import '../features/public/hospital_screens.dart';
 import '../features/public/public_home_screen.dart';
 import '../features/workspaces/workspace_screen.dart';
 import '../models/auth/user_role.dart';
+import '../repositories/auth_repository.dart';
+import 'package:supabase/supabase.dart';
 import '../providers/core_providers.dart';
 import 'root_overlay.dart';
 
@@ -18,9 +20,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   late final GoRouter router;
   router = GoRouter(
     navigatorKey: rootNavigatorKey,
-    redirect: (context, state) => _redirect(ref, state),
+    redirect: (context, state) async {
+      // A restored session needs its application role before checking a deep
+      // link. Redirecting the initial guest placeholder loses the target page.
+      if (ref.read(authRepositoryProvider) is SupabaseAuthRepository &&
+          ref.read(authIdentityProvider).isLoading) {
+        await ref.read(authIdentityProvider.future);
+      }
+      return _redirect(ref, state);
+    },
     routes: [
       GoRoute(path: '/', builder: (context, state) => const PublicHomeScreen()),
+      GoRoute(
+        path: '/notification',
+        redirect: (context, state) =>
+            ref.read(appIdentityProvider).isAuthenticated
+            ? '${ref.read(appIdentityProvider).role.routePrefix}/notifications'
+            : '/sign-in',
+      ),
       GoRoute(
         path: '/doctors',
         builder: (context, state) =>
@@ -96,8 +113,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/reset-password',
-        builder: (context, state) =>
-            const AuthFlowScreen(kind: AuthFlowKind.resetPassword),
+        builder: (context, state) => AuthFlowScreen(
+          kind: AuthFlowKind.resetPassword,
+          recoveryExpired:
+              _hasRecoveryError(state.uri) ||
+              state.uri.queryParameters['status'] == 'expired',
+        ),
       ),
       GoRoute(
         path: '/access/restricted',
@@ -166,6 +187,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ),
   );
 
+  final authRepository = ref.read(authRepositoryProvider);
+  if (authRepository is SupabaseAuthRepository) {
+    final subscription = authRepository.authEvents.listen((event) {
+      if (event.event == AuthChangeEvent.passwordRecovery) {
+        router.go('/reset-password');
+      }
+    });
+    ref.onDispose(subscription.cancel);
+  }
   ref.listen(appIdentityProvider, (previous, next) => router.refresh());
   ref.onDispose(router.dispose);
   return router;
@@ -221,6 +251,10 @@ List<GoRoute> _workspaceRoutes(UserRole role, String path) => [
 String? _redirect(Ref ref, GoRouterState state) {
   final identity = ref.read(appIdentityProvider);
   final path = state.uri.path;
+
+  if (path != '/reset-password' && _hasRecoveryError(state.uri)) {
+    return '/reset-password?status=expired';
+  }
 
   if (path == '/patient/files' || path.startsWith('/patient/files/')) {
     return '/patient';
@@ -278,6 +312,15 @@ String? _redirect(Ref ref, GoRouterState state) {
   if (identity.status != AccountStatus.active) return '/access/restricted';
   if (identity.role != protectedRole) return identity.role.homeLocation;
   return null;
+}
+
+bool _hasRecoveryError(Uri uri) {
+  if (uri.queryParameters.containsKey('error') ||
+      uri.queryParameters.containsKey('error_code')) {
+    return true;
+  }
+  return uri.fragment.contains('error=') ||
+      uri.fragment.contains('error_code=');
 }
 
 UserRole? _roleForProtectedPath(String path) {

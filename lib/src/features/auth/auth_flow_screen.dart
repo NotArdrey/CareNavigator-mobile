@@ -15,9 +15,14 @@ import 'auth_validation.dart';
 enum AuthFlowKind { register, verifyOtp, forgotPassword, resetPassword }
 
 class AuthFlowScreen extends ConsumerStatefulWidget {
-  const AuthFlowScreen({super.key, required this.kind});
+  const AuthFlowScreen({
+    super.key,
+    required this.kind,
+    this.recoveryExpired = false,
+  });
 
   final AuthFlowKind kind;
+  final bool recoveryExpired;
 
   @override
   ConsumerState<AuthFlowScreen> createState() => _AuthFlowScreenState();
@@ -80,6 +85,17 @@ class _AuthFlowScreenState extends ConsumerState<AuthFlowScreen> {
                 AuthStatusMessage(message: _errorMessage!, isError: true),
                 const SizedBox(height: 20),
               ],
+              if (widget.recoveryExpired) ...[
+                const AuthStatusMessage(
+                  message:
+                      'This recovery link has expired or is invalid. Request a new link.',
+                  isError: true,
+                ),
+                TextButton(
+                  onPressed: () => context.go('/forgot-password'),
+                  child: const Text('Request a new recovery link'),
+                ),
+              ],
               if (_submitted) ...[
                 AuthStatusMessage(message: _successMessage),
                 const SizedBox(height: 20),
@@ -93,6 +109,7 @@ class _AuthFlowScreenState extends ConsumerState<AuthFlowScreen> {
               AuthPrimaryButton(
                 onPressed:
                     _busy ||
+                        widget.recoveryExpired ||
                         widget.kind == AuthFlowKind.register &&
                             !_privacyAccepted
                     ? null

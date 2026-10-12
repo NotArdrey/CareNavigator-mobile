@@ -34,9 +34,16 @@ abstract interface class AuthRepository {
 }
 
 final class SupabaseAuthRepository implements AuthRepository {
-  SupabaseAuthRepository(this._client);
+  SupabaseAuthRepository(this._client, {this.recoveryBaseUrl});
 
   final SupabaseClient _client;
+  final String? recoveryBaseUrl;
+  Stream<AuthState> get authEvents => _client.auth.onAuthStateChange;
+  bool get hasVerifiedSession =>
+      _client.auth.currentSession != null &&
+      !_client.auth.currentSession!.isExpired &&
+      _client.auth.currentUser?.emailConfirmedAt != null &&
+      _client.auth.currentUser?.isAnonymous == false;
 
   @override
   Future<AppIdentity> signInAnonymously() async {
@@ -148,7 +155,17 @@ final class SupabaseAuthRepository implements AuthRepository {
   @override
   Future<void> requestPasswordReset(String email) async {
     try {
-      await _client.auth.resetPasswordForEmail(email.trim().toLowerCase());
+      final base = Uri.tryParse(recoveryBaseUrl ?? '') ?? Uri.base;
+      final origin = base.hasScheme ? base : Uri.base;
+      final recoveryUrl = ['http', 'https'].contains(origin.scheme)
+          ? origin
+                .replace(path: '/reset-password', query: null, fragment: null)
+                .toString()
+          : null;
+      await _client.auth.resetPasswordForEmail(
+        email.trim().toLowerCase(),
+        redirectTo: recoveryUrl,
+      );
     } on AuthException catch (error) {
       throw AuthenticationFailure(error.message, cause: error);
     }
@@ -156,6 +173,11 @@ final class SupabaseAuthRepository implements AuthRepository {
 
   @override
   Future<void> updatePassword(String password) async {
+    if (!hasVerifiedSession) {
+      throw const AuthenticationFailure(
+        'This recovery link has expired. Request a new password-recovery email.',
+      );
+    }
     try {
       await _client.auth.updateUser(UserAttributes(password: password));
     } on AuthException catch (error) {

@@ -244,15 +244,21 @@ begin
   -- Preparing a server-approved room is distinct from joining it. Once ready,
   -- the patient can obtain the room during the join window before the doctor
   -- has joined.
+  -- Fixture timing changes are transaction-local and roll back; production rules remain active.
+  alter table public.consultations disable trigger enforce_reservation_lead_time;
+  alter table public.consultations disable trigger aa_lock_consultation_reservation;
   update public.consultations
   set appointment_date = now() + interval '5 minutes'
   where id = request_row.official_consultation_id;
+  alter table public.consultations enable trigger enforce_reservation_lead_time;
+  alter table public.consultations enable trigger aa_lock_consultation_reservation;
   perform set_config('request.jwt.claim.sub', doctor_auth::text, true);
-  perform public.ensure_video_session(request_row.official_consultation_id, 'jitsi');
+  perform public.set_consultation_meet_link(request_row.official_consultation_id, 'https://meet.google.com/abc-defg-hij');
+  perform public.ensure_video_session(request_row.official_consultation_id);
   perform set_config('request.jwt.claim.sub', patient_user.auth_user_id::text, true);
   select public.get_approved_video_room(request_row.official_consultation_id)
   into video_url;
-  if video_url !~ '^https://meet[.]jit[.]si/cnph-[0-9a-f]{32}$' then
+  if video_url <> 'https://meet.google.com/abc-defg-hij' then
     raise exception 'Patient could not join a prepared room before the doctor joined';
   end if;
 

@@ -2,6 +2,8 @@ import 'package:intl/intl.dart';
 import 'package:supabase/supabase.dart';
 
 import '../models/auth/user_role.dart';
+import '../models/consultation_scheduling.dart';
+import '../models/prescription_grouping.dart';
 
 abstract interface class WorkspaceRepository {
   Future<WorkspaceSnapshot> load({
@@ -164,7 +166,9 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
         : _appointmentRequestDetailSpec(role, appointmentDetail.kind);
     final spec = requestDetailSpec ?? baseSpec;
     final recordId = requestDetailSpec == null ? itemId : appointmentDetail!.id;
-    final patientId = role == UserRole.patient ? await _currentPatientId() : null;
+    final patientId = role == UserRole.patient
+        ? await _currentPatientId()
+        : null;
     final doctorId = role == UserRole.doctor ? await _currentDoctorId() : null;
     final hospitalId = role == UserRole.hospitalAdministrator
         ? await _currentHospitalId()
@@ -220,7 +224,8 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
       final targetResp = await _client
           .from(spec.table)
           .select(spec.columns)
-          .eq(spec.idColumn, recordId)
+          .or('id.eq.$recordId,order_id.eq.$recordId')
+          .limit(1)
           .maybeSingle();
 
       final targetData = targetResp != null
@@ -232,6 +237,9 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
       dynamic clusterQuery = _client.from(spec.table).select(spec.columns);
       if (effectivePatientId != null) {
         clusterQuery = clusterQuery.eq('patient_id', effectivePatientId);
+      }
+      if (targetData?['order_id'] != null) {
+        clusterQuery = clusterQuery.eq('order_id', targetData!['order_id']);
       }
       final clusterResp = await clusterQuery
           .order(spec.orderColumn ?? 'created_at', ascending: spec.ascending)
@@ -256,26 +264,23 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
       final matched = grouped.firstWhere(
         (g) =>
             g.id == recordId ||
+            g.data['order_id']?.toString() == recordId ||
             (g.data['grouped_medications'] as List?)?.any(
                   (m) =>
                       m is Map &&
-                      (m['id'] == recordId ||
-                          m['id']?.toString() == recordId),
+                      (m['id'] == recordId || m['id']?.toString() == recordId),
                 ) ==
                 true ||
             (g.data['attachment_document'] is Map &&
                 (g.data['attachment_document'] as Map)['id']?.toString() ==
                     recordId),
-        orElse: () => grouped.isNotEmpty
-            ? grouped.first
-            : (targetData != null
-                ? _mapRow(spec.table, targetData)
-                : WorkspaceItem(
-                    id: recordId,
-                    kind: 'prescriptions',
-                    title: 'Prescription',
-                    subtitle: '',
-                  )),
+        orElse: () => WorkspaceItem(
+          id: recordId,
+          kind: 'prescriptions',
+          title: 'Record unavailable',
+          subtitle:
+              'This prescription could not be found or is no longer shared with this account.',
+        ),
       );
       rows = [matched];
     } else {
@@ -338,7 +343,7 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
       dynamic onlineQuery = _client
           .from('online_consultation_requests')
           .select(
-            'id,reference_number,patient_id,profile_first_name,profile_last_name,phone_number_snapshot,hospital_id,requested_department_id,requested_doctor_id,assigned_doctor_id,medical_concern,symptom_duration,preferred_schedule,proposed_schedule,confirmed_schedule,consultation_channel,request_status,official_consultation_id,additional_information_request,rejection_reason,cancellation_reason,created_at,updated_at',
+            'id,reference_number,patient_id,profile_first_name,profile_last_name,phone_number_snapshot,hospital_id,requested_department_id,requested_doctor_id,assigned_doctor_id,medical_concern,symptom_duration,preferred_schedule,proposed_schedule,confirmed_schedule,consultation_channel,request_status,official_consultation_id,additional_information_request,patient_response,contact_attempt_status,contact_attempted_at,contact_attempt_notes,outcome_notes,rejection_reason,cancellation_reason,created_at,updated_at',
           );
       if (role == UserRole.patient && patientId != null) {
         onlineQuery = onlineQuery.eq('patient_id', patientId);
@@ -834,80 +839,25 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
       ),
     );
 
-    final groupedClusters = <List<WorkspaceItem>>[];
-    for (final med in medicationItems) {
-      final medTime = med.timestamp ?? DateTime(1970);
-      final patientId = med.data['patient_id']?.toString() ?? '';
-      final doctorId = med.data['doctor_id']?.toString() ??
-          med.data['prescriber_name']?.toString() ??
-          med.data['doctor_display_name']?.toString() ??
-          '';
-      final consultationId = med.data['consultation_id']?.toString() ?? '';
-
-      List<WorkspaceItem>? targetCluster;
-      for (final cluster in groupedClusters) {
-        final leader = cluster.first;
-        final leaderTime = leader.timestamp ?? DateTime(1970);
-        final leaderPatientId = leader.data['patient_id']?.toString() ?? '';
-        final leaderDoctorId = leader.data['doctor_id']?.toString() ??
-            leader.data['prescriber_name']?.toString() ??
-            leader.data['doctor_display_name']?.toString() ??
-            '';
-        final leaderConsultationId =
-            leader.data['consultation_id']?.toString() ?? '';
-
-        final samePatient = patientId.isEmpty ||
-            leaderPatientId.isEmpty ||
-            patientId == leaderPatientId;
-        final sameDoctor = doctorId.isEmpty ||
-            leaderDoctorId.isEmpty ||
-            doctorId == leaderDoctorId;
-        final sameConsultation = consultationId.isNotEmpty &&
-            consultationId == leaderConsultationId;
-        final timeDifference = (medTime.difference(leaderTime).inSeconds).abs();
-
-        if (samePatient && sameDoctor && (sameConsultation || timeDifference <= 300)) {
-          targetCluster = cluster;
-          break;
-        }
-      }
-
-      if (targetCluster != null) {
-        targetCluster.add(med);
-      } else {
-        groupedClusters.add([med]);
-      }
-    }
+    final groupedClusters = groupPrescriptionOrders(
+      medicationItems,
+      (item) => {'id': item.id, ...item.data},
+    );
 
     final availableDocs = List<WorkspaceItem>.from(documentItems);
     final resultItems = <WorkspaceItem>[];
 
     for (final cluster in groupedClusters) {
       final leader = cluster.first;
-      final leaderTime = leader.timestamp ?? DateTime(1970);
-      final leaderPatientId = leader.data['patient_id']?.toString() ?? '';
-      final leaderDoctorId = leader.data['doctor_id']?.toString() ?? '';
-
       WorkspaceItem? matchedDoc;
       for (var i = 0; i < availableDocs.length; i++) {
-        final doc = availableDocs[i];
-        final docTime = doc.timestamp ?? DateTime(1970);
-        final docPatientId = doc.data['patient_id']?.toString() ?? '';
-        final docDoctorId = doc.data['author_doctor_id']?.toString() ??
-            doc.data['doctor_id']?.toString() ??
-            '';
-
-        final samePatient = leaderPatientId.isEmpty ||
-            docPatientId.isEmpty ||
-            leaderPatientId == docPatientId;
-        final sameDoctor = leaderDoctorId.isEmpty ||
-            docDoctorId.isEmpty ||
-            leaderDoctorId == docDoctorId;
-        final timeDiff = (docTime.difference(leaderTime).inSeconds).abs();
-
-        if (samePatient && sameDoctor && timeDiff <= 300) {
-          matchedDoc = doc;
-          availableDocs.removeAt(i);
+        if (isPrescriptionOrderAttachment(
+          availableDocs[i].data,
+          cluster
+              .map((item) => <String, Object?>{'id': item.id, ...item.data})
+              .toList(),
+        )) {
+          matchedDoc = availableDocs.removeAt(i);
           break;
         }
       }
@@ -915,27 +865,32 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
       final dateStr = leader.timestamp != null
           ? DateFormat('MMM d, y').format(leader.timestamp!.toLocal())
           : 'Prescription';
-      final prescriber = leader.data['prescriber_name']?.toString() ??
+      final prescriber =
+          leader.data['prescriber_name']?.toString() ??
           leader.data['doctor_display_name']?.toString();
-      final hospital = leader.data['hospital_name']?.toString() ??
+      final hospital =
+          leader.data['hospital_name']?.toString() ??
           leader.data['originating_hospital']?.toString();
       final count = cluster.length;
       final countLabel = '$count medication${count == 1 ? '' : 's'}';
 
-      final medSummaries = cluster.map((m) {
-        final name = m.data['medication_name']?.toString() ?? m.title;
-        final dose = m.data['exact_dose']?.toString() ??
-            m.data['dosage']?.toString() ??
-            '';
-        final freq = m.data['frequency']?.toString() ?? '';
-        final dur = m.data['duration']?.toString() ?? '';
-        final parts = [
-          if (dose.isNotEmpty) dose,
-          if (freq.isNotEmpty) freq,
-          if (dur.isNotEmpty) dur,
-        ];
-        return parts.isEmpty ? name : '$name — ${parts.join(' — ')}';
-      }).toList(growable: false);
+      final medSummaries = cluster
+          .map((m) {
+            final name = m.data['medication_name']?.toString() ?? m.title;
+            final dose =
+                m.data['exact_dose']?.toString() ??
+                m.data['dosage']?.toString() ??
+                '';
+            final freq = m.data['frequency']?.toString() ?? '';
+            final dur = m.data['duration']?.toString() ?? '';
+            final parts = [
+              if (dose.isNotEmpty) dose,
+              if (freq.isNotEmpty) freq,
+              if (dur.isNotEmpty) dur,
+            ];
+            return parts.isEmpty ? name : '$name — ${parts.join(' — ')}';
+          })
+          .toList(growable: false);
 
       final headerParts = [
         if (prescriber != null && prescriber.isNotEmpty) prescriber,
@@ -1583,6 +1538,18 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
   Future<List<WorkspaceItem>> _attachConsultationDetails(
     List<WorkspaceItem> consultations,
   ) async {
+    final consultationIds = consultations.map((item) => item.id).toList();
+    final onlineRows = consultationIds.isEmpty
+        ? const <Map<String, dynamic>>[]
+        : (await _client
+                  .from('online_consultation_requests')
+                  .select('official_consultation_id,consultation_channel')
+                  .inFilter('official_consultation_id', consultationIds))
+              .cast<Map<String, dynamic>>();
+    final channels = {
+      for (final row in onlineRows)
+        row['official_consultation_id'].toString(): row['consultation_channel'],
+    };
     final doctorIds = consultations
         .map((item) => item.data['doctor_id']?.toString() ?? '')
         .where((id) => id.isNotEmpty)
@@ -1663,6 +1630,8 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
         item.copyWith(
           data: {
             ...item.data,
+            if (channels.containsKey(item.id))
+              'consultation_channel': channels[item.id],
             'doctor_display_name':
                 doctorNames[item.data['doctor_id']?.toString()],
             'doctor_profile_image_url':
@@ -1801,7 +1770,9 @@ class SupabaseWorkspaceRepository implements WorkspaceRepository {
       ],
       UserRole.guest => const <_WorkspaceTableSpec>[],
     };
-    final patientId = role == UserRole.patient ? await _currentPatientId() : null;
+    final patientId = role == UserRole.patient
+        ? await _currentPatientId()
+        : null;
     final doctorId = role == UserRole.doctor ? await _currentDoctorId() : null;
     final hospitalId = role == UserRole.hospitalAdministrator
         ? await _currentHospitalId()
@@ -2012,7 +1983,7 @@ _WorkspaceTableSpec? _appointmentRequestDetailSpec(UserRole role, String kind) {
       title: 'Appointment Details',
       description: 'Review this appointment request.',
       columns:
-          'id,reference_number,patient_id,profile_first_name,profile_last_name,phone_number_snapshot,hospital_id,requested_department_id,requested_doctor_id,assigned_doctor_id,medical_concern,symptom_duration,preferred_schedule,proposed_schedule,confirmed_schedule,consultation_channel,request_status,official_consultation_id,additional_information_request,rejection_reason,cancellation_reason,created_at,updated_at',
+          'id,reference_number,patient_id,profile_first_name,profile_last_name,phone_number_snapshot,hospital_id,requested_department_id,requested_doctor_id,assigned_doctor_id,medical_concern,symptom_duration,preferred_schedule,proposed_schedule,confirmed_schedule,consultation_channel,request_status,official_consultation_id,additional_information_request,patient_response,contact_attempt_status,contact_attempted_at,contact_attempt_notes,outcome_notes,rejection_reason,cancellation_reason,created_at,updated_at',
       orderColumn: 'created_at',
     );
   }
@@ -2100,7 +2071,8 @@ WorkspaceItem _mapRow(String table, Map<String, dynamic> row) {
       id: id,
       kind: table,
       title: value('title', 'Notification'),
-      subtitle: value('message'),
+      subtitle:
+          '${value('message')}${row['email_delivery_status'] != null && row['email_delivery_status'] != 'disabled' ? '\nEmail: ${value('email_delivery_status')}' : ''}',
       status: row['is_read'] == true ? 'read' : 'unread',
       isUnread: row['is_read'] != true,
       timestamp: timestamp,
@@ -2384,7 +2356,7 @@ bool _appointmentMatchesSchedule(
           schedule['consultation_type']?.toString()) {
     return false;
   }
-  final local = date.toLocal();
+  final local = manilaWallTime(date);
   final day = int.tryParse(schedule['day_of_week']?.toString() ?? '');
   final start = _scheduleTimeMinutes(schedule['starts_at']);
   final end = _scheduleTimeMinutes(schedule['ends_at']);

@@ -30,7 +30,12 @@ final supabaseClientProvider = Provider<SupabaseClient?>((ref) {
 
 final authRepositoryProvider = Provider<AuthRepository?>((ref) {
   final client = ref.watch(supabaseClientProvider);
-  return client == null ? null : SupabaseAuthRepository(client);
+  return client == null
+      ? null
+      : SupabaseAuthRepository(
+          client,
+          recoveryBaseUrl: ref.read(publicConfigProvider).appBaseUrl,
+        );
 });
 
 final hospitalRepositoryProvider = Provider<HospitalRepository?>((ref) {
@@ -197,6 +202,13 @@ class AppIdentityController extends Notifier<AppIdentity> {
       email: email,
       password: password,
     );
+  }
+
+  Future<void> refreshIdentity() async {
+    final repository = ref.read(authRepositoryProvider);
+    if (repository == null) throw StateError('Authentication is unavailable.');
+    state = await repository.watchIdentity().first;
+    ref.invalidate(authIdentityProvider);
   }
 
   Future<void> signOut() async {

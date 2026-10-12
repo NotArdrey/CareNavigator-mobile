@@ -5,6 +5,7 @@ import 'dart:io';
 
 import 'package:care_navigator_ph/src/models/auth/user_role.dart';
 import 'package:care_navigator_ph/src/repositories/profile_repository.dart';
+import 'package:care_navigator_ph/src/repositories/consultation_repository.dart';
 import 'package:care_navigator_ph/src/repositories/workspace_repository.dart';
 import 'package:supabase/supabase.dart';
 import 'package:test/test.dart';
@@ -22,10 +23,40 @@ void main() {
         final client = SupabaseClient(url, key);
         try {
           await client.auth.signInWithPassword(
-            email: account.email,
+            email:
+                Platform
+                    .environment['CNPH_TEST_${account.role.name.toUpperCase()}_EMAIL'] ??
+                account.email,
             password: password,
           );
           final repository = SupabaseWorkspaceRepository(client);
+
+          if (account.role == UserRole.doctor) {
+            final user = await client
+                .from('users')
+                .select('id')
+                .eq('auth_user_id', client.auth.currentUser!.id)
+                .single();
+            final doctor = await client
+                .from('doctors')
+                .select('id,hospital_id,department_id')
+                .eq('user_id', user['id'])
+                .single();
+            final departmentDoctors =
+                await SupabaseConsultationRepository(
+                  client,
+                ).listGuestReviewDoctors(
+                  hospitalId: doctor['hospital_id'] as String,
+                  departmentId: doctor['department_id'] as String,
+                );
+            expect(departmentDoctors.map((d) => d.id), contains(doctor['id']));
+            expect(
+              departmentDoctors.every(
+                (d) => d.departmentId == doctor['department_id'],
+              ),
+              isTrue,
+            );
+          }
 
           final dashboard = await repository.load(role: account.role);
           expect(dashboard.loadedAt, isNotNull);

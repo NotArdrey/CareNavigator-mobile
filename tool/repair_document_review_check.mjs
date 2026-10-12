@@ -1,0 +1,13 @@
+import {readFile} from 'node:fs/promises';
+import assert from 'node:assert/strict';
+import {api,rpc} from './repair_fixture_api.mjs';
+const document=JSON.parse(await readFile('.codex-runtime/repair-upload-fixture.json','utf8'));
+const relationships=await rpc('patient','list_patient_sharing_relationships',{});
+const r=relationships.find(r=>(r.grants??[]).some(g=>g.categories.includes('medical_documents')));
+if(!r)throw new Error('Prepare an active document-sharing test relationship');
+const id=r.id;
+await rpc('patient','share_patient_document_for_review',{target_document_id:document.document_id,target_relationship_id:id});
+await assert.rejects(()=>rpc('guest','share_patient_document_for_review',{target_document_id:document.document_id,target_relationship_id:id}),/HTTP 400/);
+const rows=await api('doctor',`rest/v1/medical_documents?id=eq.${document.document_id}&select=id,origin_type,review_state`,undefined,'GET');
+assert.equal(rows.length,1);assert.equal(rows[0].origin_type,'patient_supplied');
+console.log('Patient-owned document shared to an existing consent scope; scoped doctor can read; unrelated guest rejected.');

@@ -1,0 +1,675 @@
+{
+  "project": "crhsbpkuteyqbxjpozrp",
+  "verifiedAt": "2026-10-11T16:36:28.160Z",
+  "baseline": "20261011100000",
+  "baselineSha256": "7c9bc80960125ba8227977d363dca205af7ca90f3b8eb01a23326a7ecdd423a9",
+  "previous": [
+    {
+      "version": "20260716090000",
+      "name": "initial_carenavigator_schema",
+      "statementsSha256": "e2df044960d9a1c3673c8e2915ae7128a76e195a021eaeb505ba731da9a88b95"
+    },
+    {
+      "version": "20260716103000",
+      "name": "security_hardening_and_audit",
+      "statementsSha256": "3b996670f3e4410539a1572734a014e594f69593c8e5db3d861c7ca3f2a04e90"
+    },
+    {
+      "version": "20260716110000",
+      "name": "private_rls_helpers_and_fk_indexes",
+      "statementsSha256": "f52ebaddb9c036a262a574418a84ce7cbdd29cdc8f87502e4c611c98c57300b6"
+    },
+    {
+      "version": "20260716180000",
+      "name": "flexible_hospital_service_offerings",
+      "statementsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "version": "20260716183000",
+      "name": "atomic_hospital_service_crud",
+      "statementsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "version": "20260716184500",
+      "name": "fix_nullable_primary_service_doctor",
+      "statementsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "version": "20260716200000",
+      "name": "care_lifecycle_and_clinical_integrity",
+      "statementsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "version": "20260716201000",
+      "name": "secure_communication_notifications_and_video",
+      "statementsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "version": "20260716202000",
+      "name": "governance_recommendations_and_analytics",
+      "statementsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "version": "20260716203000",
+      "name": "final_performance_hardening",
+      "statementsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "version": "20260716204000",
+      "name": "notification_clinical_sync_and_reporting",
+      "statementsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "version": "20260716205000",
+      "name": "automated_notification_dispatch",
+      "statementsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "version": "20260716206000",
+      "name": "guest_ai_assessment_access",
+      "statementsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "version": "20260716207000",
+      "name": "harden_guest_assessment_claims",
+      "statementsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "version": "20260716208000",
+      "name": "email_only_delivery",
+      "statementsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "version": "20260719090000",
+      "name": "diversify_demo_hospital_capabilities",
+      "statementsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "version": "20260809083643",
+      "name": "hospital_verification_decisions",
+      "statementsSha256": "6059c283d031b6fa9068d698ea993ec89647b88bbfec372ca54c86d6d91046a4"
+    },
+    {
+      "version": "20260809093124",
+      "name": "harden_hospital_verification_rpc",
+      "statementsSha256": "a03e748a4a3f8212d9f216e8c7319287fb4c3149139856cc8e486cecb27d8697"
+    },
+    {
+      "version": "20260809135054",
+      "name": "registration_profile_address",
+      "statementsSha256": "325bd478914b1831c9c3e0a23c7aa8af8ae985d0047830cd9a379f726ec8f728"
+    },
+    {
+      "version": "20260809151358",
+      "name": "profile_address_geocoding",
+      "statementsSha256": "82b8c8958386e7975c5472d1559fa45144ffe0df93e0dc7936713b29ebac9812"
+    },
+    {
+      "version": "20260810055855",
+      "name": "standardize_patient_identity",
+      "statementsSha256": "9f1b3b4cf5ff4bfa9762b0566abd68f1751b757cb42a579d29167882f73c8015"
+    },
+    {
+      "version": "20260810061012",
+      "name": "standardize_demo_accounts",
+      "statementsSha256": "4c631cd42d184fd158beda5be829ab986446d757384e97a063e3e5b001cea379"
+    },
+    {
+      "version": "20260810062103",
+      "name": "structured_consultation_checkups",
+      "statementsSha256": "75f89f73f793f5ec9a8883c8f14c79a7db40f8760b5a99bc4114cdd0d772c2fa"
+    },
+    {
+      "version": "20260810062931",
+      "name": "seed_demo_checkup_records",
+      "statementsSha256": "a5d9954ff24390ef4510e77ebe2da045417b67e2f8ebce8c86679ded5f4e23a5"
+    },
+    {
+      "version": "20260810063053",
+      "name": "harden_checkup_rpc",
+      "statementsSha256": "7d9ffaba7cec54edc01bab9dde863da5043149206c8a3fd1031b1376b104bd20"
+    },
+    {
+      "version": "20260810063231",
+      "name": "standardize_guest_request_identity",
+      "statementsSha256": "b9d65f8b9b2842ac5ba61ec8f07b9b29303579724a0228c67353afabee429f6e"
+    },
+    {
+      "version": "20260810063536",
+      "name": "link_guest_consultation_patient",
+      "statementsSha256": "cf100290e0b2ad2540213fb2d8c93c4d89304ae17e752d0a79587b419860d418"
+    },
+    {
+      "version": "20260810071423",
+      "name": "seed_demo_primary_hospital",
+      "statementsSha256": "b7a4659eae0fde4b52c0429d7b2b6c870b424f3dcf62ea0a073bd0388c5188fb"
+    },
+    {
+      "version": "20260810175917",
+      "name": "add_item_attachments",
+      "statementsSha256": "df5ae3d9554cdb3e572504d17d0c182d1b178f5b46f666b0babdda6044346f55"
+    },
+    {
+      "version": "20260811073852",
+      "name": "profile_images",
+      "statementsSha256": "f1a4b72863595f9de9181cf996d0a4a8f3d9de1be34755c0ab9f4e35b8bc07a5"
+    },
+    {
+      "version": "20260811073901",
+      "name": "hospital_images",
+      "statementsSha256": "cb37c71f33a174e73ab93ea31919b1c2a54d610fafdb5c4903f4c7c8ca6a5772"
+    },
+    {
+      "version": "20260811073902",
+      "name": "database_image_defaults",
+      "statementsSha256": "d3b39d4fc05404ecb2d7aea6379f809868858f9a50a19c97e56184c2f9383c57"
+    },
+    {
+      "version": "20260811073903",
+      "name": "database_backed_public_content",
+      "statementsSha256": "30282a58d297a03f60ab1709ce9c3be3e4e585a7ff9456f7ed86ce970a6de0e9"
+    },
+    {
+      "version": "20260811074026",
+      "name": "complete_database_profile_images",
+      "statementsSha256": "e8732e775b7cc6b25f065595f338e6bbe8d68b69750cc39a4b4a47bc745b4a37"
+    },
+    {
+      "version": "20260811081538",
+      "name": "hospital_directory_photos",
+      "statementsSha256": "2409065feef4d064acfc0e37524a64426a2618f5aea01ccb7ab8b58e73ab32e1"
+    },
+    {
+      "version": "20260812021635",
+      "name": "harden_scheduled_video_sessions",
+      "statementsSha256": "1458a7351ad6d7e9105d3c88851da9a2cd7fac77e98d1df1445d1480dda4288d"
+    },
+    {
+      "version": "20260812184337",
+      "name": "align_crud_contracts",
+      "statementsSha256": "9f21567ee538d79a24519d95786a3e5b328c6135a8ac4810ef77c1185a7a68f7"
+    },
+    {
+      "version": "20260814133434",
+      "name": "harden_auth_storage_and_patient_linking",
+      "statementsSha256": "38d78d8c921ea7adcc899798a7a7d26181c5a280837c2ac3f3b705fcc7bf1355"
+    },
+    {
+      "version": "20260815083418",
+      "name": "fix_schedule_timezone_comparison",
+      "statementsSha256": "13f5ea379c35701a0f10cc3395d3c4489a3209d5a31c93ec41a8ec04b4ffc0c0"
+    },
+    {
+      "version": "20260815084348",
+      "name": "fix_consultation_checkup_conflict_index",
+      "statementsSha256": "5ae21711c3f5f3377398dee490433b4fc40df3604ec05803b1ab63c939de2eca"
+    },
+    {
+      "version": "20260815085220",
+      "name": "use_shared_schedule_availability_for_patient_booking",
+      "statementsSha256": "476e837277e2354822f5b402e80d01b282286c04880f59f111b4d1772e0fc129"
+    },
+    {
+      "version": "20260823060654",
+      "name": "available_slots_and_richer_demo_data",
+      "statementsSha256": "327bef4046216685c203adc6aec702a87fe135e34325c30b31229e0290ede550"
+    },
+    {
+      "version": "20260823060830",
+      "name": "restrict_available_slots_to_authenticated",
+      "statementsSha256": "e8037f256f3dd092beac96fd11972c8321361df0fcb352432f3e3e27dd09f206"
+    },
+    {
+      "version": "20260823062937",
+      "name": "protect_doctor_uploaded_patient_documents",
+      "statementsSha256": "022261e53a06646e7b8c313411dec2b0a264b90d5b2ec86dec45fc4f92b8206f"
+    },
+    {
+      "version": "20260823083415",
+      "name": "multi_hospital_access_foundation",
+      "statementsSha256": "dac9de9310b8901f4983e5f0dfe52ce6603de989dca9e44123ae3a3abaf24606"
+    },
+    {
+      "version": "20260823084313",
+      "name": "authorization_policy_execution",
+      "statementsSha256": "8e51cd1924747916b1a0ea32a7b51647a53e5a0a99635fcf728bc3e003862ab2"
+    },
+    {
+      "version": "20260823084835",
+      "name": "assignment_replacement_revocation",
+      "statementsSha256": "c4e1fae4d3d40d0d60646c10b138c9b1973db7bd047f9f084c39adb3048f6cb7"
+    },
+    {
+      "version": "20260823085107",
+      "name": "fix_online_cancellation_parameter",
+      "statementsSha256": "f536da1c8a9f9f31f16aa3cc80d90140451f3c5fb022f09a3c44af0a8c5cd36c"
+    },
+    {
+      "version": "20260823085210",
+      "name": "guest_online_slot_mapping",
+      "statementsSha256": "d4c82bd596a9751cab13c2da8e1e521e724cb916f558656e43d3da3c0c9c4c4f"
+    },
+    {
+      "version": "20260823085318",
+      "name": "link_guest_consultation_patient",
+      "statementsSha256": "9fd9d68f11a6379807e868dd74616304e7e0605b767a6a1b101f4c3bc309cdf3"
+    },
+    {
+      "version": "20260823085351",
+      "name": "guest_review_state_bridge",
+      "statementsSha256": "a9994b4bf93c2d5caa7bfcd54538cc3643eb73c8e9e27c3d6be1fb6199696edf"
+    },
+    {
+      "version": "20260823085357",
+      "name": "doctor_document_ai_summaries",
+      "statementsSha256": "66938d4a9c53db29a0c3a7b5b73f73e85f9a34544fbbe68218043ce91afc361f"
+    },
+    {
+      "version": "20260823090302",
+      "name": "drop_legacy_patient_link_rpc",
+      "statementsSha256": "7f96b3bb8f15a607f6375a3d6a1dfb5dabe52d3ee503aefddd96cf4adde8cecc"
+    },
+    {
+      "version": "20260823091232",
+      "name": "harden_video_room_preparation",
+      "statementsSha256": "3ee316cb0b759a1b9031bcba708566f4eeff454a05cd361e3f26706ed660bd51"
+    },
+    {
+      "version": "20260823091534",
+      "name": "allow_word_medical_documents",
+      "statementsSha256": "4a2c4e17e59bf9e7fbf100c90d7104e32bdbdfa1510599bd2f7fb87c410aff6a"
+    },
+    {
+      "version": "20260823093100",
+      "name": "email_consultation_channel",
+      "statementsSha256": "6926fa58601d94f4e79729bab42b6c41286e946711c0e19fde0020df20ff5ea6"
+    },
+    {
+      "version": "20260823093759",
+      "name": "remove_external_hospital_branding",
+      "statementsSha256": "65933b8a5e42328dc52571b3300ef482bdcea76158433f7a264b79f9e1fba687"
+    },
+    {
+      "version": "20260823102742",
+      "name": "global_patient_directory_requests",
+      "statementsSha256": "3f459bec0e8df6a070d38b875f693eb2a3cfbf6615dbb48887164809e0685c49"
+    },
+    {
+      "version": "20260823102821",
+      "name": "secure_patient_connection_request_reads",
+      "statementsSha256": "65570e533694addffaed898b502fa87ee38d9c343d152f975084dd8faf1f9d55"
+    },
+    {
+      "version": "20260823104023",
+      "name": "live_emergency_bed_tracking",
+      "statementsSha256": "5045c41bdc72e9245743c2c7ccdd71f64c857ddfcd41f7f63fd3db4fbfd15ce3"
+    },
+    {
+      "version": "20260823104526",
+      "name": "patient_connection_request_decisions",
+      "statementsSha256": "9c20388fcee0f797a3073c9442fc8950333893c2c98550ed0b35497b1899246b"
+    },
+    {
+      "version": "20260823114528",
+      "name": "structured_diagnostic_results",
+      "statementsSha256": "a3afd1c2ad6468ebaa4c01e2e04cffb0775a9c456978a8a8226573f002a09bbb"
+    },
+    {
+      "version": "20260823125128",
+      "name": "admin_crud_contract_repairs",
+      "statementsSha256": "74a50b9a15cc681d42bedf939fb49aac2509f8b0c742c5e38467e6e324f5649c"
+    },
+    {
+      "version": "20260823144652",
+      "name": "fix_clinical_access_source_hospital_ambiguity",
+      "statementsSha256": "b47154414b1829d006c4ddb7754f701f6cfbd902a3e865f18e861cafe9d7d836"
+    },
+    {
+      "version": "20260823280000",
+      "name": "structured_signed_prescriptions",
+      "statementsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "version": "20260823300000",
+      "name": "persistent_patient_conversations",
+      "statementsSha256": "f2698f52f048444354540b4f8ddf9a342da21f81702819c6de6f44764b87a03a"
+    },
+    {
+      "version": "20260823310000",
+      "name": "assignment_clinical_actions",
+      "statementsSha256": "e1b8bc1917f9cf86cf7cdaf47e0dffab73c21fb96a6ee7083a405acbce0b94ba"
+    },
+    {
+      "version": "20260825082729",
+      "name": "secure_self_service_profile_updates",
+      "statementsSha256": "dc50266b18788bd73af5279deef4afdd7cc8dc157bf8d0602f9514260c7713a9"
+    },
+    {
+      "version": "20260825090736",
+      "name": "allow_super_admin_hospital_updates",
+      "statementsSha256": "8c927aa88db31484ff1b8cc07a570732b575e8ec25db358c43d8abede314558e"
+    },
+    {
+      "version": "20260825091359",
+      "name": "allow_super_admin_hospital_reads",
+      "statementsSha256": "d98e5ab390f8e37ae918c5531d99cc7992640f1202cc0cf80970e2ede8c9175b"
+    },
+    {
+      "version": "20260825201012",
+      "name": "allow_assigned_doctor_document_uploads",
+      "statementsSha256": "6d9be23cca8cea1ff2471c92f11f8750db60dd82313f624c805155d4effbfa2c"
+    },
+    {
+      "version": "20260825203943",
+      "name": "complete_diagnostic_result_extraction",
+      "statementsSha256": "5b93731fa6d0af61e61030ebebff7556715c470994745508d14fbabfb418c5b3"
+    },
+    {
+      "version": "20260825203957",
+      "name": "fix_medical_document_cleanup_authorization",
+      "statementsSha256": "a9fd3e0e17470b23203dfb1efb8b5578ab85cbe5bef5b2ea45c6e9d7762ef48d"
+    },
+    {
+      "version": "20261011150604",
+      "name": "booking_consistency",
+      "statementsSha256": "350556be8250f15262a32c5e97c5d4f007485f11c16edc937a363b4b6eb20141"
+    },
+    {
+      "version": "20261011150805",
+      "name": "online_lifecycle",
+      "statementsSha256": "3023506ad2f9d126bf76c823b15a1b5093102320fa50ad76be0db8aca2f399a4"
+    },
+    {
+      "version": "20261011150918",
+      "name": "guest_activation",
+      "statementsSha256": "feb586190ae69dc8699a5e63b5da4917df1e4ffecd01c29e1168c033dff79c07"
+    },
+    {
+      "version": "20261011151043",
+      "name": "documents_and_orders",
+      "statementsSha256": "9ca11c3add3e83b9a00238676265ee6a4f8fdfbac2ed2cb804fc4308f8e7326f"
+    },
+    {
+      "version": "20261011151213",
+      "name": "notification_delivery",
+      "statementsSha256": "38ae9ead16cf731cb89ecc2077cc591dd8583ec18587e7037cde47c16457d65e"
+    },
+    {
+      "version": "20261011152159",
+      "name": "workflow_guards_and_sharing",
+      "statementsSha256": "238c21cc8fd8a8c488e03d8444bcd4528c23163e605189017dc29ef56412542c"
+    },
+    {
+      "version": "20261011152422",
+      "name": "delivery_status_and_privacy",
+      "statementsSha256": "6c24b6ee295a3637ba79a05d189a22539403986044283a09e7feb6643ea0f29d"
+    },
+    {
+      "version": "20261011152513",
+      "name": "summary_date_guard",
+      "statementsSha256": "557254d00280387b6adb92eca1edb255d09194be7ad270c9a5646a01cbc03057"
+    },
+    {
+      "version": "20261011153437",
+      "name": "selected_document_permissions",
+      "statementsSha256": "a3b98f637b01403db828c6c17b9ccfbeeff76749fb703b99693d6681d700c4fc"
+    },
+    {
+      "version": "20261011154506",
+      "name": "review_and_order_boundaries",
+      "statementsSha256": "530f9065d377700335fa30179354630ed215ff34610528d357e536bfc6316ea5"
+    }
+  ],
+  "events": [
+    {
+      "project": "crhsbpkuteyqbxjpozrp",
+      "verifiedAt": "2026-10-11T17:16:59.987Z",
+      "baseline": "20261011100000",
+      "baselineSha256": "7c9bc80960125ba8227977d363dca205af7ca90f3b8eb01a23326a7ecdd423a9",
+      "active": [
+        {
+          "version": "20261011100000",
+          "name": "application_baseline",
+          "sha256": "7c9bc80960125ba8227977d363dca205af7ca90f3b8eb01a23326a7ecdd423a9"
+        },
+        {
+          "version": "20261011171441",
+          "name": "close_null_video_authorization",
+          "sha256": "f18776aed5e8a023791420eb36ff5a175d5e206e5f5999b58d705c1fe42caac1"
+        }
+      ],
+      "previous": [
+        {
+          "version": "20261011100000",
+          "name": "application_baseline",
+          "statementsSha256": "5bb60ce8a6524278fb5f34c5aea1cf319ca0bc0cf01b44b56e4363733f3aef21"
+        },
+        {
+          "version": "20261011171443",
+          "name": "close_null_video_authorization",
+          "statementsSha256": "a7ee7bbf53307eff4e486f3b178698d8aee71af54a2087add8a694b984f3adde"
+        }
+      ]
+    },
+    {
+      "project": "crhsbpkuteyqbxjpozrp",
+      "verifiedAt": "2026-10-11T17:25:01.169Z",
+      "baseline": "20261011100000",
+      "baselineSha256": "7c9bc80960125ba8227977d363dca205af7ca90f3b8eb01a23326a7ecdd423a9",
+      "active": [
+        {
+          "version": "20261011100000",
+          "name": "application_baseline",
+          "sha256": "7c9bc80960125ba8227977d363dca205af7ca90f3b8eb01a23326a7ecdd423a9"
+        },
+        {
+          "version": "20261011171441",
+          "name": "close_null_video_authorization",
+          "sha256": "f18776aed5e8a023791420eb36ff5a175d5e206e5f5999b58d705c1fe42caac1"
+        },
+        {
+          "version": "20261011172038",
+          "name": "patient_document_review_sharing",
+          "sha256": "0b5b3aa55ec4380107a416540067a89e6bef360392c82f03c92d56163102b78f"
+        }
+      ],
+      "previous": [
+        {
+          "version": "20261011100000",
+          "name": "application_baseline",
+          "statementsSha256": "2b30feb39d44ca881f39a440532eabe5c777305d551134849bb439c0fa4506aa"
+        },
+        {
+          "version": "20261011171441",
+          "name": "close_null_video_authorization",
+          "statementsSha256": "348a33c247f0dcfa6505198675cffc0cfc396a3181fe7e01c3b43ced2c4c01fc"
+        },
+        {
+          "version": "20261011172200",
+          "name": "patient_document_review_sharing",
+          "statementsSha256": "b8d80222c790172d0f9eb4074fdc87a455666183fd6e8629601b8e0e47f4b2b3"
+        }
+      ]
+    },
+    {
+      "project": "crhsbpkuteyqbxjpozrp",
+      "verifiedAt": "2026-10-11T17:33:37.385Z",
+      "baseline": "20261011100000",
+      "baselineSha256": "7c9bc80960125ba8227977d363dca205af7ca90f3b8eb01a23326a7ecdd423a9",
+      "active": [
+        {
+          "version": "20261011100000",
+          "name": "application_baseline",
+          "sha256": "7c9bc80960125ba8227977d363dca205af7ca90f3b8eb01a23326a7ecdd423a9"
+        },
+        {
+          "version": "20261011171441",
+          "name": "close_null_video_authorization",
+          "sha256": "f18776aed5e8a023791420eb36ff5a175d5e206e5f5999b58d705c1fe42caac1"
+        },
+        {
+          "version": "20261011172038",
+          "name": "patient_document_review_sharing",
+          "sha256": "0b5b3aa55ec4380107a416540067a89e6bef360392c82f03c92d56163102b78f"
+        },
+        {
+          "version": "20261011173124",
+          "name": "require_hospital_guest_online_confirmation",
+          "sha256": "5afca1f8781ec808348db40c6df7779bf1469acadba2b9f01a790bdab0c523f6"
+        }
+      ],
+      "previous": [
+        {
+          "version": "20261011100000",
+          "name": "application_baseline",
+          "statementsSha256": "2b30feb39d44ca881f39a440532eabe5c777305d551134849bb439c0fa4506aa"
+        },
+        {
+          "version": "20261011171441",
+          "name": "close_null_video_authorization",
+          "statementsSha256": "348a33c247f0dcfa6505198675cffc0cfc396a3181fe7e01c3b43ced2c4c01fc"
+        },
+        {
+          "version": "20261011172038",
+          "name": "patient_document_review_sharing",
+          "statementsSha256": "b2ed32b19fb20c2e1b7f95b7d4e29b13ef0f7369f1ee2fbf3f6ea49213467170"
+        },
+        {
+          "version": "20261011173126",
+          "name": "require_hospital_guest_online_confirmation",
+          "statementsSha256": "6ff4dabe0544c1224f41466cf947fe088d68ebe0eec0c7f91c1d4fb37edf3efc"
+        }
+      ]
+    },
+    {
+      "project": "crhsbpkuteyqbxjpozrp",
+      "verifiedAt": "2026-10-11T23:27:59.332Z",
+      "baseline": "20261011100000",
+      "baselineSha256": "7c9bc80960125ba8227977d363dca205af7ca90f3b8eb01a23326a7ecdd423a9",
+      "active": [
+        {
+          "version": "20261011100000",
+          "name": "application_baseline",
+          "sha256": "7c9bc80960125ba8227977d363dca205af7ca90f3b8eb01a23326a7ecdd423a9"
+        },
+        {
+          "version": "20261011171441",
+          "name": "close_null_video_authorization",
+          "sha256": "f18776aed5e8a023791420eb36ff5a175d5e206e5f5999b58d705c1fe42caac1"
+        },
+        {
+          "version": "20261011172038",
+          "name": "patient_document_review_sharing",
+          "sha256": "0b5b3aa55ec4380107a416540067a89e6bef360392c82f03c92d56163102b78f"
+        },
+        {
+          "version": "20261011173124",
+          "name": "require_hospital_guest_online_confirmation",
+          "sha256": "5afca1f8781ec808348db40c6df7779bf1469acadba2b9f01a790bdab0c523f6"
+        },
+        {
+          "version": "20261011231128",
+          "name": "doctor_google_meet_links",
+          "sha256": "80f75c14c7f5d1acd41d1ef6918bbb42978d2ca06808f0c741081a3070aa6707"
+        }
+      ],
+      "previous": [
+        {
+          "version": "20261011100000",
+          "name": "application_baseline",
+          "statementsSha256": "2b30feb39d44ca881f39a440532eabe5c777305d551134849bb439c0fa4506aa"
+        },
+        {
+          "version": "20261011171441",
+          "name": "close_null_video_authorization",
+          "statementsSha256": "348a33c247f0dcfa6505198675cffc0cfc396a3181fe7e01c3b43ced2c4c01fc"
+        },
+        {
+          "version": "20261011172038",
+          "name": "patient_document_review_sharing",
+          "statementsSha256": "b2ed32b19fb20c2e1b7f95b7d4e29b13ef0f7369f1ee2fbf3f6ea49213467170"
+        },
+        {
+          "version": "20261011173124",
+          "name": "require_hospital_guest_online_confirmation",
+          "statementsSha256": "d69fd7e1506215bade12d56bcf6f05499deefa97295da4994169136265a1a757"
+        },
+        {
+          "version": "20261011232423",
+          "name": "doctor_google_meet_links",
+          "statementsSha256": "7f4f8dae8d6ae0c7e09d357b33d3a4157d605277113634fee13d246e424d116e"
+        }
+      ]
+    },
+    {
+      "project": "crhsbpkuteyqbxjpozrp",
+      "verifiedAt": "2026-10-11T23:31:22.826Z",
+      "baseline": "20261011100000",
+      "baselineSha256": "7c9bc80960125ba8227977d363dca205af7ca90f3b8eb01a23326a7ecdd423a9",
+      "active": [
+        {
+          "version": "20261011100000",
+          "name": "application_baseline",
+          "sha256": "7c9bc80960125ba8227977d363dca205af7ca90f3b8eb01a23326a7ecdd423a9"
+        },
+        {
+          "version": "20261011171441",
+          "name": "close_null_video_authorization",
+          "sha256": "f18776aed5e8a023791420eb36ff5a175d5e206e5f5999b58d705c1fe42caac1"
+        },
+        {
+          "version": "20261011172038",
+          "name": "patient_document_review_sharing",
+          "sha256": "0b5b3aa55ec4380107a416540067a89e6bef360392c82f03c92d56163102b78f"
+        },
+        {
+          "version": "20261011173124",
+          "name": "require_hospital_guest_online_confirmation",
+          "sha256": "5afca1f8781ec808348db40c6df7779bf1469acadba2b9f01a790bdab0c523f6"
+        },
+        {
+          "version": "20261011231128",
+          "name": "doctor_google_meet_links",
+          "sha256": "80f75c14c7f5d1acd41d1ef6918bbb42978d2ca06808f0c741081a3070aa6707"
+        },
+        {
+          "version": "20261011232923",
+          "name": "meet_link_assignment_guard",
+          "sha256": "51c3ca4e6a2091304683a2cbc461d7b35ac0e56ed3271d38b43228e80b484b0b"
+        }
+      ],
+      "previous": [
+        {
+          "version": "20261011100000",
+          "name": "application_baseline",
+          "statementsSha256": "2b30feb39d44ca881f39a440532eabe5c777305d551134849bb439c0fa4506aa"
+        },
+        {
+          "version": "20261011171441",
+          "name": "close_null_video_authorization",
+          "statementsSha256": "348a33c247f0dcfa6505198675cffc0cfc396a3181fe7e01c3b43ced2c4c01fc"
+        },
+        {
+          "version": "20261011172038",
+          "name": "patient_document_review_sharing",
+          "statementsSha256": "b2ed32b19fb20c2e1b7f95b7d4e29b13ef0f7369f1ee2fbf3f6ea49213467170"
+        },
+        {
+          "version": "20261011173124",
+          "name": "require_hospital_guest_online_confirmation",
+          "statementsSha256": "d69fd7e1506215bade12d56bcf6f05499deefa97295da4994169136265a1a757"
+        },
+        {
+          "version": "20261011231128",
+          "name": "doctor_google_meet_links",
+          "statementsSha256": "81159941d5f018ffd2245b657df5153a5b0fb0fd2e4211f783af2c1279c50bfa"
+        },
+        {
+          "version": "20261011233116",
+          "name": "meet_link_assignment_guard",
+          "statementsSha256": "e30dce83e933132e22eac6e352ea0f8f36744e3fedfd15a42b98507a47c4abfe"
+        }
+      ]
+    }
+  ]
+}

@@ -8,9 +8,14 @@ import 'package:file_selector/file_selector.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:supabase/supabase.dart' show PostgrestException;
+import '../../models/prescription_order_outcome.dart';
+import '../../models/google_meet_link.dart';
 
 import '../../models/auth/user_role.dart';
 import '../../models/clinical_checkup.dart';
+import '../../models/submission_key.dart';
+import '../../models/prescription_grouping.dart';
 import '../../models/consultation_scheduling.dart';
 import '../../models/consultation_type.dart';
 import '../../models/hospitals/hospital_models.dart';
@@ -66,6 +71,7 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
   String? _handledReservationIntent;
   WorkspaceSnapshot? _expandedSnapshot;
   bool _loadingMore = false;
+  _PrescriptionDraft? _pendingPrescriptionDraft;
 
   WorkspaceRequest get _request =>
       (role: widget.role, section: _dataSection, itemId: widget.itemId);
@@ -210,12 +216,14 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
                       id: item.id,
                       kind: 'notifications',
                       title: item.title,
-                      subtitle: item.message,
+                      subtitle:
+                          '${item.message}${item.emailDeliveryStatus != 'disabled' ? '\nEmail: ${item.emailDeliveryStatus}' : ''}',
                       status: item.isRead ? 'read' : 'unread',
                       timestamp: item.createdAt,
                       isUnread: !item.isRead,
                       data: {
                         'notification_type': item.type,
+                        'email_delivery_status': item.emailDeliveryStatus,
                         'title': item.title,
                         'message': item.message,
                         'is_read': item.isRead,
@@ -1286,7 +1294,24 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
             icon: const Icon(Icons.download_outlined, size: 18),
             label: const Text('Download'),
           ),
+          if (widget.role == UserRole.doctor &&
+              item.data['origin_type'] == 'patient_supplied' &&
+              item.data['review_state'] == 'unreviewed') ...[
+            TextButton(
+              onPressed: () => _reviewPatientDocument(item, 'approved'),
+              child: const Text('Approve supporting document'),
+            ),
+            TextButton(
+              onPressed: () => _reviewPatientDocument(item, 'rejected'),
+              child: const Text('Reject document'),
+            ),
+          ],
           if (canManage) ...[
+            if (item.data['origin_type'] == 'patient_supplied')
+              TextButton(
+                onPressed: () => _sharePatientDocument(item),
+                child: const Text('Share for doctor review'),
+              ),
             IconButton(
               tooltip: 'Edit file title',
               onPressed: _busyItems.contains(item.id)
@@ -1305,52 +1330,22 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
         ],
       );
     }
+    if (item.kind == 'prescriptions' &&
+        widget.role == UserRole.doctor &&
+        item.data['order_id'] != null) {
+      return TextButton.icon(
+        onPressed: _busyItems.contains(item.id)
+            ? null
+            : () => _attachPrescriptionOrder(item),
+        icon: const Icon(Icons.attach_file),
+        label: const Text('Attach document'),
+      );
+    }
     if (item.kind == 'consultations') {
       return _consultationActions(item);
     }
     if (item.kind == 'online_consultation_requests') {
-      if (widget.role == UserRole.patient &&
-          !{
-            'completed',
-            'rejected',
-            'cancelled',
-            'no_show',
-            'in_progress',
-          }.contains(item.status)) {
-        return TextButton.icon(
-          onPressed: _busyItems.contains(item.id)
-              ? null
-              : () => _cancelOnlineRequest(item),
-          icon: const Icon(Icons.cancel_outlined, size: 18),
-          label: const Text('Cancel request'),
-        );
-      }
-      if (widget.role == UserRole.hospitalAdministrator &&
-          {
-            'submitted',
-            'under_review',
-            'more_information_required',
-            'schedule_proposed',
-          }.contains(item.status)) {
-        return Wrap(
-          spacing: AppSpacing.x2,
-          children: [
-            TextButton(
-              onPressed: _busyItems.contains(item.id)
-                  ? null
-                  : () => _reviewOnlineRequest(item, approve: false),
-              child: const Text('Reject'),
-            ),
-            FilledButton(
-              onPressed: _busyItems.contains(item.id)
-                  ? null
-                  : () => _reviewOnlineRequest(item, approve: true),
-              child: const Text('Confirm request'),
-            ),
-          ],
-        );
-      }
-      return null;
+      return _onlineRequestActions(item);
     }
     if (widget.role == UserRole.doctor &&
         widget.section == 'patients' &&
@@ -1368,7 +1363,8 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
         {'otp_verified', 'pending_doctor_review'}.contains(item.status)) {
       final assignedDoctor = item.data['assigned_doctor_id']?.toString();
       final canApprove =
-          widget.role == UserRole.doctor ||
+          (widget.role == UserRole.doctor &&
+              item.data['preferred_consultation_type'] == 'face_to_face') ||
           widget.role == UserRole.hospitalAdministrator;
       return Wrap(
         spacing: AppSpacing.x2,
@@ -1386,6 +1382,8 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
                 ? 'Choose an eligible doctor before approval'
                 : canApprove
                 ? 'Approve and schedule request'
+                : item.data['preferred_consultation_type'] == 'guest_online'
+                ? 'Hospital confirmation is required for this online guest request'
                 : 'This request is assigned to another doctor',
             child: FilledButton(
               onPressed: !canApprove || _busyItems.contains(item.id)
@@ -1486,6 +1484,8 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
   Widget? _consultationActions(WorkspaceItem item) {
     final status = item.status?.toLowerCase() ?? '';
     final online = item.subtitle.toLowerCase().contains('online');
+    final channel = item.data['consultation_channel']?.toString();
+    final video = online && (channel == null || channel == 'video');
     final appointmentDate = DateTime.tryParse(
       item.data['appointment_date']?.toString() ?? '',
     );
@@ -1493,19 +1493,32 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
         appointmentDate != null &&
         isConsultationJoinWindowOpen(appointmentDate);
     final actions = <Widget>[];
-    if (online && {'approved', 'scheduled', 'in_progress'}.contains(status)) {
+    if (video && {'approved', 'scheduled', 'in_progress'}.contains(status)) {
       actions.add(
         Tooltip(
           message: joinWindowOpen
-              ? 'Open the secure video room'
+              ? 'Open the doctor’s Google Meet link'
               : 'Available 15 minutes before the appointment',
           child: TextButton.icon(
             onPressed: _busyItems.contains(item.id) || !joinWindowOpen
                 ? null
                 : () => _joinConsultation(item),
             icon: const Icon(Icons.video_call_outlined, size: 18),
-            label: const Text('Join'),
+            label: const Text('Join Google Meet'),
           ),
+        ),
+      );
+    }
+    if (video &&
+        widget.role == UserRole.doctor &&
+        {'approved', 'scheduled', 'in_progress'}.contains(status)) {
+      actions.add(
+        TextButton.icon(
+          onPressed: _busyItems.contains(item.id)
+              ? null
+              : () => _setGoogleMeetLink(item),
+          icon: const Icon(Icons.link, size: 18),
+          label: const Text('Set Google Meet link'),
         ),
       );
     }
@@ -1805,79 +1818,199 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
       // The dialog still opens so the clinician can see which profile detail
       // must be completed before issuance.
     }
-    final draft = await showRootDialog<_PrescriptionDraft>(
-      barrierDismissible: false,
-      builder: (context) => _PrescriptionDialog(
-        relationships: relationships,
-        repository: repository,
-        prescriber: prescriber,
-        showRelationshipField: selectedPatient == null,
-      ),
-    );
+    final draft =
+        _pendingPrescriptionDraft ??
+        await showRootDialog<_PrescriptionDraft>(
+          barrierDismissible: false,
+          builder: (context) => _PrescriptionDialog(
+            relationships: relationships,
+            repository: repository,
+            prescriber: prescriber,
+            showRelationshipField: selectedPatient == null,
+          ),
+        );
     if (draft == null) return;
-    for (var index = 0; index < draft.medications.length; index++) {
-      final medication = draft.medications[index];
-      await repository.createPrescription(
+    _pendingPrescriptionDraft = draft;
+    late final PrescriptionOrderOutcome outcome;
+    try {
+      outcome = await repository.issuePrescriptionOrder(
         relationship: draft.relationship,
-        medicationName: medication.medicationName,
-        dosage: medication.exactDose,
-        frequency: medication.frequency,
-        duration: medication.duration,
         diagnosisReason: draft.diagnosisReason,
-        medicationFormStrength: medication.medicationFormStrength,
-        route: medication.route,
-        exactDose: medication.exactDose,
-        quantityToDispense: medication.quantityToDispense,
-        refills: medication.refills,
-        startDate: medication.startDate,
-        endDate: medication.endDate,
-        isPrn: medication.isPrn,
-        prnReason: medication.prnReason,
-        maximumDailyDose: medication.maximumDailyDose,
-        instructions: medication.instructions,
-        attachment: index == 0 ? draft.attachment : null,
+        idempotencyKey: draft.idempotencyKey,
+        medications: draft.medications
+            .map(
+              (m) => <String, Object?>{
+                'medication_name': m.medicationName,
+                'dosage': m.exactDose,
+                'exact_dose': m.exactDose,
+                'medication_form_strength': m.medicationFormStrength,
+                'route': m.route,
+                'frequency': m.frequency,
+                'duration': m.duration,
+                'quantity_to_dispense': m.quantityToDispense,
+                'refills': m.refills,
+                'start_date': DateFormat('yyyy-MM-dd').format(m.startDate),
+                'end_date': m.endDate == null
+                    ? null
+                    : DateFormat('yyyy-MM-dd').format(m.endDate!),
+                'is_prn': m.isPrn,
+                'prn_reason': m.prnReason,
+                'maximum_daily_dose': m.maximumDailyDose,
+                'instructions': m.instructions,
+              },
+            )
+            .toList(growable: false),
       );
+    } on PostgrestException {
+      // A database rejection guarantees rollback. Let the doctor edit a new draft.
+      // Transport failures retain the original key because the commit is unknown.
+      _pendingPrescriptionDraft = null;
+      rethrow;
     }
-    await repository.sendPrescriptionNotificationEmail(
-      relationship: draft.relationship,
-      medications: draft.medications
-          .map(
-            (m) => PrescriptionNotificationMedication(
-              medicationName: m.medicationName,
-              medicationFormStrength: m.medicationFormStrength,
-              exactDose: m.exactDose,
-              dosage: m.exactDose,
-              frequency: m.frequency,
-              duration: m.duration,
-              quantityToDispense: m.quantityToDispense,
-              refills: m.refills,
-              instructions: m.instructions,
-              isPrn: m.isPrn,
-              prnReason: m.prnReason,
-              startDate: m.startDate,
-              endDate: m.endDate,
-            ),
-          )
-          .toList(growable: false),
-      diagnosisReason: draft.diagnosisReason,
-    );
+    _pendingPrescriptionDraft = null;
+    String? attachmentError;
+    if (draft.attachment != null) {
+      try {
+        await repository.uploadMedicalFile(
+          patientId: draft.relationship.patientId,
+          fileName: draft.attachment!.name,
+          title: 'Prescription order attachment',
+          documentType: 'prescription',
+          bytes: draft.attachment!.bytes,
+          referenceId: outcome.orderId,
+          referenceType: 'prescription_order',
+        );
+      } catch (error) {
+        attachmentError = _friendlyError(error);
+      }
+    }
     ref.invalidate(workspaceSnapshotProvider(_request));
-    final medicationCount = draft.medications.length;
     showRootMessage(
-      draft.attachment == null
-          ? '$medicationCount medication${medicationCount == 1 ? '' : 's'} issued to the selected patient. An email notification was sent.'
-          : '$medicationCount medication${medicationCount == 1 ? '' : 's'} issued and emailed. The attachment and its AI summary status are available to the patient and care team.',
+      '${draft.medications.length} medications issued. Email ${outcome.notificationStatus}.'
+      '${attachmentError == null ? '' : ' Attachment failed: $attachmentError Open this order and choose Attach document to retry.'}',
     );
   });
+
+  Future<void> _reviewPatientDocument(
+    WorkspaceItem item,
+    String decision,
+  ) async {
+    final notes = await requestDecisionNote(
+      title: 'Review patient document',
+      message:
+          'Review the original document. AI extraction is preliminary. Approval records your review without changing the patient authorship.',
+      confirmLabel: decision == 'approved' ? 'Approve' : 'Reject',
+    );
+    if (notes == null) return;
+    await _runItemAction(item.id, () async {
+      await ref
+          .read(careRepositoryProvider)!
+          .reviewPatientDocument(
+            documentId: item.id,
+            decision: decision,
+            notes: notes,
+          );
+      ref.invalidate(workspaceSnapshotProvider(_request));
+      showRootMessage('Supporting document review recorded.');
+    });
+  }
+
+  Future<void> _sharePatientDocument(
+    WorkspaceItem item,
+  ) => _runItemAction(item.id, () async {
+    final client = ref.read(supabaseClientProvider)!;
+    final rows = await client.rpc<List<dynamic>>(
+      'list_patient_sharing_relationships',
+    );
+    final relationships = rows
+        .whereType<Map>()
+        .where(
+          (r) => ((r['grants'] as List?) ?? []).any(
+            (g) =>
+                ((g as Map)['categories'] as List?)?.contains(
+                  'medical_documents',
+                ) ??
+                false,
+          ),
+        )
+        .toList();
+    if (relationships.isEmpty) {
+      throw StateError(
+        'Request care with supporting-document sharing enabled before sharing this file for review.',
+      );
+    }
+    final selected = await showRootDialog<Map>(
+      builder: (context) => SimpleDialog(
+        title: const Text('Choose the care relationship for review'),
+        children: [
+          for (final relationship in relationships)
+            SimpleDialogOption(
+              onPressed: () => Navigator.of(context).pop(relationship),
+              child: ListTile(
+                title: Text(relationship['hospital_name'].toString()),
+                subtitle: Text(
+                  relationship['display_name']?.toString() ?? 'Assigned doctor',
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+    if (selected == null) return;
+    final confirmed = await confirmRootAction(
+      title: 'Share supporting document?',
+      message:
+          'The selected care team can review this patient-supplied document within your existing consent. Manage sharing in your profile to revoke the entire care relationship.',
+      confirmLabel: 'Share for review',
+    );
+    if (!confirmed) return;
+    await client.rpc(
+      'share_patient_document_for_review',
+      params: {
+        'target_document_id': item.id,
+        'target_relationship_id': selected['id'],
+      },
+    );
+    showRootMessage('Supporting document shared for doctor review.');
+  });
+
+  Future<void> _attachPrescriptionOrder(WorkspaceItem item) => _runItemAction(
+    item.id,
+    () async {
+      final file = await openFile(
+        acceptedTypeGroups: const [
+          XTypeGroup(
+            label: 'Medical document',
+            extensions: ['pdf', 'png', 'jpg', 'jpeg', 'doc', 'docx'],
+          ),
+        ],
+      );
+      if (file == null) return;
+      final repository = ref.read(careRepositoryProvider);
+      if (repository == null) throw StateError('Care service is unavailable.');
+      await repository.uploadMedicalFile(
+        patientId: item.data['patient_id'].toString(),
+        fileName: file.name,
+        title: 'Prescription order attachment',
+        documentType: 'prescription',
+        bytes: await file.readAsBytes(),
+        referenceId: item.data['order_id'].toString(),
+        referenceType: 'prescription_order',
+      );
+      ref.invalidate(workspaceSnapshotProvider(_request));
+      showRootMessage('Attachment saved to the existing order.');
+    },
+  );
 
   Future<void> _emailDailyMedicationSchedule() => _runItemAction(
     'email-daily-reminders',
     () async {
       final repository = ref.read(careRepositoryProvider);
       if (repository == null) throw StateError('Care service is unavailable.');
-      await repository.sendDailyMedicationReminderEmail();
+      final deliveryStatus = await repository
+          .sendDailyMedicationReminderEmail();
       showRootMessage(
-        'Your daily medication intake reminder schedule was sent to your email.',
+        'Medication summary email: $deliveryStatus. Check notifications for delivery status.',
       );
     },
   );
@@ -2055,7 +2188,7 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
       ),
     );
     if (draft == null) return;
-    await repository.reserveConsultation(
+    final outcome = await repository.reserveConsultation(
       doctorId: draft.clinician.doctor.id,
       hospitalId: draft.clinician.hospitalId,
       consultationType: draft.consultationType,
@@ -2065,27 +2198,92 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
       sharedCategories: draft.sharedCategories,
     );
     ref.invalidate(workspaceSnapshotProvider(_request));
-    showRootMessage(
-      draft.consultationType == 'online'
-          ? 'Online consultation request submitted for hospital review. The preferred slot is not reserved until confirmation.'
-          : 'Face-to-face consultation reserved and pending approval.',
-    );
+    showRootMessage(outcome.message);
   });
 
-  Future<void> _joinConsultation(WorkspaceItem item) =>
-      _runItemAction(item.id, () async {
-        final repository = ref.read(consultationRepositoryProvider);
-        if (repository == null) {
-          throw StateError('Consultation service is unavailable.');
-        }
-        if (widget.role == UserRole.doctor) {
-          await repository.ensureVideoRoom(item.id);
-        }
-        final url = await repository.getApprovedVideoRoom(item.id);
-        if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
-          throw StateError('The approved video room could not be opened.');
-        }
-      });
+  Future<void> _joinConsultation(
+    WorkspaceItem item,
+  ) => _runItemAction(item.id, () async {
+    final repository = ref.read(consultationRepositoryProvider);
+    if (repository == null) {
+      throw StateError('Consultation service is unavailable.');
+    }
+    final url = await repository.getApprovedVideoRoom(item.id);
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      throw StateError('The approved video room could not be opened.');
+    }
+    if (widget.role == UserRole.doctor) {
+      showRootMessage(
+        'Google Meet opened. Use the account that created the meeting to admit your patient.',
+      );
+    }
+  });
+
+  Future<void> _setGoogleMeetLink(WorkspaceItem item) async {
+    final formKey = GlobalKey<FormState>();
+    final controller = TextEditingController();
+    final value = await showRootDialog<String>(
+      builder: (context) => AlertDialog(
+        title: const Text('Set Google Meet link'),
+        content: Form(
+          key: formKey,
+          child: SizedBox(
+            width: 420,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Create a Google Meet meeting for this appointment, then paste its link. Saving replaces any previous link. Patients can join from 15 minutes before the appointment.',
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: controller,
+                  autofocus: true,
+                  keyboardType: TextInputType.url,
+                  decoration: const InputDecoration(
+                    labelText: 'Google Meet link',
+                    hintText: 'https://meet.google.com/abc-defg-hij',
+                  ),
+                  validator: (value) {
+                    try {
+                      parseGoogleMeetLink(value ?? '');
+                      return null;
+                    } on FormatException catch (error) {
+                      return error.message;
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (formKey.currentState!.validate()) {
+                Navigator.of(context).pop(controller.text);
+              }
+            },
+            child: const Text('Save meeting link'),
+          ),
+        ],
+      ),
+    );
+    if (value == null || !mounted) return;
+    await _runItemAction(item.id, () async {
+      await ref
+          .read(consultationRepositoryProvider)!
+          .setGoogleMeetLink(consultationId: item.id, meetingUrl: value);
+      ref.invalidate(workspaceSnapshotProvider(_request));
+      showRootMessage(
+        'Google Meet link saved. The patient can join during the appointment window.',
+      );
+    });
+  }
 
   Future<void> _cancelConsultation(WorkspaceItem item) async {
     final confirmed = await confirmRootAction(
@@ -2285,6 +2483,267 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
     });
   }
 
+  Widget? _onlineRequestActions(WorkspaceItem item) {
+    final status = item.status;
+    final busy = _busyItems.contains(item.id);
+    final actions = <Widget>[];
+    void action(String label, VoidCallback callback, {bool enabled = true}) =>
+        actions.add(
+          TextButton(
+            onPressed: busy || !enabled ? null : callback,
+            child: Text(label),
+          ),
+        );
+    if (widget.role == UserRole.patient) {
+      if (item.data['consultation_channel'] == 'video' &&
+          item.data['official_consultation_id'] != null &&
+          {
+            'confirmed',
+            'awaiting_contact',
+            'video_ready',
+            'in_progress',
+          }.contains(status)) {
+        final at = DateTime.tryParse(
+          item.data['confirmed_schedule']?.toString() ?? '',
+        );
+        action(
+          'Join Google Meet',
+          () => _joinConsultation(_officialOnlineConsultation(item)),
+          enabled: at != null && isConsultationJoinWindowOpen(at),
+        );
+      }
+      if (status == 'more_information_required') {
+        action(
+          'Respond to hospital',
+          () => _respondOnlineRequest(item, 'information'),
+        );
+      }
+      if (status == 'schedule_proposed') {
+        action(
+          'Accept proposed schedule',
+          () => _respondOnlineRequest(item, 'accept'),
+        );
+        action(
+          'Decline proposal',
+          () => _respondOnlineRequest(item, 'decline'),
+        );
+      }
+      if (!{
+        'completed',
+        'rejected',
+        'cancelled',
+        'no_show',
+        'patient_unreachable',
+        'face_to_face_recommended',
+        'in_progress',
+      }.contains(status)) {
+        action('Cancel request', () => _cancelOnlineRequest(item));
+      }
+      if (status == 'face_to_face_recommended' || status == 'rejected') {
+        action(
+          'Make a new booking',
+          () => _reserveConsultation(
+            initialHospitalId: item.data['hospital_id']?.toString(),
+          ),
+        );
+      }
+    }
+    if (widget.role == UserRole.hospitalAdministrator &&
+        {
+          'submitted',
+          'under_review',
+          'more_information_required',
+          'schedule_proposed',
+        }.contains(status)) {
+      if (status == 'submitted') {
+        action('Start review', () => _reviewOnlineStep(item, 'under_review'));
+      }
+      action(
+        'Request information',
+        () => _reviewOnlineStep(item, 'more_information_required'),
+      );
+      action(
+        'Propose schedule',
+        () => _reviewOnlineRequest(item, approve: true, propose: true),
+      );
+      action('Reject', () => _reviewOnlineRequest(item, approve: false));
+      action(
+        'Confirm request',
+        () => _reviewOnlineRequest(item, approve: true),
+      );
+    }
+    if ({
+          UserRole.hospitalAdministrator,
+          UserRole.doctor,
+        }.contains(widget.role) &&
+        {
+          'confirmed',
+          'awaiting_contact',
+          'video_ready',
+          'in_progress',
+        }.contains(status)) {
+      action(
+        'Record contact attempt',
+        () => _transitionOnlineRequest(item, 'awaiting_contact'),
+      );
+      if (status != 'in_progress') {
+        action('Mark missed visit', () => _chooseMissedOutcome(item));
+      }
+      if (widget.role == UserRole.doctor) {
+        if (item.data['consultation_channel'] == 'video') {
+          final at = DateTime.tryParse(
+            item.data['confirmed_schedule']?.toString() ?? '',
+          );
+          action(
+            'Join Google Meet',
+            () => _joinConsultation(_officialOnlineConsultation(item)),
+            enabled: at != null && isConsultationJoinWindowOpen(at),
+          );
+          action(
+            'Set Google Meet link',
+            () => _setGoogleMeetLink(_officialOnlineConsultation(item)),
+          );
+        }
+        action(
+          status == 'in_progress' ? 'Complete checkup' : 'Start consultation',
+          () => _advanceConsultation(
+            _officialOnlineConsultation(item),
+            status == 'in_progress' ? 'completed' : 'in_progress',
+          ),
+        );
+        action(
+          'Recommend face-to-face visit',
+          () => _transitionOnlineRequest(item, 'face_to_face_recommended'),
+        );
+      }
+    }
+    return actions.isEmpty
+        ? null
+        : Wrap(
+            spacing: AppSpacing.x1,
+            runSpacing: AppSpacing.x1,
+            children: actions,
+          );
+  }
+
+  WorkspaceItem _officialOnlineConsultation(WorkspaceItem item) =>
+      WorkspaceItem(
+        id: item.data['official_consultation_id'].toString(),
+        kind: 'consultations',
+        title: item.title,
+        subtitle: item.subtitle,
+        status: item.status == 'in_progress' ? 'in_progress' : 'scheduled',
+        data: {
+          ...item.data,
+          'appointment_date': item.data['confirmed_schedule'],
+        },
+      );
+
+  Future<void> _respondOnlineRequest(WorkspaceItem item, String action) async {
+    String? response;
+    if (action != 'accept') {
+      response = await requestDecisionNote(
+        title: action == 'information'
+            ? 'Respond to hospital'
+            : 'Decline proposed schedule',
+        message:
+            item.data['additional_information_request']?.toString() ??
+            'Give the hospital a brief explanation.',
+        confirmLabel: 'Send response',
+      );
+      if (response == null) return;
+    }
+    await _runItemAction(item.id, () async {
+      await ref
+          .read(consultationRepositoryProvider)!
+          .respondOnlineRequest(
+            requestId: item.id,
+            action: action,
+            response: response,
+          );
+      ref.invalidate(workspaceSnapshotProvider(_request));
+      showRootMessage(
+        action == 'accept'
+            ? 'Proposed schedule accepted and appointment confirmed.'
+            : 'Response returned to hospital review.',
+      );
+    });
+  }
+
+  Future<void> _reviewOnlineStep(WorkspaceItem item, String decision) async {
+    String? notes;
+    if (decision == 'more_information_required') {
+      notes = await requestDecisionNote(
+        title: 'Request patient information',
+        message: 'Describe what the patient needs to provide.',
+        confirmLabel: 'Request information',
+      );
+      if (notes == null) return;
+    }
+    await _runItemAction(item.id, () async {
+      await ref
+          .read(consultationRepositoryProvider)!
+          .reviewOnlineRequest(
+            requestId: item.id,
+            decision: decision,
+            notes: notes,
+          );
+      ref.invalidate(workspaceSnapshotProvider(_request));
+    });
+  }
+
+  Future<void> _transitionOnlineRequest(
+    WorkspaceItem item,
+    String status,
+  ) async {
+    final notes = await requestDecisionNote(
+      title: status == 'awaiting_contact'
+          ? 'Record contact attempt'
+          : 'Record consultation outcome',
+      message: status == 'awaiting_contact'
+          ? 'Record the contact method, time and result.'
+          : 'Give the patient and care team a clear reason.',
+      confirmLabel: 'Save',
+    );
+    if (notes == null) return;
+    await _runItemAction(item.id, () async {
+      await ref
+          .read(consultationRepositoryProvider)!
+          .transitionOnlineRequest(
+            requestId: item.id,
+            status: status,
+            notes: notes,
+          );
+      ref.invalidate(workspaceSnapshotProvider(_request));
+      showRootMessage('Consultation workflow updated.');
+    });
+  }
+
+  Future<void> _chooseMissedOutcome(WorkspaceItem item) async {
+    final status = await showRootDialog<String>(
+      builder: (context) => SimpleDialog(
+        title: const Text('Missed visit outcome'),
+        children: [
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Text(
+              'Available after 30 minutes, with a recorded contact attempt and no consultation start.',
+            ),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.of(context).pop('no_show'),
+            child: const Text('Patient did not attend'),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.of(context).pop('patient_unreachable'),
+            child: const Text('Patient could not be reached'),
+          ),
+        ],
+      ),
+    );
+    if (status != null) await _transitionOnlineRequest(item, status);
+  }
+
   Future<void> _cancelOnlineRequest(WorkspaceItem item) async {
     final reason = await requestDecisionNote(
       title: 'Cancel online consultation request',
@@ -2308,6 +2767,7 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
   Future<void> _reviewOnlineRequest(
     WorkspaceItem item, {
     required bool approve,
+    bool propose = false,
   }) async {
     String? notes;
     String? selectedDoctorId;
@@ -2404,10 +2864,12 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
         );
         if (channel == null) return;
         final confirmed = await confirmRootAction(
-          title: 'Confirm online consultation?',
+          title: propose
+              ? 'Propose online schedule?'
+              : 'Confirm online consultation?',
           message:
               'The hospital will create the official appointment only after rechecking this doctor and time.',
-          confirmLabel: 'Confirm appointment',
+          confirmLabel: propose ? 'Send proposal' : 'Confirm appointment',
         );
         if (!confirmed) return;
       } catch (error) {
@@ -2423,7 +2885,9 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
       }
       await repository.reviewOnlineRequest(
         requestId: item.id,
-        decision: approve ? 'confirmed' : 'rejected',
+        decision: approve
+            ? (propose ? 'schedule_proposed' : 'confirmed')
+            : 'rejected',
         doctorId: selectedDoctorId,
         confirmedSchedule: confirmedSchedule,
         channel: channel,
@@ -2432,7 +2896,9 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
       ref.invalidate(workspaceSnapshotProvider(_request));
       showRootMessage(
         approve
-            ? 'Online request confirmed and official appointment created.'
+            ? (propose
+                  ? 'Schedule proposed. Awaiting patient acceptance.'
+                  : 'Online request confirmed and official appointment created.')
             : 'Online consultation request rejected.',
       );
     });
@@ -5912,13 +6378,14 @@ class _ScheduleDraft {
 }
 
 class _PrescriptionDraft {
-  const _PrescriptionDraft({
+  _PrescriptionDraft({
     required this.relationship,
     required this.diagnosisReason,
     required this.medications,
     this.attachment,
   });
 
+  final String idempotencyKey = newSubmissionKey();
   final ClinicalRelationship relationship;
   final String diagnosisReason;
   final List<_PrescriptionMedicationDraft> medications;
@@ -10660,10 +11127,7 @@ class _LiveRecordDetails extends StatelessWidget {
       return _ConsultationDetails(item: item, role: role);
     }
     if (item.kind == 'prescriptions') {
-      return _GroupedPrescriptionDetailView(
-        item: item,
-        topActions: topActions,
-      );
+      return _GroupedPrescriptionDetailView(item: item, topActions: topActions);
     }
     final rawCheckups = item.data['checkup_history'];
     final checkups = rawCheckups is List
@@ -11266,7 +11730,12 @@ class _CheckupHistoryEntry extends StatelessWidget {
       if (hospital != null && hospital.isNotEmpty)
         ('Originating Facility / Hospital', hospital),
       for (final key in _detailKeys('medical_records'))
-        if (!{'title', 'created_at', 'originating_hospital', 'hospital_name'}.contains(key))
+        if (!{
+          'title',
+          'created_at',
+          'originating_hospital',
+          'hospital_name',
+        }.contains(key))
           if (_detailValue(record[key], key) case final value?)
             (_detailLabel(key), value),
     ];
@@ -11348,8 +11817,9 @@ class _PatientClinicalHistorySection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isPrescription = prescription;
-    final prescriptionGroups =
-        isPrescription ? _groupPrescriptions(records) : null;
+    final prescriptionGroups = isPrescription
+        ? _groupPrescriptions(records)
+        : null;
     final isEmpty = isPrescription
         ? prescriptionGroups!.isEmpty
         : records.isEmpty;
@@ -11380,9 +11850,7 @@ class _PatientClinicalHistorySection extends StatelessWidget {
                 prescription: true,
               )
             else
-              _PatientGroupedPrescriptionCard(
-                group: prescriptionGroups[index],
-              ),
+              _PatientGroupedPrescriptionCard(group: prescriptionGroups[index]),
             if (index != prescriptionGroups.length - 1)
               const SizedBox(height: AppSpacing.x2),
           ]
@@ -11464,49 +11932,7 @@ List<_PrescriptionGroup> _groupPrescriptions(
         _clinicalHistoryDate(right).compareTo(_clinicalHistoryDate(left)),
   );
 
-  final clusters = <List<Map<String, Object?>>>[];
-  for (final med in medicationRows) {
-    final medTime = _clinicalHistoryDate(med);
-    final patientId = med['patient_id']?.toString() ?? '';
-    final doctorId = med['doctor_id']?.toString() ??
-        med['prescriber_name']?.toString() ??
-        med['doctor_display_name']?.toString() ??
-        '';
-    final consultationId = med['consultation_id']?.toString() ?? '';
-
-    List<Map<String, Object?>>? targetCluster;
-    for (final cluster in clusters) {
-      final leader = cluster.first;
-      final leaderTime = _clinicalHistoryDate(leader);
-      final leaderPatientId = leader['patient_id']?.toString() ?? '';
-      final leaderDoctorId = leader['doctor_id']?.toString() ??
-          leader['prescriber_name']?.toString() ??
-          leader['doctor_display_name']?.toString() ??
-          '';
-      final leaderConsultationId = leader['consultation_id']?.toString() ?? '';
-
-      final samePatient = patientId.isEmpty ||
-          leaderPatientId.isEmpty ||
-          patientId == leaderPatientId;
-      final sameDoctor = doctorId.isEmpty ||
-          leaderDoctorId.isEmpty ||
-          doctorId == leaderDoctorId;
-      final sameConsultation = consultationId.isNotEmpty &&
-          consultationId == leaderConsultationId;
-      final timeDifference = (medTime.difference(leaderTime).inSeconds).abs();
-
-      if (samePatient && sameDoctor && (sameConsultation || timeDifference <= 300)) {
-        targetCluster = cluster;
-        break;
-      }
-    }
-
-    if (targetCluster != null) {
-      targetCluster.add(med);
-    } else {
-      clusters.add([med]);
-    }
-  }
+  final clusters = groupPrescriptionOrders(medicationRows, (row) => row);
 
   final availableDocs = List<Map<String, Object?>>.from(documentRows);
   final groups = <_PrescriptionGroup>[];
@@ -11514,47 +11940,29 @@ List<_PrescriptionGroup> _groupPrescriptions(
   for (final cluster in clusters) {
     final leader = cluster.first;
     final leaderTime = _clinicalHistoryDate(leader);
-    final leaderPatientId = leader['patient_id']?.toString() ?? '';
-    final leaderDoctorId = leader['doctor_id']?.toString() ?? '';
-
     Map<String, Object?>? matchedDoc;
     for (var i = 0; i < availableDocs.length; i++) {
-      final doc = availableDocs[i];
-      final docTime = _clinicalHistoryDate(doc);
-      final docPatientId = doc['patient_id']?.toString() ?? '';
-      final docDoctorId = doc['author_doctor_id']?.toString() ??
-          doc['doctor_id']?.toString() ??
-          '';
-
-      final samePatient = leaderPatientId.isEmpty ||
-          docPatientId.isEmpty ||
-          leaderPatientId == docPatientId;
-      final sameDoctor = leaderDoctorId.isEmpty ||
-          docDoctorId.isEmpty ||
-          leaderDoctorId == docDoctorId;
-      final timeDiff = (docTime.difference(leaderTime).inSeconds).abs();
-
-      if (samePatient && sameDoctor && timeDiff <= 300) {
-        matchedDoc = doc;
-        availableDocs.removeAt(i);
+      if (isPrescriptionOrderAttachment(availableDocs[i], cluster)) {
+        matchedDoc = availableDocs.removeAt(i);
         break;
       }
     }
 
-    final doctor = _firstText(
-      leader,
-      const ['prescriber_name', 'doctor_display_name'],
-    );
+    final doctor = _firstText(leader, const [
+      'prescriber_name',
+      'doctor_display_name',
+    ]);
     final hospital = _firstText(leader, const [
       'originating_hospital',
       'hospital_name',
       'facility',
     ]);
-    final diagnosis = _firstText(
-      leader,
-      const ['diagnosis_reason', 'diagnosis'],
-    );
-    final recordedAtText = _detailValue(
+    final diagnosis = _firstText(leader, const [
+      'diagnosis_reason',
+      'diagnosis',
+    ]);
+    final recordedAtText =
+        _detailValue(
           leader['electronically_signed_at'],
           'electronically_signed_at',
         ) ??
@@ -11582,16 +11990,18 @@ List<_PrescriptionGroup> _groupPrescriptions(
 
   for (final doc in availableDocs) {
     final docTime = _clinicalHistoryDate(doc);
-    final doctor = _firstText(
-      doc,
-      const ['requesting_doctor', 'doctor_display_name', 'authoring_doctor'],
-    );
+    final doctor = _firstText(doc, const [
+      'requesting_doctor',
+      'doctor_display_name',
+      'authoring_doctor',
+    ]);
     final hospital = _firstText(doc, const [
       'originating_hospital',
       'hospital_name',
       'facility',
     ]);
-    final recordedAtText = _detailValue(doc['result_date'], 'result_date') ??
+    final recordedAtText =
+        _detailValue(doc['result_date'], 'result_date') ??
         _detailValue(doc['uploaded_at'], 'uploaded_at') ??
         _detailValue(doc['created_at'], 'created_at') ??
         'Date not recorded';
@@ -11653,7 +12063,8 @@ class _PatientGroupedPrescriptionCardState
   Widget build(BuildContext context) {
     final group = widget.group;
     final medCount = group.medications.length;
-    final isStandaloneDoc = group.medications.isEmpty && group.attachment != null;
+    final isStandaloneDoc =
+        group.medications.isEmpty && group.attachment != null;
 
     final subtitleParts = [
       group.recordedAtText,
@@ -11725,9 +12136,9 @@ class _PatientGroupedPrescriptionCardState
             Expanded(
               child: Text(
                 'Prescription — ${group.formattedDate}',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
               ),
             ),
             Container(
@@ -11742,9 +12153,9 @@ class _PatientGroupedPrescriptionCardState
               child: Text(
                 '$medCount medication${medCount == 1 ? '' : 's'}',
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
@@ -11769,9 +12180,9 @@ class _PatientGroupedPrescriptionCardState
               ),
               child: Text(
                 'Indication / Diagnosis: ${group.diagnosisReason}',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.w500,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w500),
               ),
             ),
             const SizedBox(height: AppSpacing.x3),
@@ -11857,9 +12268,9 @@ class _PatientGroupedPrescriptionCardState
               Text(
                 '$number. ',
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
-                    ),
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                ),
               ),
               Expanded(
                 child: Row(
@@ -11868,10 +12279,9 @@ class _PatientGroupedPrescriptionCardState
                     Flexible(
                       child: Text(
                         name,
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleSmall
-                            ?.copyWith(fontWeight: FontWeight.bold),
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                     if (formStrength != null && formStrength.isNotEmpty) ...[
@@ -11880,10 +12290,7 @@ class _PatientGroupedPrescriptionCardState
                         child: Text(
                           '— $formStrength',
                           style: TextStyle(
-                            color: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.color,
+                            color: Theme.of(context).textTheme.bodySmall?.color,
                             fontWeight: FontWeight.normal,
                           ),
                         ),
@@ -11896,8 +12303,8 @@ class _PatientGroupedPrescriptionCardState
                 Text(
                   '# $quantity',
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
             ],
           ),
@@ -11907,9 +12314,9 @@ class _PatientGroupedPrescriptionCardState
               padding: const EdgeInsets.only(left: 16),
               child: Text(
                 'Sig: ${parts.join(' — ')}',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textPrimary,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: AppColors.textPrimary),
               ),
             ),
           ],
@@ -11920,9 +12327,9 @@ class _PatientGroupedPrescriptionCardState
               child: Text(
                 'Take as needed (PRN)${prnReason != null ? ': $prnReason' : ''}',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.primary,
-                      fontStyle: FontStyle.italic,
-                    ),
+                  color: AppColors.primary,
+                  fontStyle: FontStyle.italic,
+                ),
               ),
             ),
           ],
@@ -11993,26 +12400,27 @@ class _GroupedPrescriptionDetailViewState
     final rawMeds = item.data['grouped_medications'];
     final medications = rawMeds is List
         ? rawMeds
-            .whereType<Map>()
-            .map((m) => Map<String, Object?>.from(m))
-            .toList(growable: false)
+              .whereType<Map>()
+              .map((m) => Map<String, Object?>.from(m))
+              .toList(growable: false)
         : [item.data];
-    final prescriberName = _firstText(
-      item.data,
-      const ['prescriber_name', 'doctor_display_name'],
-    );
-    final prescriberLicense =
-        item.data['prescriber_license_number']?.toString();
-    final prescriberSpecialization =
-        item.data['prescriber_specialization']?.toString();
-    final hospital = _firstText(
-      item.data,
-      const ['originating_hospital', 'hospital_name', 'facility'],
-    );
-    final diagnosis = _firstText(
-      item.data,
-      const ['diagnosis_reason', 'diagnosis'],
-    );
+    final prescriberName = _firstText(item.data, const [
+      'prescriber_name',
+      'doctor_display_name',
+    ]);
+    final prescriberLicense = item.data['prescriber_license_number']
+        ?.toString();
+    final prescriberSpecialization = item.data['prescriber_specialization']
+        ?.toString();
+    final hospital = _firstText(item.data, const [
+      'originating_hospital',
+      'hospital_name',
+      'facility',
+    ]);
+    final diagnosis = _firstText(item.data, const [
+      'diagnosis_reason',
+      'diagnosis',
+    ]);
     final rawAttachment = item.data['attachment_document'];
     final attachment = rawAttachment is Map
         ? Map<String, Object?>.from(rawAttachment)
@@ -12045,16 +12453,14 @@ class _GroupedPrescriptionDetailViewState
                   Expanded(
                     child: Text(
                       prescriberName ?? 'Licensed Prescriber',
-                      style:
-                          Theme.of(context).textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ],
               ),
-              if ((prescriberLicense != null &&
-                      prescriberLicense.isNotEmpty) ||
+              if ((prescriberLicense != null && prescriberLicense.isNotEmpty) ||
                   (prescriberSpecialization != null &&
                       prescriberSpecialization.isNotEmpty)) ...[
                 const SizedBox(height: AppSpacing.x1),
@@ -12075,8 +12481,8 @@ class _GroupedPrescriptionDetailViewState
                 Text(
                   hospital,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ],
               if (diagnosis != null && diagnosis.isNotEmpty) ...[
@@ -12085,9 +12491,9 @@ class _GroupedPrescriptionDetailViewState
                 const SizedBox(height: AppSpacing.x2),
                 Text(
                   'Diagnosis / Indication: $diagnosis',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
                 ),
               ],
             ],
@@ -12188,24 +12594,24 @@ class _GroupedPrescriptionDetailViewState
                 Text(
                   '$number. ',
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
-                      ),
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
                 ),
                 Expanded(
                   child: Text(
                     name,
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 if (quantity != null && quantity.isNotEmpty)
                   Text(
                     '# $quantity',
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
               ],
             ),
@@ -12881,7 +13287,12 @@ class _ConsultationRecordRow extends StatelessWidget {
                 ],
                 if (!compact && rowAction != null) ...[
                   const SizedBox(width: AppSpacing.x2),
-                  rowAction,
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: constraints.maxWidth * 0.55,
+                    ),
+                    child: rowAction,
+                  ),
                 ],
               ],
             );
@@ -13708,7 +14119,12 @@ class _LiveRecordRow extends StatelessWidget {
                 ],
                 if (!compact && rowAction != null) ...[
                   const SizedBox(width: AppSpacing.x2),
-                  rowAction,
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: constraints.maxWidth * 0.55,
+                    ),
+                    child: rowAction,
+                  ),
                 ],
               ],
             );

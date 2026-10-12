@@ -14,6 +14,7 @@ import '../../theme/app_tokens.dart';
 import '../../widgets/data_display/content_panel.dart';
 import '../../widgets/forms/patient_details_fields.dart';
 import '../../widgets/layout/page_header.dart';
+import 'sharing_management_dialog.dart';
 
 class LiveProfileView extends ConsumerStatefulWidget {
   const LiveProfileView({super.key, required this.role});
@@ -151,6 +152,17 @@ class _LiveProfileViewState extends ConsumerState<LiveProfileView> {
                 descriptionSpacing: AppSpacing.x1,
               ),
               const SizedBox(height: AppSpacing.x4),
+              if (widget.role == UserRole.patient)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: OutlinedButton.icon(
+                    onPressed: () => showRootDialog<void>(
+                      builder: (context) => const SharingManagementDialog(),
+                    ),
+                    icon: const Icon(Icons.privacy_tip_outlined),
+                    label: const Text('Manage record sharing'),
+                  ),
+                ),
               _ProfileHeader(
                 imageUrl: profile.profileImageUrl,
                 selectedImage: _selectedImage,

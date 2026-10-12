@@ -4,6 +4,8 @@ import 'dart:typed_data';
 import 'package:supabase/supabase.dart';
 
 import '../models/clinical_checkup.dart';
+import '../models/prescription_order_outcome.dart';
+import '../models/submission_key.dart';
 import '../models/consultation_scheduling.dart';
 import '../models/consultation_type.dart';
 import '../models/shared/patient_identity.dart';
@@ -129,6 +131,18 @@ abstract interface class CareRepository {
     required List<({List<int> bytes, String name})> attachments,
   });
 
+  Future<PrescriptionOrderOutcome> issuePrescriptionOrder({
+    required ClinicalRelationship relationship,
+    required String diagnosisReason,
+    required List<Map<String, Object?>> medications,
+    required String idempotencyKey,
+  });
+  Future<void> reviewPatientDocument({
+    required String documentId,
+    required String decision,
+    String? notes,
+  });
+
   Future<void> createPrescription({
     required ClinicalRelationship relationship,
     required String medicationName,
@@ -156,7 +170,7 @@ abstract interface class CareRepository {
     String? diagnosisReason,
   });
 
-  Future<void> sendDailyMedicationReminderEmail({
+  Future<String> sendDailyMedicationReminderEmail({
     String? patientId,
     String slot = 'all',
   });
@@ -281,7 +295,8 @@ class PrescriptionScanDraft {
       if (drafts.isNotEmpty) return drafts;
     }
 
-    final topMedications = payload['medications'] ??
+    final topMedications =
+        payload['medications'] ??
         payload['medicines'] ??
         payload['drugs'] ??
         payload['orders'];
@@ -301,7 +316,8 @@ class PrescriptionScanDraft {
 
     final prescription = payload['prescription'];
     if (prescription is! Map) return const [];
-    final medications = prescription['medications'] ??
+    final medications =
+        prescription['medications'] ??
         prescription['medicines'] ??
         prescription['drugs'] ??
         prescription['orders'];
@@ -707,6 +723,7 @@ class CareNotification {
     required this.isRead,
     required this.createdAt,
     this.actionPath,
+    this.emailDeliveryStatus = 'disabled',
     this.referenceId,
     this.data = const {},
   });
@@ -718,6 +735,7 @@ class CareNotification {
   final bool isRead;
   final DateTime createdAt;
   final String? actionPath;
+  final String emailDeliveryStatus;
   final String? referenceId;
   final Map<String, Object?> data;
 
@@ -730,6 +748,8 @@ class CareNotification {
         isRead: json['is_read'] as bool? ?? false,
         createdAt: DateTime.parse(json['created_at'] as String),
         actionPath: (json['action_path'] ?? json['action_url']) as String?,
+        emailDeliveryStatus:
+            json['email_delivery_status'] as String? ?? 'disabled',
         referenceId: _nullableText(json['reference_id']),
         data: json['data'] is Map
             ? Map<String, Object?>.from(json['data'] as Map)
@@ -851,6 +871,47 @@ class SupabaseCareRepository implements CareRepository {
   };
 
   final SupabaseClient _client;
+
+  @override
+  Future<PrescriptionOrderOutcome> issuePrescriptionOrder({
+    required ClinicalRelationship relationship,
+    required String diagnosisReason,
+    required List<Map<String, Object?>> medications,
+    required String idempotencyKey,
+  }) async {
+    final response = await _client.rpc<Map<String, dynamic>>(
+      'issue_prescription_order',
+      params: {
+        'idempotency_key': idempotencyKey,
+        'order_payload': {
+          'patient_id': relationship.patientId,
+          'consultation_id': relationship.hasConsultation
+              ? relationship.consultationId
+              : null,
+          'assignment_id': relationship.assignmentId,
+          'diagnosis_reason': diagnosisReason,
+          'medications': medications,
+        },
+      },
+    );
+    return PrescriptionOrderOutcome.fromJson(response);
+  }
+
+  @override
+  Future<void> reviewPatientDocument({
+    required String documentId,
+    required String decision,
+    String? notes,
+  }) async {
+    await _client.rpc(
+      'review_patient_document',
+      params: {
+        'target_document_id': documentId,
+        'decision': decision,
+        'review_notes': notes,
+      },
+    );
+  }
 
   @override
   Stream<List<CareMessage>> watchMessages(String conversationId) {
@@ -1572,7 +1633,7 @@ class SupabaseCareRepository implements CareRepository {
         schedule['consultation_type']?.toString()) {
       return false;
     }
-    final local = appointment.toLocal();
+    final local = manilaWallTime(appointment);
     final databaseDay = local.weekday % 7;
     if (databaseDay != (schedule['day_of_week'] as num).toInt()) return false;
     final appointmentMinutes = local.hour * 60 + local.minute;
@@ -1585,7 +1646,9 @@ class SupabaseCareRepository implements CareRepository {
   }
 
   int? _timeMinutes(String? value) {
-    if (!RegExp(r'^(?:[01]\d|2[0-3]):[0-5]\d$').hasMatch(value ?? '')) {
+    if (!RegExp(
+      r'^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?$',
+    ).hasMatch(value ?? '')) {
       return null;
     }
     final parts = (value ?? '').split(':');
@@ -1921,21 +1984,17 @@ class SupabaseCareRepository implements CareRepository {
         'Complete your prescriber name and license number in your profile before issuing a prescription.',
       );
     }
-    final result = await _client
-        .from('prescriptions')
-        .insert({
-          'patient_id': relationship.patientId,
-          'doctor_id': doctor['id'],
-          'consultation_id': relationship.hasConsultation
-              ? relationship.consultationId
-              : null,
-          'assignment_id': relationship.assignmentId,
-          'hospital_id': doctor['hospital_id'],
+    final result = await issuePrescriptionOrder(
+      relationship: relationship,
+      diagnosisReason: diagnosisReason!.trim(),
+      idempotencyKey: newSubmissionKey(),
+      medications: [
+        {
           'medication_name': medicationName.trim(),
           'dosage': dosage.trim(),
           'frequency': frequency.trim(),
           'duration': duration.trim(),
-          'diagnosis_reason': diagnosisReason!.trim(),
+          'diagnosis_reason': diagnosisReason.trim(),
           'medication_form_strength': medicationFormStrength!.trim(),
           'route': route!.trim(),
           'exact_dose': exactDose!.trim(),
@@ -1946,15 +2005,10 @@ class SupabaseCareRepository implements CareRepository {
           'is_prn': isPrn,
           'prn_reason': isPrn ? _nullableText(prnReason) : null,
           'maximum_daily_dose': isPrn ? _nullableText(maximumDailyDose) : null,
-          'prescriber_name': prescriberName,
-          'prescriber_license_number': prescriberLicense,
-          'prescriber_specialization': _nullableText(
-            doctor['specialization']?.toString(),
-          ),
           'instructions': _nullableText(instructions),
-        })
-        .select('id')
-        .single();
+        },
+      ],
+    );
 
     if (attachment != null) {
       await uploadMedicalFile(
@@ -1963,8 +2017,8 @@ class SupabaseCareRepository implements CareRepository {
         title: 'Prescription Attachment',
         documentType: 'prescription',
         bytes: attachment.bytes,
-        referenceId: result['id'] as String,
-        referenceType: 'prescription',
+        referenceId: result.orderId,
+        referenceType: 'prescription_order',
       );
     }
   }
@@ -1975,38 +2029,17 @@ class SupabaseCareRepository implements CareRepository {
     required List<PrescriptionNotificationMedication> medications,
     String? diagnosisReason,
   }) async {
-    if (medications.isEmpty) return;
-    try {
-      final doctor = await _currentDoctor();
-      final prescriberName = doctor['display_name']?.toString().trim() ?? '';
-      final prescriberLicense = doctor['license_number']?.toString().trim() ?? '';
-      final prescriberSpecialization = doctor['specialization']?.toString().trim();
-      final hospitalName = doctor['hospital_name']?.toString().trim();
-
-      await _client.functions.invoke(
-        'care-navigator-chat',
-        body: {
-          'action': 'send_prescription_notification_email',
-          'patient_id': relationship.patientId,
-          'prescriber_name': prescriberName,
-          'prescriber_license_number': prescriberLicense,
-          'prescriber_specialization': prescriberSpecialization,
-          'hospital_name': hospitalName,
-          'diagnosis_reason': diagnosisReason,
-          'medications': medications.map((m) => m.toJson()).toList(growable: false),
-        },
-      );
-    } catch (_) {
-      // Non-fatal if email service is temporarily unreachable
-    }
+    throw StateError(
+      'Prescription notifications are queued atomically when an official order is issued.',
+    );
   }
 
   @override
-  Future<void> sendDailyMedicationReminderEmail({
+  Future<String> sendDailyMedicationReminderEmail({
     String? patientId,
     String slot = 'all',
   }) async {
-    await _client.functions.invoke(
+    final response = await _client.functions.invoke(
       'care-navigator-chat',
       body: {
         'action': 'send_daily_medication_reminder_email',
@@ -2014,6 +2047,11 @@ class SupabaseCareRepository implements CareRepository {
         'slot': slot,
       },
     );
+    final data = response.data;
+    if (data is! Map || data['status'] is! String) {
+      throw StateError('Delivery queue returned no status.');
+    }
+    return data['status'] as String;
   }
 
   @override
@@ -2455,4 +2493,3 @@ class PrescriptionNotificationMedication {
     'end_date': endDate == null ? null : _dateOnly(endDate!),
   };
 }
-

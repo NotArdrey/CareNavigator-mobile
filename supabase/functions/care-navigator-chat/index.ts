@@ -1,10 +1,10 @@
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import "jsr:@supabase/functions-js@2.112.3/edge-runtime.d.ts";
 import { Buffer } from "node:buffer";
 import { extractText, getDocumentProxy } from "npm:unpdf@1.8.1";
 // word-extractor is intentionally pinned and has no native binary dependency.
 // deno-lint-ignore ban-ts-comment
 import WordExtractor from "npm:word-extractor@1.0.4";
-import nodemailer from "npm:nodemailer@6.9.16";
+import nodemailer from "npm:nodemailer@9.0.3";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -1215,31 +1215,34 @@ async function summarizeMedicalDocument(
     }
     const authUser = asRecord(await authResponse.json());
     const authUserId = stringValue(authUser?.id);
-    if (!authUserId || authUser?.is_anonymous === true) {
-      return json({ error: "An authenticated doctor is required." }, 403);
+    if (!authUserId || authUser?.is_anonymous === true || !authUser?.email_confirmed_at) {
+      return json({ error: "A verified account is required." }, 403);
     }
 
     const appUsers = await serviceRestRows(
       supabaseUrl,
       serviceRoleKey,
       "users",
-      `select=id&auth_user_id=eq.${encodeURIComponent(authUserId)}&limit=1`,
+      `select=id,account_status,roles!inner(role_name)&auth_user_id=eq.${encodeURIComponent(authUserId)}&limit=1`,
     );
     const appUserId = stringValue(asRecord(appUsers[0])?.id);
-    if (!appUserId) {
+    const appUser = asRecord(appUsers[0]);
+    const role = stringValue(asRecord(appUser?.roles)?.role_name);
+    if (!appUserId || appUser?.account_status !== "active" || !["patient", "doctor"].includes(role ?? "")) {
       return json({ error: "The application user could not be resolved." }, 403);
     }
 
-    const documents = await serviceRestRows(
-      supabaseUrl,
-      serviceRoleKey,
-      "medical_documents",
-      [
-        "select=id,uploaded_by,author_doctor_id,document_type,title,storage_bucket,storage_path,mime_type",
+    const documentQuery = [
+        "select=id,uploaded_by,author_doctor_id,origin_type,document_type,title,storage_bucket,storage_path,mime_type",
         `id=eq.${encodeURIComponent(documentId)}`,
         "limit=1",
-      ].join("&"),
-    );
+      ].join("&");
+    // Resolve the source through the caller's RLS scopes before any privileged download.
+    const documentResponse = await fetch(`${supabaseUrl}/rest/v1/medical_documents?${documentQuery}`, {
+      headers: { apikey: publishableKey, Authorization: authorization },
+    });
+    if (!documentResponse.ok) return json({ error: "The document is unavailable to this account." }, 403);
+    const documents = await documentResponse.json() as unknown[];
     const record = asRecord(documents[0]);
     if (!record) return json({ error: "Medical document not found." }, 404);
 
@@ -1263,12 +1266,11 @@ async function summarizeMedicalDocument(
       documentType === "prescription";
     if (
       parsedDocument.id !== documentId ||
-      parsedDocument.uploaded_by !== appUserId ||
-      !parsedDocument.author_doctor_id ||
+      (role === "patient" && (parsedDocument.uploaded_by !== appUserId || record.origin_type !== "patient_supplied")) ||
       !authorizedType
     ) {
       return json(
-        { error: "Only the uploading doctor can analyze this diagnostic result or prescription document." },
+        { error: "Only the owning patient or an authorized treating doctor can analyze this document." },
         403,
       );
     }
@@ -1401,7 +1403,7 @@ async function medicalDocumentSourceContent(
     ];
   }
   if (document.mime_type === "application/pdf") {
-    const { extractText } = await import("npm:unpdf@1");
+    const { extractText } = await import("npm:unpdf@1.8.1");
     const extracted = await extractText(bytes, { mergePages: true });
     const text = typeof extracted.text === "string" ? extracted.text.trim() : "";
     if (text.length < 20) throw new Error("pdf_has_no_readable_text");
@@ -1586,633 +1588,63 @@ function getSlotLabel(slot: DoseSlot): {
   }
 }
 
-type MedicationNotificationItem = {
-  medication_name: string;
-  medication_form_strength?: string;
-  exact_dose?: string;
-  dosage?: string;
-  frequency?: string;
-  duration?: string;
-  quantity_to_dispense?: string;
-  refills?: number;
-  instructions?: string;
-  is_prn?: boolean;
-  prn_reason?: string;
-  start_date?: string;
-  end_date?: string;
-};
-
-async function handleSendPrescriptionEmail(
-  request: Request,
-  payload: Record<string, unknown>,
-): Promise<Response> {
-  const authorization = request.headers.get("Authorization");
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const publishableKey =
-    Deno.env.get("SUPABASE_ANON_KEY") ?? request.headers.get("apikey");
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-
-  if (!authorization || !supabaseUrl || !publishableKey) {
-    return json({ error: "Authentication is required." }, 401);
-  }
-
-  let authUserId = "";
-  if (authorization) {
-    const token = authorization.replace(/^Bearer\s+/i, "");
-    if (token === publishableKey || (serviceRoleKey && token === serviceRoleKey)) {
-      authUserId = "system";
-    } else {
-      const authResponse = await fetch(`${supabaseUrl}/auth/v1/user`, {
-        headers: { apikey: publishableKey, Authorization: authorization },
-      });
-      if (authResponse.ok) {
-        const authUser = asRecord(await authResponse.json());
-        authUserId = stringValue(authUser?.id) || "";
-      }
-    }
-  }
-  if (!authUserId) {
-    return json({ error: "Authentication is required." }, 401);
-  }
-
-  const patientId = stringValue(payload.patient_id);
-  const prescriberName =
-    stringValue(payload.prescriber_name) || "Your Healthcare Provider";
-  const prescriberLicense = stringValue(payload.prescriber_license_number);
-  const prescriberSpecialization = stringValue(
-    payload.prescriber_specialization,
-  );
-  const hospitalName =
-    stringValue(payload.hospital_name) ||
-    "CareNavigator PH Partner Hospital";
-  const diagnosisReason = stringValue(payload.diagnosis_reason);
-  const rawMeds = Array.isArray(payload.medications) ? payload.medications : [];
-  const medications: MedicationNotificationItem[] = rawMeds.map((m: any) => ({
-    medication_name: stringValue(m?.medication_name) || "Medication",
-    medication_form_strength: stringValue(m?.medication_form_strength),
-    exact_dose: stringValue(m?.exact_dose) || stringValue(m?.dosage),
-    dosage: stringValue(m?.dosage),
-    frequency: stringValue(m?.frequency) || "",
-    duration: stringValue(m?.duration) || "",
-    quantity_to_dispense: stringValue(m?.quantity_to_dispense) || "",
-    refills: typeof m?.refills === "number" ? m.refills : 0,
-    instructions: stringValue(m?.instructions) || "",
-    is_prn: m?.is_prn === true,
-    prn_reason: stringValue(m?.prn_reason) || "",
-    start_date: stringValue(m?.start_date) || "",
-    end_date: stringValue(m?.end_date) || "",
-  }));
-
-  if (medications.length === 0) {
-    return json({ error: "At least one medication is required." }, 400);
-  }
-
-  let recipientEmail = stringValue(payload.recipient_email);
-  let patientName = "Patient";
-  let recipientUserId = "";
-
-  if (patientId && isUuid(patientId) && serviceRoleKey) {
-    try {
-      const patientRows = await serviceRestRows(
-        supabaseUrl,
-        serviceRoleKey,
-        "patients",
-        `select=id,user_id,patient_number&id=eq.${encodeURIComponent(patientId)}&limit=1`,
-      );
-      const patient = asRecord(patientRows[0]);
-      if (patient?.user_id) {
-        recipientUserId = stringValue(patient.user_id) || "";
-        const userRows = await serviceRestRows(
-          supabaseUrl,
-          serviceRoleKey,
-          "users",
-          `select=id,first_name,last_name,email,auth_user_id&id=eq.${encodeURIComponent(recipientUserId)}&limit=1`,
-        );
-        const user = asRecord(userRows[0]);
-        if (user) {
-          patientName =
-            [user.first_name, user.last_name].filter(Boolean).join(" ") ||
-            "Patient";
-          if (!recipientEmail && user.email) {
-            recipientEmail = stringValue(user.email);
-          }
-        }
-      }
-    } catch (e) {
-      console.error("Error looking up patient details:", e);
-    }
-  }
-
-  if (!recipientEmail) {
-    return json({
-      error: "Recipient email address could not be resolved for this patient.",
-    }, 400);
-  }
-
-  const smtpHost = Deno.env.get("SMTP_HOST") || "smtp.gmail.com";
-  const smtpPort = Number(Deno.env.get("SMTP_PORT") || 465);
-  const smtpUser =
-    Deno.env.get("SMTP_USERNAME") || "carenavigate.official@gmail.com";
-  const smtpPass = Deno.env.get("SMTP_PASSWORD") || "cqkcygpgoluotroz";
-  const fromAddress =
-    Deno.env.get("NOTIFICATION_FROM_EMAIL") ||
-    `CareNavigator PH <${smtpUser}>`;
-
-  const transporter = nodemailer.createTransport({
-    host: smtpHost,
-    port: smtpPort,
-    secure: smtpPort === 465,
-    auth: {
-      user: smtpUser,
-      pass: smtpPass,
-    },
-  });
-
-  const dateStr = new Date().toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
-
-  const medTitles = medications.map((m) => m.medication_name).join(", ");
-  const subject = `New Prescription Issued: ${medTitles} — CareNavigator PH`;
-
-  const medRowsHtml = medications.map((med, i) => {
-    const parts = [
-      med.exact_dose || med.dosage,
-      med.frequency,
-      med.duration,
-    ].filter(Boolean);
-
-    return `
-      <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 16px; margin-bottom: 12px; background-color: #f8fafc;">
-        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px;">
-          <strong style="font-size: 16px; color: #0f172a;">${i + 1}. ${escapeHtml(med.medication_name)} ${med.medication_form_strength ? `<span style="font-size: 13px; font-weight: normal; color: #475569;">(${escapeHtml(med.medication_form_strength)})</span>` : ""}</strong>
-          ${med.quantity_to_dispense ? `<span style="font-size: 14px; font-weight: bold; color: #0f766e; background: #ccfbf1; padding: 2px 8px; border-radius: 4px;"># ${escapeHtml(med.quantity_to_dispense)}</span>` : ""}
-        </div>
-        ${parts.length > 0 ? `<div style="font-size: 14px; color: #1e293b; margin-bottom: 4px;"><strong>Sig:</strong> ${escapeHtml(parts.join(" — "))}</div>` : ""}
-        ${med.is_prn ? `<div style="font-size: 13px; color: #b45309; font-style: italic; margin-bottom: 4px;">* Take as needed (PRN)${med.prn_reason ? `: ${escapeHtml(med.prn_reason)}` : ""}</div>` : ""}
-        ${med.instructions && med.instructions !== parts.join(" — ") ? `<div style="font-size: 13px; color: #64748b; margin-bottom: 4px;"><strong>Instructions:</strong> ${escapeHtml(med.instructions)}</div>` : ""}
-        ${med.refills && med.refills > 0 ? `<div style="font-size: 12px; color: #64748b;">Refills permitted: ${med.refills}</div>` : ""}
-      </div>
-    `;
-  }).join("");
-
-  const htmlContent = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #1e293b; margin: 0; padding: 0; background-color: #f1f5f9; }
-        .container { max-width: 600px; margin: 24px auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
-        .header { background: linear-gradient(135deg, #0f766e, #115e59); color: #ffffff; padding: 24px 32px; }
-        .content { padding: 32px; }
-        .footer { background: #f8fafc; padding: 20px 32px; font-size: 12px; color: #64748b; text-align: center; border-top: 1px solid #e2e8f0; }
-        .info-box { background: #f0fdfa; border-left: 4px solid #0f766e; padding: 12px 16px; margin: 16px 0; border-radius: 0 8px 8px 0; }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <h1 style="margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.5px;">CareNavigator PH</h1>
-          <p style="margin: 4px 0 0 0; font-size: 14px; opacity: 0.9;">Digital Prescription & Medication Order</p>
-        </div>
-        <div class="content">
-          <p style="font-size: 16px; margin-top: 0;">Dear <strong>${escapeHtml(patientName)}</strong>,</p>
-          <p style="font-size: 15px; color: #334155;">
-            A new prescription with <strong>${medications.length} medication${medications.length === 1 ? "" : "s"}</strong> was issued for your medical care.
-          </p>
-
-          <div class="info-box">
-            <div style="font-size: 14px; font-weight: bold; color: #0f766e;">Prescribing Physician:</div>
-            <div style="font-size: 14px; color: #1e293b;">${escapeHtml(prescriberName)}${prescriberSpecialization ? ` (${escapeHtml(prescriberSpecialization)})` : ""}</div>
-            ${prescriberLicense ? `<div style="font-size: 12px; color: #64748b;">License: ${escapeHtml(prescriberLicense)}</div>` : ""}
-            <div style="font-size: 13px; color: #475569; margin-top: 4px;">Facility: <strong>${escapeHtml(hospitalName)}</strong></div>
-            <div style="font-size: 13px; color: #475569;">Date Issued: ${dateStr}</div>
-            ${diagnosisReason ? `<div style="font-size: 13px; color: #0f766e; margin-top: 4px;">Diagnosis / Indication: ${escapeHtml(diagnosisReason)}</div>` : ""}
-          </div>
-
-          <h3 style="font-size: 16px; color: #0f172a; margin: 24px 0 12px 0; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px;">Prescribed Medications</h3>
-          ${medRowsHtml}
-
-          <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 14px; margin-top: 20px; font-size: 13px; color: #92400e;">
-            <strong>Important Safety Reminder:</strong> Please follow all dosage and frequency instructions carefully. Do not modify or discontinue prescribed medications without consulting your prescribing physician.
-          </div>
-        </div>
-        <div class="footer">
-          <p style="margin: 0 0 6px 0;">This email was sent via CareNavigator PH secure clinical messaging.</p>
-          <p style="margin: 0;">CareNavigator PH • Transforming Philippine Healthcare Navigation</p>
-        </div>
-      </div>
-    </body>
-    </html>
-  `;
-
-  try {
-    const info = await transporter.sendMail({
-      from: fromAddress,
-      to: recipientEmail,
-      subject: subject,
-      html: htmlContent,
-      text: `CareNavigator PH - New Prescription Issued\n\nDear ${patientName},\n\nDr. ${prescriberName} has issued a prescription for you on ${dateStr} at ${hospitalName}.\n\nMedications:\n` +
-        medications
-          .map(
-            (m, i) =>
-              `${i + 1}. ${m.medication_name} - Sig: ${[m.exact_dose || m.dosage, m.frequency, m.duration].filter(Boolean).join(" - ")}`,
-          )
-          .join("\n") +
-        `\n\nPlease log in to CareNavigator PH to view complete directions and scanned attachments.`,
-    });
-
-    if (recipientUserId && serviceRoleKey) {
-      try {
-        await serviceRestInsert(supabaseUrl, serviceRoleKey, "notifications", {
-          user_id: recipientUserId,
-          title: `Prescription Issued: ${medTitles}`,
-          body: `Dr. ${prescriberName} issued a prescription with ${medications.length} medication(s). Details sent to your email.`,
-          type: "prescription",
-          action_url: "/patient/prescriptions",
-          is_read: false,
-        });
-      } catch (e) {
-        console.error("Could not insert in-app notification:", e);
-      }
-    }
-
-    return json({
-      success: true,
-      message_id: info.messageId,
-      recipient: recipientEmail,
-      medication_count: medications.length,
-    });
-  } catch (err: any) {
-    console.error("SMTP Delivery error:", err);
-    return json({
-      error: `Email delivery failed: ${err.message || "Unknown SMTP error"}`,
-    }, 502);
-  }
+// Email actions only queue database-authored notifications in the caller's RLS context.
+async function verifiedEmailCaller(request: Request): Promise<{ url: string; key: string; authorization: string; userId: string } | null> {
+  const url = Deno.env.get("SUPABASE_URL");
+  const key = Deno.env.get("SUPABASE_ANON_KEY");
+  const authorization = request.headers.get("Authorization") ?? "";
+  if (!url || !key || !/^Bearer\s+/i.test(authorization)) return null;
+  const response = await fetch(`${url}/auth/v1/user`, { headers: { apikey: key, Authorization: authorization } });
+  if (!response.ok) return null;
+  const user = asRecord(await response.json());
+  if (!user?.id || user.is_anonymous === true || !user.email_confirmed_at) return null;
+  return { url, key, authorization, userId: String(user.id) };
 }
 
-async function handleDailyMedicationReminderEmail(
-  request: Request,
-  payload: Record<string, unknown>,
-): Promise<Response> {
-  const authorization = request.headers.get("Authorization");
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const publishableKey =
-    Deno.env.get("SUPABASE_ANON_KEY") ?? request.headers.get("apikey");
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-
-  if (!authorization || !supabaseUrl || !publishableKey) {
-    return json({ error: "Authentication is required." }, 401);
-  }
-
-  let authUserId = "";
-  if (authorization) {
-    const token = authorization.replace(/^Bearer\s+/i, "");
-    if (token === publishableKey || (serviceRoleKey && token === serviceRoleKey)) {
-      authUserId = "system";
-    } else {
-      const authResponse = await fetch(`${supabaseUrl}/auth/v1/user`, {
-        headers: { apikey: publishableKey, Authorization: authorization },
-      });
-      if (authResponse.ok) {
-        const authUser = asRecord(await authResponse.json());
-        authUserId = stringValue(authUser?.id) || "";
-      }
-    }
-  }
-  if (!authUserId) {
-    return json({ error: "Authentication is required." }, 401);
-  }
-
-  let patientId = stringValue(payload.patient_id);
-  let recipientEmail = stringValue(payload.recipient_email);
-  let patientName = "Patient";
-  let recipientUserId = "";
-
-  if (serviceRoleKey) {
-    try {
-      if (!patientId) {
-        const appUsers = await serviceRestRows(
-          supabaseUrl,
-          serviceRoleKey,
-          "users",
-          `select=id,first_name,last_name,email&auth_user_id=eq.${encodeURIComponent(authUserId)}&limit=1`,
-        );
-        const appUser = asRecord(appUsers[0]);
-        if (appUser?.id) {
-          recipientUserId = stringValue(appUser.id) || "";
-          patientName =
-            [appUser.first_name, appUser.last_name].filter(Boolean).join(" ") ||
-            "Patient";
-          if (!recipientEmail && appUser.email) {
-            recipientEmail = stringValue(appUser.email);
-          }
-          const patientRows = await serviceRestRows(
-            supabaseUrl,
-            serviceRoleKey,
-            "patients",
-            `select=id&user_id=eq.${encodeURIComponent(recipientUserId)}&limit=1`,
-          );
-          patientId = stringValue(asRecord(patientRows[0])?.id) || "";
-        }
-      } else {
-        const patientRows = await serviceRestRows(
-          supabaseUrl,
-          serviceRoleKey,
-          "patients",
-          `select=id,user_id&id=eq.${encodeURIComponent(patientId)}&limit=1`,
-        );
-        const patient = asRecord(patientRows[0]);
-        if (patient?.user_id) {
-          recipientUserId = stringValue(patient.user_id) || "";
-          const userRows = await serviceRestRows(
-            supabaseUrl,
-            serviceRoleKey,
-            "users",
-            `select=id,first_name,last_name,email&id=eq.${encodeURIComponent(recipientUserId)}&limit=1`,
-          );
-          const user = asRecord(userRows[0]);
-          if (user) {
-            patientName =
-              [user.first_name, user.last_name].filter(Boolean).join(" ") ||
-              "Patient";
-            if (!recipientEmail && user.email) {
-              recipientEmail = stringValue(user.email);
-            }
-          }
-        }
-      }
-    } catch (e) {
-      console.error("Error looking up user for daily reminder:", e);
-    }
-  }
-
-  if (!recipientEmail) {
-    return json({
-      error: "Recipient email address could not be resolved for this patient.",
-    }, 400);
-  }
-
-  let activePrescriptions: any[] = [];
-  if (patientId && serviceRoleKey) {
-    try {
-      const rows = await serviceRestRows(
-        supabaseUrl,
-        serviceRoleKey,
-        "prescriptions",
-        `select=id,medication_name,medication_form_strength,exact_dose,dosage,frequency,duration,instructions,is_prn,prn_reason,start_date,end_date,prescriber_name&patient_id=eq.${encodeURIComponent(patientId)}&order=created_at.desc`,
-      );
-      activePrescriptions = rows.map((r) => asRecord(r)).filter(Boolean);
-    } catch (e) {
-      console.error("Error loading prescriptions for daily reminder:", e);
-    }
-  }
-
-  if (activePrescriptions.length === 0 && Array.isArray(payload.medications)) {
-    activePrescriptions = payload.medications;
-  }
-
-  if (activePrescriptions.length === 0) {
-    return json({
-      error: "No active prescriptions found to generate a reminder schedule.",
-    }, 404);
-  }
-
-  const slotBuckets: Record<DoseSlot, any[]> = {
-    morning: [],
-    afternoon: [],
-    evening: [],
-    bedtime: [],
-    prn: [],
-  };
-
-  for (const med of activePrescriptions) {
-    const slots = getMedicationDoseSlots(
-      stringValue(med.frequency),
-      med.is_prn === true,
-    );
-    for (const slot of slots) {
-      slotBuckets[slot].push(med);
-    }
-  }
-
-  const targetedSlot = stringValue(payload.slot) as DoseSlot | "all";
-  const slotsToDisplay: DoseSlot[] = targetedSlot && targetedSlot !== "all"
-    ? [targetedSlot]
-    : ["morning", "afternoon", "evening", "bedtime", "prn"];
-
-  const scheduleBoxesHtml = slotsToDisplay
-    .filter((slot) => slotBuckets[slot].length > 0)
-    .map((slot) => {
-      const meta = getSlotLabel(slot);
-      const meds = slotBuckets[slot];
-
-      const medItemsHtml = meds
-        .map((m) => {
-          const name = stringValue(m.medication_name);
-          const strength = stringValue(m.medication_form_strength);
-          const dose = stringValue(m.exact_dose) || stringValue(m.dosage) || "";
-          const instructions = stringValue(m.instructions);
-          return `
-          <div style="padding: 10px 14px; margin-bottom: 8px; background: #ffffff; border-radius: 6px; border: 1px solid #e2e8f0;">
-            <div style="font-weight: 600; font-size: 15px; color: #0f172a;">
-              ${escapeHtml(name)} ${strength ? `<span style="font-size: 13px; font-weight: normal; color: #64748b;">(${escapeHtml(strength)})</span>` : ""}
-            </div>
-            ${dose ? `<div style="font-size: 13px; color: #1e293b; margin-top: 2px;">Dose: <strong>${escapeHtml(dose)}</strong></div>` : ""}
-            ${instructions ? `<div style="font-size: 12px; color: #64748b; margin-top: 2px;">Instructions: ${escapeHtml(instructions)}</div>` : ""}
-          </div>
-        `;
-        })
-        .join("");
-
-      return `
-        <div style="margin-bottom: 20px; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; background-color: #f8fafc;">
-          <div style="background-color: ${meta.color}; color: #ffffff; padding: 10px 16px; font-weight: bold; font-size: 15px; display: flex; align-items: center; justify-content: space-between;">
-            <span>${meta.icon} ${meta.label}</span>
-            <span style="font-size: 13px; font-weight: normal; opacity: 0.9;">${meta.time}</span>
-          </div>
-          <div style="padding: 14px;">
-            ${medItemsHtml}
-          </div>
-        </div>
-      `;
-    })
-    .join("");
-
-  const smtpHost = Deno.env.get("SMTP_HOST") || "smtp.gmail.com";
-  const smtpPort = Number(Deno.env.get("SMTP_PORT") || 465);
-  const smtpUser =
-    Deno.env.get("SMTP_USERNAME") || "carenavigate.official@gmail.com";
-  const smtpPass = Deno.env.get("SMTP_PASSWORD") || "cqkcygpgoluotroz";
-  const fromAddress =
-    Deno.env.get("NOTIFICATION_FROM_EMAIL") ||
-    `CareNavigator PH <${smtpUser}>`;
-
-  const transporter = nodemailer.createTransport({
-    host: smtpHost,
-    port: smtpPort,
-    secure: smtpPort === 465,
-    auth: {
-      user: smtpUser,
-      pass: smtpPass,
-    },
+async function queuePatientEmail(request: Request, payload: Record<string, unknown>, kind: string): Promise<Response> {
+  const caller = await verifiedEmailCaller(request);
+  if (!caller) return json({ error: "A verified signed-in account is required." }, 401);
+  if (payload.recipient_email != null) return json({ error: "Recipient overrides are not supported." }, 400);
+  const response = await fetch(`${caller.url}/rest/v1/rpc/queue_patient_email`, {
+    method: "POST", headers: { apikey: caller.key, Authorization: caller.authorization, "Content-Type": "application/json" },
+    body: JSON.stringify({ target_patient_id: payload.patient_id ?? null,
+      target_order_id: payload.order_id ?? null, message_kind: kind }),
   });
-
-  const dateStr = new Date().toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  });
-
-  const subject = `Daily Medication Reminder — ${dateStr} — CareNavigator PH`;
-
-  const htmlContent = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #1e293b; margin: 0; padding: 0; background-color: #f1f5f9; }
-        .container { max-width: 600px; margin: 24px auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
-        .header { background: linear-gradient(135deg, #0284c7, #0f766e); color: #ffffff; padding: 24px 32px; }
-        .content { padding: 32px; }
-        .footer { background: #f8fafc; padding: 20px 32px; font-size: 12px; color: #64748b; text-align: center; border-top: 1px solid #e2e8f0; }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <h1 style="margin: 0; font-size: 22px; font-weight: 700;">CareNavigator PH</h1>
-          <p style="margin: 4px 0 0 0; font-size: 14px; opacity: 0.9;">Daily Medication Schedule Reminder</p>
-        </div>
-        <div class="content">
-          <p style="font-size: 16px; margin-top: 0;">Good day, <strong>${escapeHtml(patientName)}</strong>,</p>
-          <p style="font-size: 15px; color: #334155;">
-            Here is your personalized daily medication intake schedule for <strong>${dateStr}</strong> based on your active prescriptions:
-          </p>
-
-          ${scheduleBoxesHtml}
-
-          <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 14px; font-size: 13px; color: #166534; margin-top: 16px;">
-            <strong>✓ Health Tip:</strong> Taking medications at consistent times each day improves effectiveness. Remember to drink a full glass of water with oral tablets and capsules.
-          </div>
-        </div>
-        <div class="footer">
-          <p style="margin: 0 0 6px 0;">To update reminder settings, log in to your CareNavigator PH account.</p>
-          <p style="margin: 0;">CareNavigator PH • Secure Healthcare Navigation</p>
-        </div>
-      </div>
-    </body>
-    </html>
-  `;
-
-  try {
-    const info = await transporter.sendMail({
-      from: fromAddress,
-      to: recipientEmail,
-      subject: subject,
-      html: htmlContent,
-      text: `CareNavigator PH - Daily Medication Reminder for ${dateStr}\n\nDear ${patientName},\n\nHere is your medication intake schedule for today:\n` +
-        activePrescriptions
-          .map(
-            (m) =>
-              `- ${m.medication_name} (${m.exact_dose || m.dosage}) — ${m.frequency}`,
-          )
-          .join("\n"),
-    });
-
-    if (recipientUserId && serviceRoleKey) {
-      try {
-        await serviceRestInsert(supabaseUrl, serviceRoleKey, "notifications", {
-          user_id: recipientUserId,
-          title: `Daily Medication Schedule Reminder`,
-          body: `Your daily medication schedule for today has been delivered to your email.`,
-          type: "medication_reminder",
-          action_url: "/patient/prescriptions",
-          is_read: false,
-        });
-      } catch (e) {
-        console.error(
-          "Could not insert in-app daily reminder notification:",
-          e,
-        );
-      }
-    }
-
-    return json({
-      success: true,
-      message_id: info.messageId,
-      recipient: recipientEmail,
-      active_medications_count: activePrescriptions.length,
-    });
-  } catch (err: any) {
-    console.error("SMTP Daily reminder delivery error:", err);
-    return json({
-      error: `Daily reminder delivery failed: ${err.message || "Unknown error"}`,
-    }, 502);
+  if (!response.ok) {
+    const body = asRecord(await response.json().catch(() => ({})));
+    return json({ error: body?.message ?? "The notification could not be queued." }, response.status === 403 ? 403 : 400);
   }
+  return json(await response.json());
 }
-
-async function handleTestEmailDelivery(
-  request: Request,
-  payload: Record<string, unknown>,
-): Promise<Response> {
-  const authorization = request.headers.get("Authorization");
-  if (!authorization) {
-    return json({ error: "Authentication is required." }, 401);
-  }
-
-  const smtpHost = Deno.env.get("SMTP_HOST") || "smtp.gmail.com";
-  const smtpPort = Number(Deno.env.get("SMTP_PORT") || 465);
-  const smtpUser =
-    Deno.env.get("SMTP_USERNAME") || "carenavigate.official@gmail.com";
-  const smtpPass = Deno.env.get("SMTP_PASSWORD") || "cqkcygpgoluotroz";
-  const fromAddress =
-    Deno.env.get("NOTIFICATION_FROM_EMAIL") ||
-    `CareNavigator PH <${smtpUser}>`;
-
-  const to = stringValue(payload.to) || smtpUser;
-
-  const transporter = nodemailer.createTransport({
-    host: smtpHost,
-    port: smtpPort,
-    secure: smtpPort === 465,
-    auth: {
-      user: smtpUser,
-      pass: smtpPass,
-    },
+async function handleSendPrescriptionEmail(request: Request, payload: Record<string, unknown>): Promise<Response> {
+  return queuePatientEmail(request, payload, "prescription");
+}
+async function handleDailyMedicationReminderEmail(request: Request, payload: Record<string, unknown>): Promise<Response> {
+  return queuePatientEmail(request, payload, "medication_reminder");
+}
+async function handleTestEmailDelivery(request: Request, payload: Record<string, unknown>): Promise<Response> {
+  const caller = await verifiedEmailCaller(request);
+  if (!caller) return json({ error: "A verified signed-in account is required." }, 401);
+  if (payload.recipient_email != null) return json({ error: "Recipient overrides are not supported." }, 400);
+  const roleResponse = await fetch(`${caller.url}/rest/v1/users?select=roles!inner(role_name)&auth_user_id=eq.${encodeURIComponent(caller.userId)}`, {
+    headers: { apikey: caller.key, Authorization: caller.authorization },
   });
-
-  try {
-    const info = await transporter.sendMail({
-      from: fromAddress,
-      to: to,
-      subject: "CareNavigator PH — Gmail SMTP Connection Verified",
-      html: `
-        <div style="font-family: sans-serif; max-width: 500px; margin: auto; padding: 20px; border: 1px solid #0f766e; border-radius: 8px;">
-          <h2 style="color: #0f766e;">CareNavigator PH</h2>
-          <p>This is a test email verifying that your <strong>Gmail SMTP</strong> connection (${escapeHtml(smtpUser)}) is active, operational, and ready for medication and prescription notifications.</p>
-          <p style="font-size: 12px; color: #64748b;">Timestamp: ${new Date().toISOString()}</p>
-        </div>
-      `,
-      text: "CareNavigator PH - Gmail SMTP Connection Verified.",
-    });
-
-    return json({
-      success: true,
-      message_id: info.messageId,
-      recipient: to,
-      status: "delivered",
-    });
-  } catch (err: any) {
-    console.error("Test email error:", err);
-    return json({
-      error: `SMTP test failed: ${err.message || "Unknown error"}`,
-    }, 502);
+  const roles = roleResponse.ok ? await roleResponse.json() : [];
+  if (!roles.some((row: { roles?: { role_name?: string } }) => row.roles?.role_name === "super_admin")) {
+    return json({ error: "Super administrator access is required." }, 403);
   }
+  const to = Deno.env.get("SMTP_TEST_RECIPIENT");
+  const host = Deno.env.get("SMTP_HOST");
+  const port = Number(Deno.env.get("SMTP_PORT"));
+  const user = Deno.env.get("SMTP_USERNAME");
+  const pass = Deno.env.get("SMTP_PASSWORD");
+  const from = Deno.env.get("NOTIFICATION_FROM_EMAIL");
+  if (!to || !host || !user || !pass || !from || !Number.isInteger(port) || port < 1 || port > 65535) {
+    return json({ error: "The controlled test email provider is not configured." }, 503);
+  }
+  const transport = nodemailer.createTransport({ host, port, secure: port === 465, auth: { user, pass } });
+  await transport.sendMail({ from, to, subject: "CareNavigator controlled delivery test", text: "The configured notification provider is working." });
+  return json({ status: "sent" });
 }
 
 async function updateMedicalDocumentAi(

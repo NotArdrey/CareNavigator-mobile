@@ -485,7 +485,8 @@ void main() {
                 'title': 'General Checkup',
                 'record_type': 'checkup',
                 'doctor_display_name': 'Dr. Maria Santos',
-                'originating_hospital': 'CareNavigator Regional Hospital (Demo)',
+                'originating_hospital':
+                    'CareNavigator Regional Hospital (Demo)',
                 'created_at': '2026-08-20T09:00:00Z',
               },
             ],
@@ -495,7 +496,8 @@ void main() {
                 'history_source': 'prescriptions',
                 'medication_name': 'Paracetamol 500mg',
                 'prescriber_name': 'Dr. Maria Santos',
-                'originating_hospital': 'CareNavigator Regional Hospital (Demo)',
+                'originating_hospital':
+                    'CareNavigator Regional Hospital (Demo)',
                 'created_at': '2026-08-20T09:00:00Z',
               },
             ],
@@ -506,7 +508,8 @@ void main() {
                 'document_type': 'diagnostic_result',
                 'test_procedure_name': 'CT Scan Chest',
                 'requesting_doctor': 'Dr. Maria Santos',
-                'originating_hospital': 'CareNavigator Regional Hospital (Demo)',
+                'originating_hospital':
+                    'CareNavigator Regional Hospital (Demo)',
                 'result_date': '2026-08-21',
               },
             ],
@@ -517,7 +520,10 @@ void main() {
       expect(find.text('General Checkup'), findsOneWidget);
       expect(find.text('Paracetamol 500mg'), findsOneWidget);
       expect(find.text('CT Scan Chest'), findsOneWidget);
-      expect(find.textContaining('CareNavigator Regional Hospital (Demo)'), findsWidgets);
+      expect(
+        find.textContaining('CareNavigator Regional Hospital (Demo)'),
+        findsWidgets,
+      );
 
       await tester.ensureVisible(find.text('General Checkup'));
       await tester.tap(find.text('General Checkup'));
@@ -594,6 +600,7 @@ void main() {
               {
                 'id': 'rx-4',
                 'history_source': 'prescriptions',
+                'order_id': 'test-order-id',
                 'medication_name': 'Tamsulosine',
                 'medication_form_strength': '400mcg capsule',
                 'exact_dose': '1 capsule',
@@ -607,6 +614,7 @@ void main() {
               {
                 'id': 'rx-3',
                 'history_source': 'prescriptions',
+                'order_id': 'test-order-id',
                 'medication_name': 'Sambong',
                 'medication_form_strength': '500mg capsule',
                 'exact_dose': '1 capsule',
@@ -620,6 +628,7 @@ void main() {
               {
                 'id': 'rx-2',
                 'history_source': 'prescriptions',
+                'order_id': 'test-order-id',
                 'medication_name': 'Ciprofloxacin',
                 'medication_form_strength': '500mg tab',
                 'exact_dose': '1 tab',
@@ -633,6 +642,7 @@ void main() {
               {
                 'id': 'rx-1',
                 'history_source': 'prescriptions',
+                'order_id': 'test-order-id',
                 'medication_name': 'HMBB',
                 'medication_form_strength': '10mg tab',
                 'exact_dose': '1 tab',
@@ -644,6 +654,8 @@ void main() {
               },
               {
                 'id': 'doc-rx-scan',
+                'reference_type': 'prescription_order',
+                'reference_id': 'test-order-id',
                 'history_source': 'medical_documents',
                 'document_type': 'prescription',
                 'title': 'Prescription Attachment',
@@ -719,7 +731,10 @@ void main() {
       expect(find.text('Medications (2)'), findsOneWidget);
       expect(find.text('HMBB'), findsOneWidget);
       expect(find.text('Ciprofloxacin'), findsOneWidget);
-      expect(find.text('Diagnosis / Indication: Post-operative care'), findsOneWidget);
+      expect(
+        find.text('Diagnosis / Indication: Post-operative care'),
+        findsOneWidget,
+      );
       expect(find.text('Original Scanned Rx'), findsOneWidget);
       expect(find.text('Open file'), findsOneWidget);
       // Metric grid card is hidden in record detail view
@@ -755,7 +770,7 @@ void main() {
 
   testWidgets('doctor detail labels authorized external patient context', (
     tester,
-    ) async {
+  ) async {
     await _pumpItem(
       tester,
       role: UserRole.doctor,
@@ -1615,7 +1630,7 @@ void main() {
     );
   });
 
-  testWidgets('guest request controls open approve and reject reviews', (
+  testWidgets('face-to-face guest request controls open doctor reviews', (
     tester,
   ) async {
     await _pumpItem(
@@ -1630,6 +1645,7 @@ void main() {
         status: 'pending_doctor_review',
         data: {
           'assigned_doctor_id': 'doctor-id',
+          'preferred_consultation_type': 'face_to_face',
           'preferred_schedule': DateTime.now()
               .add(const Duration(days: 1))
               .toIso8601String(),
@@ -1647,6 +1663,33 @@ void main() {
       find.widgetWithText(TextButton, 'Reject'),
       'Reject guest consultation',
     );
+  });
+
+  testWidgets('online guest confirmation belongs to the hospital reviewer', (
+    tester,
+  ) async {
+    for (final role in [UserRole.doctor, UserRole.hospitalAdministrator]) {
+      await _pumpItem(
+        tester,
+        role: role,
+        section: 'appointments',
+        item: const WorkspaceItem(
+          id: 'online-guest-review',
+          kind: 'guest_consultation_requests',
+          title: 'Guest online request',
+          subtitle: 'Awaiting hospital confirmation',
+          status: 'pending_doctor_review',
+          data: {
+            'assigned_doctor_id': 'doctor-id',
+            'preferred_consultation_type': 'guest_online',
+          },
+        ),
+      );
+      final button = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Approve'),
+      );
+      expect(button.onPressed != null, role == UserRole.hospitalAdministrator);
+    }
   });
 
   testWidgets('reviewed online requests expose role-scoped decisions', (
@@ -2106,11 +2149,12 @@ class _RecordingCareRepository extends _NoopCareRepository {
   }
 
   @override
-  Future<void> sendDailyMedicationReminderEmail({
+  Future<String> sendDailyMedicationReminderEmail({
     String? patientId,
     String slot = 'all',
   }) async {
     sentDailyMedicationReminderSlot = slot;
+    return 'queued';
   }
 
   @override

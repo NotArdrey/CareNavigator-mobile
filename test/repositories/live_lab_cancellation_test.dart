@@ -20,7 +20,9 @@ void main() {
       String? requestId;
       try {
         final response = await client.auth.signInWithPassword(
-          email: 'doctor@demo.test',
+          email:
+              Platform.environment['CNPH_TEST_DOCTOR_EMAIL'] ??
+              'doctor@demo.test',
           password: password,
         );
         expect(response.user, isNotNull);
@@ -33,12 +35,18 @@ void main() {
           reason: 'The demo doctor needs an assigned relationship.',
         );
         final relationship = relationships.firstWhere(
-          (item) => item.consultationId.isNotEmpty,
+          (item) =>
+              item.consultationId.isNotEmpty &&
+              (Platform.environment['CNPH_TEST_CONSULTATION_ID'] == null ||
+                  item.consultationId ==
+                      Platform.environment['CNPH_TEST_CONSULTATION_ID']),
           orElse: () => relationships.first,
         );
-        if (relationship.consultationId.isEmpty) {
-          return;
-        }
+        expect(
+          relationship.consultationId,
+          isNotEmpty,
+          reason: 'A real fixture consultation is required.',
+        );
         final testName =
             'Codex cancellation audit ${DateTime.now().toUtc().microsecondsSinceEpoch}';
 
