@@ -1,0 +1,100 @@
+{
+  "fullRun": {
+    "source": ".codex-runtime/repair-browser/playwright-results.json",
+    "stats": {
+      "startTime": "2026-10-11T22:34:29.727Z",
+      "duration": 244692.611,
+      "expected": 9,
+      "skipped": 0,
+      "unexpected": 2,
+      "flaky": 0
+    },
+    "tests": [
+      {
+        "title": "doctor issues an atomic order through preview and patient sees it",
+        "status": [
+          "expected"
+        ]
+      },
+      {
+        "title": "medication reminder preference persists through a browser reload",
+        "status": [
+          "expected"
+        ]
+      },
+      {
+        "title": "patient sees relationship scope and revokes its complete sharing grant",
+        "status": [
+          "expected"
+        ]
+      },
+      {
+        "title": "patient shares supporting upload and scoped doctor reviews original provenance",
+        "status": [
+          "unexpected"
+        ]
+      },
+      {
+        "title": "Jitsi: controlled doctor and patient exchange media",
+        "status": [
+          "unexpected"
+        ]
+      },
+      {
+        "title": "super_admin: sign-in, protected deep link, reload and sign-out",
+        "status": [
+          "expected"
+        ]
+      },
+      {
+        "title": "hospital_admin: sign-in, protected deep link, reload and sign-out",
+        "status": [
+          "expected"
+        ]
+      },
+      {
+        "title": "doctor: sign-in, protected deep link, reload and sign-out",
+        "status": [
+          "expected"
+        ]
+      },
+      {
+        "title": "patient: sign-in, protected deep link, reload and sign-out",
+        "status": [
+          "expected"
+        ]
+      },
+      {
+        "title": "guest: sign-in, protected deep link, reload and sign-out",
+        "status": [
+          "expected"
+        ]
+      },
+      {
+        "title": "expired recovery link offers a new-link action",
+        "status": [
+          "expected"
+        ]
+      }
+    ]
+  },
+  "focusedRun": {
+    "source": ".codex-runtime/repair-browser/playwright-results.json",
+    "stats": {
+      "startTime": "2026-10-11T22:43:22.769Z",
+      "duration": 18734.734,
+      "expected": 1,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "tests": [
+      {
+        "title": "patient shares supporting upload and scoped doctor reviews original provenance",
+        "status": [
+          "expected"
+        ]
+      }
+    ]
+  }
+}

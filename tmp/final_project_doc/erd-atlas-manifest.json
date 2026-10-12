@@ -1,0 +1,1093 @@
+{
+  "tables": 64,
+  "columns": 906,
+  "foreignKeys": 200,
+  "sheets": [
+    {
+      "number": "01",
+      "names": [
+        "ai_assessment_recommendations",
+        "ai_assessments",
+        "ai_configurations",
+        "appointment_reminder_jobs",
+        "audit_logs",
+        "care_assistant_conversations",
+        "chat_conversations"
+      ],
+      "file": "diagrams/erd_atlas_01.png"
+    },
+    {
+      "number": "02",
+      "names": [
+        "chat_message_attachments",
+        "chat_messages",
+        "clinical_record_addenda",
+        "clinical_record_quarantine",
+        "consultation_attachments",
+        "consultation_status_history"
+      ],
+      "file": "diagrams/erd_atlas_02.png"
+    },
+    {
+      "number": "03",
+      "names": [
+        "consultations (part 1/2)",
+        "consultations (part 2/2)",
+        "diagnoses",
+        "doctor_hospital_employments"
+      ],
+      "file": "diagrams/erd_atlas_03.png"
+    },
+    {
+      "number": "04",
+      "names": [
+        "doctor_patient_assignments",
+        "doctor_schedules",
+        "doctors",
+        "document_processing_jobs"
+      ],
+      "file": "diagrams/erd_atlas_04.png"
+    },
+    {
+      "number": "05",
+      "names": [
+        "emergency_access_events",
+        "emergency_room_status",
+        "guest_consultation_requests (part 1/2)"
+      ],
+      "file": "diagrams/erd_atlas_05.png"
+    },
+    {
+      "number": "06",
+      "names": [
+        "guest_consultation_requests (part 2/2)",
+        "guest_request_status_history",
+        "healthcare_service_categories",
+        "hospital_announcements",
+        "hospital_beds",
+        "hospital_classifications",
+        "hospital_departments"
+      ],
+      "file": "diagrams/erd_atlas_06.png"
+    },
+    {
+      "number": "07",
+      "names": [
+        "hospital_facility_status",
+        "hospital_rooms",
+        "hospital_service_doctors",
+        "hospital_services",
+        "hospitals (part 1/2)"
+      ],
+      "file": "diagrams/erd_atlas_07.png"
+    },
+    {
+      "number": "08",
+      "names": [
+        "hospitals (part 2/2)",
+        "laboratory_requests",
+        "laboratory_results",
+        "maintenance_windows"
+      ],
+      "file": "diagrams/erd_atlas_08.png"
+    },
+    {
+      "number": "09",
+      "names": [
+        "medical_documents (part 1/2)",
+        "medical_documents (part 2/2)",
+        "medical_record_access_logs"
+      ],
+      "file": "diagrams/erd_atlas_09.png"
+    },
+    {
+      "number": "10",
+      "names": [
+        "medical_records (part 1/2)",
+        "medical_records (part 2/2)",
+        "medication_summary_days",
+        "notification_outbox",
+        "notification_preferences"
+      ],
+      "file": "diagrams/erd_atlas_10.png"
+    },
+    {
+      "number": "11",
+      "names": [
+        "notifications",
+        "online_consultation_request_status_history",
+        "online_consultation_requests (part 1/2)",
+        "online_consultation_requests (part 2/2)"
+      ],
+      "file": "diagrams/erd_atlas_11.png"
+    },
+    {
+      "number": "12",
+      "names": [
+        "patient_access_grants",
+        "patient_access_record_selections",
+        "patient_access_scopes",
+        "patient_care_relationships",
+        "patient_connection_requests"
+      ],
+      "file": "diagrams/erd_atlas_12.png"
+    },
+    {
+      "number": "13",
+      "names": [
+        "patient_consents",
+        "patient_hospital_identifiers",
+        "patient_representatives",
+        "patients"
+      ],
+      "file": "diagrams/erd_atlas_13.png"
+    },
+    {
+      "number": "14",
+      "names": [
+        "prescription_orders",
+        "prescriptions (part 1/2)",
+        "prescriptions (part 2/2)",
+        "role_permissions",
+        "roles"
+      ],
+      "file": "diagrams/erd_atlas_14.png"
+    },
+    {
+      "number": "15",
+      "names": [
+        "security_logs",
+        "system_settings",
+        "treatment_plans",
+        "video_sessions",
+        "users"
+      ],
+      "file": "diagrams/erd_atlas_15.png"
+    }
+  ],
+  "cards": [
+    {
+      "name": "ai_assessment_recommendations",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 8,
+      "vb": [
+        0,
+        0,
+        355.140625,
+        254.5
+      ]
+    },
+    {
+      "name": "ai_assessments",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 16,
+      "vb": [
+        0,
+        0,
+        403.1875,
+        466.5
+      ]
+    },
+    {
+      "name": "ai_configurations",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 11,
+      "vb": [
+        0,
+        0,
+        324.90625,
+        334
+      ]
+    },
+    {
+      "name": "appointment_reminder_jobs",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 3,
+      "vb": [
+        0,
+        0,
+        351.59375,
+        122
+      ]
+    },
+    {
+      "name": "audit_logs",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 9,
+      "vb": [
+        0,
+        0,
+        276.875,
+        281
+      ]
+    },
+    {
+      "name": "care_assistant_conversations",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 8,
+      "vb": [
+        0,
+        0,
+        321.328125,
+        254.5
+      ]
+    },
+    {
+      "name": "chat_conversations",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 8,
+      "vb": [
+        0,
+        0,
+        403.203125,
+        254.5
+      ]
+    },
+    {
+      "name": "chat_message_attachments",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 8,
+      "vb": [
+        0,
+        0,
+        292.890625,
+        254.5
+      ]
+    },
+    {
+      "name": "chat_messages",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 11,
+      "vb": [
+        0,
+        0,
+        317.796875,
+        334
+      ]
+    },
+    {
+      "name": "clinical_record_addenda",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 12,
+      "vb": [
+        0,
+        0,
+        387.1875,
+        360.5
+      ]
+    },
+    {
+      "name": "clinical_record_quarantine",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 10,
+      "vb": [
+        0,
+        0,
+        332.921875,
+        307.5
+      ]
+    },
+    {
+      "name": "consultation_attachments",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 10,
+      "vb": [
+        0,
+        0,
+        322.25,
+        307.5
+      ]
+    },
+    {
+      "name": "consultation_status_history",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 8,
+      "vb": [
+        0,
+        0,
+        356.078125,
+        254.5
+      ]
+    },
+    {
+      "name": "consultations",
+      "part": 1,
+      "parts": 2,
+      "first": 1,
+      "last": 26,
+      "vb": [
+        0,
+        0,
+        436.078125,
+        731.5
+      ]
+    },
+    {
+      "name": "consultations",
+      "part": 2,
+      "parts": 2,
+      "first": 27,
+      "last": 44,
+      "vb": [
+        0,
+        0,
+        360.4375,
+        519.5
+      ]
+    },
+    {
+      "name": "diagnoses",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 12,
+      "vb": [
+        0,
+        0,
+        309.796875,
+        360.5
+      ]
+    },
+    {
+      "name": "doctor_hospital_employments",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 12,
+      "vb": [
+        0,
+        0,
+        363.109375,
+        360.5
+      ]
+    },
+    {
+      "name": "doctor_patient_assignments",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 11,
+      "vb": [
+        0,
+        0,
+        367.578125,
+        334
+      ]
+    },
+    {
+      "name": "doctor_schedules",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 9,
+      "vb": [
+        0,
+        0,
+        387.1875,
+        281
+      ]
+    },
+    {
+      "name": "doctors",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 14,
+      "vb": [
+        0,
+        0,
+        396.0625,
+        413.5
+      ]
+    },
+    {
+      "name": "document_processing_jobs",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 14,
+      "vb": [
+        0,
+        0,
+        354.25,
+        413.5
+      ]
+    },
+    {
+      "name": "emergency_access_events",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 15,
+      "vb": [
+        0,
+        0,
+        329.375,
+        440
+      ]
+    },
+    {
+      "name": "emergency_room_status",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 14,
+      "vb": [
+        0,
+        0,
+        493.625,
+        413.5
+      ]
+    },
+    {
+      "name": "guest_consultation_requests",
+      "part": 1,
+      "parts": 2,
+      "first": 1,
+      "last": 26,
+      "vb": [
+        0,
+        0,
+        442.34375,
+        731.5
+      ]
+    },
+    {
+      "name": "guest_consultation_requests",
+      "part": 2,
+      "parts": 2,
+      "first": 27,
+      "last": 39,
+      "vb": [
+        0,
+        0,
+        475.25,
+        387
+      ]
+    },
+    {
+      "name": "guest_request_status_history",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 8,
+      "vb": [
+        0,
+        0,
+        352.53125,
+        254.5
+      ]
+    },
+    {
+      "name": "healthcare_service_categories",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 8,
+      "vb": [
+        0,
+        0,
+        309.78125,
+        254.5
+      ]
+    },
+    {
+      "name": "hospital_announcements",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 9,
+      "vb": [
+        0,
+        0,
+        289.34375,
+        281
+      ]
+    },
+    {
+      "name": "hospital_beds",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 8,
+      "vb": [
+        0,
+        0,
+        332.015625,
+        254.5
+      ]
+    },
+    {
+      "name": "hospital_classifications",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 5,
+      "vb": [
+        0,
+        0,
+        339.109375,
+        175
+      ]
+    },
+    {
+      "name": "hospital_departments",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 7,
+      "vb": [
+        0,
+        0,
+        394.28125,
+        228
+      ]
+    },
+    {
+      "name": "hospital_facility_status",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 7,
+      "vb": [
+        0,
+        0,
+        369.390625,
+        228
+      ]
+    },
+    {
+      "name": "hospital_rooms",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 8,
+      "vb": [
+        0,
+        0,
+        380.9375,
+        254.5
+      ]
+    },
+    {
+      "name": "hospital_service_doctors",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 8,
+      "vb": [
+        0,
+        0,
+        304.453125,
+        254.5
+      ]
+    },
+    {
+      "name": "hospital_services",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 22,
+      "vb": [
+        0,
+        0,
+        435.1875,
+        625.5
+      ]
+    },
+    {
+      "name": "hospitals",
+      "part": 1,
+      "parts": 2,
+      "first": 1,
+      "last": 26,
+      "vb": [
+        0,
+        0,
+        498.375,
+        731.5
+      ]
+    },
+    {
+      "name": "hospitals",
+      "part": 2,
+      "parts": 2,
+      "first": 27,
+      "last": 27,
+      "vb": [
+        0,
+        0,
+        364.90625,
+        69
+      ]
+    },
+    {
+      "name": "laboratory_requests",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 14,
+      "vb": [
+        0,
+        0,
+        305.34375,
+        413.5
+      ]
+    },
+    {
+      "name": "laboratory_results",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 25,
+      "vb": [
+        0,
+        0,
+        455.65625,
+        705
+      ]
+    },
+    {
+      "name": "maintenance_windows",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 9,
+      "vb": [
+        0,
+        0,
+        278.671875,
+        281
+      ]
+    },
+    {
+      "name": "medical_documents",
+      "part": 1,
+      "parts": 2,
+      "first": 1,
+      "last": 26,
+      "vb": [
+        0,
+        0,
+        407.625,
+        731.5
+      ]
+    },
+    {
+      "name": "medical_documents",
+      "part": 2,
+      "parts": 2,
+      "first": 27,
+      "last": 45,
+      "vb": [
+        0,
+        0,
+        455.671875,
+        546
+      ]
+    },
+    {
+      "name": "medical_record_access_logs",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 17,
+      "vb": [
+        0,
+        0,
+        348.03125,
+        493
+      ]
+    },
+    {
+      "name": "medical_records",
+      "part": 1,
+      "parts": 2,
+      "first": 1,
+      "last": 26,
+      "vb": [
+        0,
+        0,
+        411.203125,
+        731.5
+      ]
+    },
+    {
+      "name": "medical_records",
+      "part": 2,
+      "parts": 2,
+      "first": 27,
+      "last": 38,
+      "vb": [
+        0,
+        0,
+        388.9375,
+        360.5
+      ]
+    },
+    {
+      "name": "medication_summary_days",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 4,
+      "vb": [
+        0,
+        0,
+        321.328125,
+        148.5
+      ]
+    },
+    {
+      "name": "notification_outbox",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 12,
+      "vb": [
+        0,
+        0,
+        377.359375,
+        360.5
+      ]
+    },
+    {
+      "name": "notification_preferences",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 13,
+      "vb": [
+        0,
+        0,
+        391.578125,
+        387
+      ]
+    },
+    {
+      "name": "notifications",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 15,
+      "vb": [
+        0,
+        0,
+        352.453125,
+        440
+      ]
+    },
+    {
+      "name": "online_consultation_request_status_history",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 7,
+      "vb": [
+        0,
+        0,
+        372.875,
+        228
+      ]
+    },
+    {
+      "name": "online_consultation_requests",
+      "part": 1,
+      "parts": 2,
+      "first": 1,
+      "last": 26,
+      "vb": [
+        0,
+        0,
+        382.71875,
+        731.5
+      ]
+    },
+    {
+      "name": "online_consultation_requests",
+      "part": 2,
+      "parts": 2,
+      "first": 27,
+      "last": 40,
+      "vb": [
+        0,
+        0,
+        416.515625,
+        413.5
+      ]
+    },
+    {
+      "name": "patient_access_grants",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 20,
+      "vb": [
+        0,
+        0,
+        348.03125,
+        572.5
+      ]
+    },
+    {
+      "name": "patient_access_record_selections",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 6,
+      "vb": [
+        0,
+        0,
+        340,
+        201.5
+      ]
+    },
+    {
+      "name": "patient_access_scopes",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 7,
+      "vb": [
+        0,
+        0,
+        340,
+        228
+      ]
+    },
+    {
+      "name": "patient_care_relationships",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 19,
+      "vb": [
+        0,
+        0,
+        335.5625,
+        546
+      ]
+    },
+    {
+      "name": "patient_connection_requests",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 12,
+      "vb": [
+        0,
+        0,
+        295.5625,
+        360.5
+      ]
+    },
+    {
+      "name": "patient_consents",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 23,
+      "vb": [
+        0,
+        0,
+        390.703125,
+        652
+      ]
+    },
+    {
+      "name": "patient_hospital_identifiers",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 9,
+      "vb": [
+        0,
+        0,
+        304.453125,
+        281
+      ]
+    },
+    {
+      "name": "patient_representatives",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 14,
+      "vb": [
+        0,
+        0,
+        388.9375,
+        413.5
+      ]
+    },
+    {
+      "name": "patients",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 19,
+      "vb": [
+        0,
+        0,
+        453.84375,
+        546
+      ]
+    },
+    {
+      "name": "prescription_orders",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 13,
+      "vb": [
+        0,
+        0,
+        360.46875,
+        387
+      ]
+    },
+    {
+      "name": "prescriptions",
+      "part": 1,
+      "parts": 2,
+      "first": 1,
+      "last": 26,
+      "vb": [
+        0,
+        0,
+        391.578125,
+        731.5
+      ]
+    },
+    {
+      "name": "prescriptions",
+      "part": 2,
+      "parts": 2,
+      "first": 27,
+      "last": 31,
+      "vb": [
+        0,
+        0,
+        372.03125,
+        175
+      ]
+    },
+    {
+      "name": "role_permissions",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 6,
+      "vb": [
+        0,
+        0,
+        304.453125,
+        201.5
+      ]
+    },
+    {
+      "name": "roles",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 4,
+      "vb": [
+        0,
+        0,
+        276.859375,
+        148.5
+      ]
+    },
+    {
+      "name": "security_logs",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 9,
+      "vb": [
+        0,
+        0,
+        335.578125,
+        281
+      ]
+    },
+    {
+      "name": "system_settings",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 6,
+      "vb": [
+        0,
+        0,
+        282.234375,
+        201.5
+      ]
+    },
+    {
+      "name": "treatment_plans",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 12,
+      "vb": [
+        0,
+        0,
+        305.34375,
+        360.5
+      ]
+    },
+    {
+      "name": "users",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 20,
+      "vb": [
+        0,
+        0,
+        416.5625,
+        572.5
+      ]
+    },
+    {
+      "name": "video_sessions",
+      "part": 1,
+      "parts": 1,
+      "first": 1,
+      "last": 14,
+      "vb": [
+        0,
+        0,
+        357.796875,
+        413.5
+      ]
+    }
+  ]
+}

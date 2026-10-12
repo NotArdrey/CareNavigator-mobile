@@ -1,0 +1,19 @@
+{
+  "tables": 64,
+  "publicColumns": 906,
+  "declaredForeignKeys": 200,
+  "authReferences": 13,
+  "publicTablesInMaster": true,
+  "publicColumnsInAtlas": 906,
+  "foreignKeysInRegister": 200,
+  "unparsedPrimaryOrUnique": 0,
+  "entitySheets": 15,
+  "viewer": {
+    "svgNodes": 65,
+    "selected": "users",
+    "zoom": "100%",
+    "scrollTop": 30347,
+    "scrollLeft": 1113,
+    "usersVisible": true
+  }
+}

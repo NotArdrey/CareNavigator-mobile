@@ -1,0 +1,30 @@
+﻿{
+    "pages":  57,
+    "sections":  6,
+    "figures":  25,
+    "tables":  23,
+    "unchangedParts":  22,
+    "editedParts":  [
+                        "word/header2.xml",
+                        "docProps/core.xml",
+                        "word/settings.xml",
+                        "docProps/app.xml",
+                        "word/_rels/document.xml.rels",
+                        "word/document.xml",
+                        "word/styles.xml"
+                    ],
+    "referenceUnchanged":  true,
+    "author":  "Neil Ardrey Laza",
+    "section":  "ITE 231",
+    "submissionDate":  "blank",
+    "sourceExcerptVerified":  true,
+    "fullErdTables":  64,
+    "fullErdColumns":  906,
+    "fullErdForeignKeys":  200,
+    "finalSha256":  "6514D8DF266C2202285CEBA38AA0EEEE2BA7622B3B98D3BD8041784ABDE00F7D",
+    "renderedPages":  57,
+    "renderDirectory":  "render-revision-verified",
+    "visualReview":  "All new and changed pages inspected at original resolution. Retained body pages match previously inspected renders; 55 final pages are byte-identical to the preceding render. Final research and system-reference pages inspected after the section correction.",
+    "erdViewerVerified":  true,
+    "outputReplaced":  true
+}

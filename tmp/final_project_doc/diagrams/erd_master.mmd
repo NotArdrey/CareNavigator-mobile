@@ -1,0 +1,1241 @@
+%%{init: {"theme":"base","themeVariables":{"fontFamily":"Arial","fontSize":"16px","primaryColor":"#f3f6f8","primaryBorderColor":"#1f4e79","primaryTextColor":"#000000"},"er":{"entityPadding":2},"maxTextSize":300000}}%%
+erDiagram
+ direction TB
+
+ai_assessment_recommendations {
+  uuid id PK
+  uuid assessment_id FK,UK
+  uuid hospital_id FK,UK
+  integer rank UK
+  numeric_8_3_ score
+  text_array reasons
+  numeric_10_3_ distance_km
+  timestamptz created_at
+}
+ai_assessments {
+  uuid id PK
+  uuid user_id FK
+  uuid patient_id FK
+  uuid guest_request_id FK
+  text symptoms
+  text symptom_duration
+  jsonb possible_conditions
+  urgency_level urgency_level
+  jsonb warning_signs
+  text recommended_action
+  text recommended_department
+  uuid recommended_hospital_id FK
+  jsonb groq_response
+  text disclaimer
+  text model_name
+  timestamptz created_at
+}
+ai_configurations {
+  uuid id PK
+  text configuration_key UK
+  text purpose
+  text provider
+  text model_name
+  text prompt_template
+  jsonb configuration
+  boolean is_active
+  uuid updated_by FK
+  timestamptz created_at
+  timestamptz updated_at
+}
+appointment_reminder_jobs {
+  uuid consultation_id PK,FK
+  timestamptz appointment_date PK
+  timestamptz processed_at
+}
+audit_logs {
+  bigint id PK
+  uuid user_id FK
+  uuid hospital_id FK
+  text action
+  text module
+  uuid record_id
+  jsonb metadata
+  inet ip_address
+  timestamptz created_at
+}
+care_assistant_conversations {
+  text id PK
+  uuid user_id PK,FK
+  text title
+  boolean is_pinned
+  boolean is_title_edited
+  jsonb payload
+  timestamptz created_at
+  timestamptz updated_at
+}
+chat_conversations {
+  uuid id PK
+  uuid patient_id FK
+  uuid guest_request_id FK
+  uuid doctor_id FK
+  uuid consultation_id FK,UK
+  conversation_status status
+  timestamptz created_at
+  timestamptz updated_at
+}
+chat_message_attachments {
+  uuid id PK
+  uuid message_id FK
+  uuid uploaded_by FK
+  text storage_path UK
+  text file_name
+  text mime_type
+  bigint size_bytes
+  timestamptz created_at
+}
+chat_messages {
+  uuid id PK
+  uuid conversation_id FK
+  uuid sender_id FK
+  text message
+  text attachment_path
+  timestamptz sent_at
+  timestamptz delivered_at
+  timestamptz read_at
+  text message_type
+  timestamptz edited_at
+  timestamptz deleted_at
+}
+clinical_record_addenda {
+  uuid id PK
+  uuid patient_id FK
+  text record_category
+  text source_table
+  uuid record_id
+  uuid originating_hospital_id FK
+  uuid author_doctor_id FK
+  uuid author_user_id FK
+  text addendum_text
+  text correction_reason
+  uuid supersedes_addendum_id FK
+  timestamptz created_at
+}
+clinical_record_quarantine {
+  uuid id PK
+  text source_table UK
+  uuid record_id UK
+  uuid patient_id FK
+  text quarantine_reason
+  jsonb snapshot
+  timestamptz quarantined_at
+  timestamptz resolved_at
+  uuid resolved_by FK
+  text resolution_notes
+}
+consultation_attachments {
+  uuid id PK
+  uuid consultation_id FK
+  uuid patient_id FK
+  uuid guest_request_id FK
+  uuid uploaded_by FK
+  text storage_path UK
+  text file_name
+  text mime_type
+  bigint size_bytes
+  timestamptz created_at
+}
+consultation_status_history {
+  bigint id PK
+  uuid consultation_id FK
+  consultation_status old_status
+  consultation_status new_status
+  uuid changed_by FK
+  text reason
+  jsonb metadata
+  timestamptz created_at
+}
+consultations {
+  uuid id PK,UK
+  uuid patient_id FK,UK
+  uuid guest_request_id FK
+  uuid doctor_id FK
+  uuid hospital_id FK,UK
+  consultation_type consultation_type
+  timestamptz appointment_date
+  consultation_status status
+  text chief_complaint
+  text doctor_notes
+  text confirmed_diagnosis
+  text treatment_plan
+  text meeting_link
+  timestamptz completed_at
+  timestamptz created_at
+  timestamptz updated_at
+  uuid department_id FK
+  uuid approved_by FK
+  timestamptz approved_at
+  timestamptz rejected_at
+  text rejection_reason
+  timestamptz started_at
+  uuid follow_up_of FK
+  text consultation_summary
+  numeric_5_2_ height_cm
+  numeric_6_2_ weight_kg
+  numeric_5_2_ bmi
+  smallint blood_pressure_systolic
+  smallint blood_pressure_diastolic
+  numeric_4_1_ body_temperature_c
+  smallint heart_rate_bpm
+  smallint respiratory_rate_bpm
+  numeric_5_2_ oxygen_saturation_percent
+  timestamptz vitals_recorded_at
+  text current_symptoms
+  text_array known_medical_conditions
+  text_array allergies
+  text_array current_medications
+  text relevant_medical_history
+  text previous_surgeries
+  text smoking_status
+  text alcohol_use
+  text pregnancy_status
+  text outcome_reason
+}
+diagnoses {
+  uuid id PK
+  uuid patient_id FK
+  uuid consultation_id FK
+  uuid doctor_id FK
+  uuid hospital_id FK
+  text diagnosis
+  text diagnosis_code
+  boolean is_primary
+  timestamptz confirmed_at
+  timestamptz created_at
+  timestamptz updated_at
+  text source
+}
+doctor_hospital_employments {
+  uuid id PK
+  uuid doctor_id FK,UK
+  uuid hospital_id FK,UK
+  text employment_status
+  boolean is_verified
+  uuid verified_by FK
+  timestamptz verified_at
+  timestamptz starts_at
+  timestamptz ends_at
+  text termination_reason
+  timestamptz created_at
+  timestamptz updated_at
+}
+doctor_patient_assignments {
+  uuid id PK
+  uuid doctor_id FK,UK
+  uuid patient_id FK,UK
+  timestamptz assigned_at UK
+  timestamptz ended_at
+  text notes
+  uuid hospital_id FK
+  uuid care_relationship_id FK
+  uuid consultation_id FK
+  text assignment_status
+  text ended_reason
+}
+doctor_schedules {
+  uuid id PK
+  uuid doctor_id FK,UK
+  smallint day_of_week UK
+  time starts_at UK
+  time ends_at
+  consultation_type consultation_type UK
+  integer slot_minutes
+  boolean is_active
+  timestamptz created_at
+}
+doctors {
+  uuid id PK,UK
+  uuid user_id FK,UK
+  uuid hospital_id FK,UK
+  uuid department_id FK
+  text display_name
+  text specialization
+  text license_number UK
+  availability_status availability_status
+  numeric_10_2_ consultation_fee
+  text biography
+  uuid created_by_admin FK
+  timestamptz created_at
+  timestamptz updated_at
+  text profile_image_url
+}
+document_processing_jobs {
+  uuid id PK
+  uuid medical_document_id FK
+  uuid laboratory_result_id FK
+  uuid requested_by FK
+  text status
+  text ocr_provider
+  text ai_provider
+  text model_name
+  integer attempt_count
+  text last_error
+  timestamptz started_at
+  timestamptz completed_at
+  timestamptz created_at
+  timestamptz updated_at
+}
+emergency_access_events {
+  uuid id PK
+  uuid patient_id FK
+  uuid hospital_id FK
+  uuid doctor_id FK
+  text reason
+  text_array categories
+  text status
+  timestamptz started_at
+  timestamptz expires_at
+  timestamptz ended_at
+  timestamptz patient_notified_at
+  uuid reviewed_by FK
+  timestamptz reviewed_at
+  text review_notes
+  timestamptz created_at
+}
+emergency_room_status {
+  uuid id PK
+  uuid hospital_id FK,UK
+  emergency_room_state status
+  integer available_beds
+  integer current_patient_count
+  integer maximum_capacity
+  timestamptz last_updated
+  integer occupied_beds
+  integer closed_or_unstaffed_beds
+  integer reserved_beds
+  emergency_room_state status_override
+  text override_reason
+  text capacity_source
+  uuid updated_by FK
+}
+guest_consultation_requests {
+  uuid id PK
+  uuid submitted_by FK
+  text reference_number UK
+  text full_name
+  date birth_date
+  sex_type sex
+  text mobile_number
+  text email
+  text address
+  numeric_9_6_ latitude
+  numeric_9_6_ longitude
+  text symptoms
+  text symptom_duration
+  text consultation_reason
+  text_array existing_conditions
+  text_array allergies
+  text_array current_medications
+  urgency_level urgency_level
+  uuid preferred_hospital_id FK
+  uuid preferred_department_id FK
+  uuid assigned_doctor_id FK
+  timestamptz preferred_schedule
+  text identification_file_path
+  verification_status otp_verification_status
+  guest_request_status request_status
+  timestamptz created_at
+  timestamptz updated_at
+  timestamptz otp_verified_at
+  uuid reviewed_by FK
+  timestamptz reviewed_at
+  text rejection_reason
+  verification_status identity_review_status
+  text identity_review_notes
+  text additional_documents_requested
+  timestamptz consent_at
+  text first_name
+  text last_name
+  consultation_type preferred_consultation_type
+  text submission_key
+}
+guest_request_status_history {
+  bigint id PK
+  uuid request_id FK
+  guest_request_status old_status
+  guest_request_status new_status
+  uuid changed_by FK
+  text reason
+  jsonb metadata
+  timestamptz created_at
+}
+healthcare_service_categories {
+  uuid id PK
+  text category_name UK
+  text description
+  text icon_name
+  integer display_order
+  boolean is_active
+  timestamptz created_at
+  timestamptz updated_at
+}
+hospital_announcements {
+  uuid id PK
+  uuid hospital_id FK
+  text title
+  text message
+  boolean is_global
+  timestamptz published_at
+  timestamptz expires_at
+  uuid created_by FK
+  timestamptz created_at
+}
+hospital_beds {
+  uuid id PK
+  uuid hospital_id FK,UK
+  uuid department_id FK,UK
+  text bed_type UK
+  integer total_beds
+  integer available_beds
+  integer occupied_beds
+  timestamptz last_updated
+}
+hospital_classifications {
+  uuid id PK
+  text classification_name UK
+  text description
+  timestamptz created_at
+  timestamptz updated_at
+}
+hospital_departments {
+  uuid id PK,UK
+  uuid hospital_id FK,UK
+  text department_name UK
+  text description
+  availability_status availability_status
+  timestamptz created_at
+  timestamptz updated_at
+}
+hospital_facility_status {
+  uuid id PK
+  uuid hospital_id FK,UK
+  text facility_type UK
+  availability_status status
+  integer available_units
+  text notes
+  timestamptz last_updated
+}
+hospital_rooms {
+  uuid id PK
+  uuid hospital_id FK,UK
+  text room_type UK
+  integer total_rooms
+  integer available_rooms
+  integer occupied_rooms
+  availability_status status
+  timestamptz last_updated
+}
+hospital_service_doctors {
+  uuid id PK
+  uuid hospital_id FK
+  uuid service_id FK,UK
+  uuid doctor_id FK,UK
+  boolean is_primary
+  text notes
+  timestamptz created_at
+  timestamptz updated_at
+}
+hospital_services {
+  uuid id PK,UK
+  uuid hospital_id FK,UK
+  uuid department_id FK
+  text service_name UK
+  text description
+  availability_status availability_status
+  jsonb operating_hours
+  timestamptz created_at
+  timestamptz updated_at
+  uuid category_id FK
+  text service_code
+  text_array delivery_modes
+  boolean appointment_required
+  boolean accepts_walk_ins
+  numeric_10_2_ fee_min
+  numeric_10_2_ fee_max
+  text fee_notes
+  text contact_number
+  text booking_url
+  text preparation_instructions
+  text_array tags
+  timestamptz last_updated
+}
+hospitals {
+  uuid id PK
+  text hospital_name UK
+  uuid classification_id FK
+  text address UK
+  text city
+  text province
+  numeric_9_6_ latitude
+  numeric_9_6_ longitude
+  text contact_number
+  text emergency_contact_number
+  text email
+  text description
+  jsonb operating_hours
+  hospital_operating_status operating_status
+  verification_status verification_status
+  text image_url
+  uuid created_by FK
+  timestamptz created_at
+  timestamptz updated_at
+  text verification_notes
+  timestamptz verification_decided_at
+  uuid verification_decided_by FK
+  text image_attribution
+  text image_source_url
+  text directory_source_url
+  timestamptz directory_verified_at
+  boolean online_request_workflow_enabled
+}
+laboratory_requests {
+  uuid id PK
+  uuid patient_id FK
+  uuid consultation_id FK
+  uuid doctor_id FK
+  uuid hospital_id FK
+  text test_name
+  text instructions
+  text priority
+  text status
+  timestamptz requested_at
+  timestamptz due_at
+  timestamptz completed_at
+  timestamptz created_at
+  timestamptz updated_at
+}
+laboratory_results {
+  uuid id PK
+  uuid patient_id FK
+  uuid doctor_id FK
+  uuid hospital_id FK
+  uuid consultation_id FK
+  text test_name
+  text extracted_text
+  text ai_summary
+  jsonb ai_possible_findings
+  text doctor_confirmed_findings
+  text professional_interpretation
+  text file_path
+  medical_result_status verification_status
+  timestamptz confirmed_at
+  timestamptz uploaded_at
+  timestamptz updated_at
+  text ocr_provider
+  numeric_5_4_ ocr_confidence
+  timestamptz ocr_completed_at
+  timestamptz ai_analyzed_at
+  uuid reviewed_by FK
+  timestamptz reviewed_at
+  text rejection_reason
+  uuid source_document_id FK
+  uuid confirmed_by FK
+}
+maintenance_windows {
+  uuid id PK
+  text title
+  text message
+  timestamptz starts_at
+  timestamptz ends_at
+  boolean is_active
+  uuid created_by FK
+  timestamptz created_at
+  timestamptz updated_at
+}
+medical_documents {
+  uuid id PK
+  uuid patient_id FK
+  uuid consultation_id FK
+  uuid uploaded_by FK
+  uuid hospital_id FK
+  text document_type
+  text title
+  text storage_bucket UK
+  text storage_path UK
+  text mime_type
+  bigint size_bytes
+  timestamptz created_at
+  uuid reference_id
+  text reference_type
+  uuid author_doctor_id FK
+  text origin_type
+  text record_status
+  text ai_summary
+  jsonb ai_extracted_data
+  text ai_analysis_status
+  text ai_analysis_error
+  timestamptz ai_analyzed_at
+  text result_category
+  text test_procedure_name
+  date performed_or_collected_date
+  date result_date
+  text facility
+  text requesting_doctor
+  text findings_impression
+  text notes
+  boolean test_procedure_name_ai_generated
+  text performed_or_collected_date_text
+  text result_date_text
+  text patient_name_on_report
+  text procedure_details
+  text result_details
+  text official_findings_impression
+  text report_recommendations
+  text technical_summary
+  text patient_friendly_summary
+  text verification_notes
+  text review_state
+  uuid reviewed_by FK
+  timestamptz reviewed_at
+  text review_rejection_reason
+}
+medical_record_access_logs {
+  bigint id PK
+  uuid patient_id FK
+  uuid actor_user_id FK
+  text actor_role
+  text resource_type
+  uuid resource_id
+  text access_type
+  text reason
+  inet ip_address
+  jsonb metadata
+  timestamptz created_at
+  uuid grant_id FK
+  uuid care_relationship_id FK
+  uuid source_hospital_id FK
+  uuid receiving_hospital_id FK
+  boolean success
+  text failure_reason
+}
+medical_records {
+  uuid id PK
+  uuid patient_id FK
+  uuid doctor_id FK
+  uuid hospital_id FK
+  uuid consultation_id FK
+  text record_type
+  text title
+  text description
+  text confirmed_diagnosis
+  text treatment_plan
+  date record_date
+  timestamptz created_at
+  timestamptz updated_at
+  uuid source_laboratory_result_id FK
+  uuid confirmed_by FK
+  boolean is_ai_assisted
+  text reason_for_visit
+  numeric_5_2_ height_cm
+  numeric_6_2_ weight_kg
+  numeric_5_2_ bmi
+  smallint blood_pressure_systolic
+  smallint blood_pressure_diastolic
+  numeric_4_1_ body_temperature_c
+  smallint heart_rate_bpm
+  smallint respiratory_rate_bpm
+  numeric_5_2_ oxygen_saturation_percent
+  timestamptz vitals_recorded_at
+  text current_symptoms
+  text_array known_medical_conditions
+  text_array allergies
+  text_array current_medications
+  text relevant_medical_history
+  text previous_surgeries
+  text smoking_status
+  text alcohol_use
+  text pregnancy_status
+  text doctor_notes
+  uuid source_document_id FK
+}
+medication_summary_days {
+  uuid patient_id PK,FK
+  date local_date PK
+  uuid notification_id FK
+  timestamptz created_at
+}
+notification_outbox {
+  bigint id PK
+  uuid notification_id FK,UK
+  uuid user_id FK
+  text channel UK
+  text status
+  integer attempt_count
+  timestamptz next_attempt_at
+  text provider_message_id
+  text last_error
+  timestamptz delivered_at
+  timestamptz created_at
+  timestamptz updated_at
+}
+notification_preferences {
+  uuid user_id PK,FK
+  boolean consultation_updates
+  boolean appointment_reminders
+  boolean medical_results
+  boolean prescriptions
+  boolean messages
+  boolean hospital_alerts
+  boolean email_enabled
+  time quiet_hours_start
+  time quiet_hours_end
+  timestamptz updated_at
+  boolean in_app_enabled
+  boolean medication_reminders
+}
+notifications {
+  uuid id PK
+  uuid user_id FK
+  uuid guest_request_id FK
+  text title
+  text message
+  text notification_type
+  uuid reference_id
+  boolean is_read
+  timestamptz created_at
+  jsonb data
+  text action_url
+  timestamptz read_at
+  text action_path
+  text dedupe_key
+  text email_delivery_status
+}
+online_consultation_request_status_history {
+  bigint id PK
+  uuid request_id FK
+  text from_status
+  text to_status
+  uuid changed_by FK
+  text notes
+  timestamptz created_at
+}
+online_consultation_requests {
+  uuid id PK
+  text reference_number UK
+  uuid patient_id FK
+  uuid submitted_by FK
+  text profile_first_name
+  text profile_last_name
+  text profile_email
+  text phone_number_snapshot
+  date birth_date_snapshot
+  text address_snapshot
+  uuid hospital_id FK
+  uuid requested_department_id FK
+  uuid requested_doctor_id FK
+  uuid assigned_doctor_id FK
+  text medical_concern
+  text symptom_duration
+  timestamptz preferred_schedule
+  timestamptz proposed_schedule
+  timestamptz confirmed_schedule
+  uuid_array supporting_document_ids
+  text_array shared_categories
+  jsonb selected_records
+  uuid consent_id FK
+  uuid care_relationship_id FK
+  text consultation_channel
+  text request_status
+  uuid official_consultation_id FK
+  text additional_information_request
+  text contact_attempt_status
+  timestamptz contact_attempted_at
+  uuid reviewed_by FK
+  timestamptz reviewed_at
+  text rejection_reason
+  text cancellation_reason
+  text hospital_feature_key
+  timestamptz created_at
+  timestamptz updated_at
+  text patient_response
+  text contact_attempt_notes
+  text outcome_notes
+}
+patient_access_grants {
+  uuid id PK
+  uuid patient_id FK
+  uuid care_relationship_id FK
+  uuid consent_id FK
+  uuid source_hospital_id FK
+  uuid receiving_hospital_id FK
+  uuid receiving_doctor_id FK
+  uuid consultation_id FK
+  text purpose
+  text status
+  text selection_mode
+  text_array permitted_actions
+  boolean external_read_only
+  timestamptz activated_at
+  timestamptz expires_at
+  timestamptz revoked_at
+  uuid revoked_by FK
+  text revocation_reason
+  timestamptz created_at
+  timestamptz updated_at
+}
+patient_access_record_selections {
+  uuid id PK
+  uuid grant_id FK,UK
+  text record_category
+  text source_table UK
+  uuid record_id UK
+  timestamptz created_at
+}
+patient_access_scopes {
+  uuid id PK
+  uuid grant_id FK,UK
+  text record_category UK
+  boolean can_view
+  boolean can_download
+  boolean can_create
+  timestamptz created_at
+}
+patient_care_relationships {
+  uuid id PK
+  uuid patient_id FK
+  uuid hospital_id FK
+  uuid doctor_id FK
+  uuid consultation_id FK
+  uuid online_request_id FK
+  text referral_reference
+  text relationship_type
+  text purpose
+  text status
+  timestamptz requested_at
+  timestamptz approved_at
+  timestamptz starts_at
+  timestamptz expires_at
+  timestamptz ended_at
+  text termination_reason
+  uuid created_by FK
+  timestamptz created_at
+  timestamptz updated_at
+}
+patient_connection_requests {
+  uuid id PK
+  uuid patient_id FK
+  uuid hospital_id FK
+  uuid doctor_id FK
+  uuid requested_by FK
+  text purpose
+  text status
+  timestamptz requested_at
+  timestamptz decided_at
+  timestamptz expires_at
+  timestamptz created_at
+  timestamptz updated_at
+}
+patient_consents {
+  uuid id PK
+  uuid patient_id FK,UK
+  text consent_type UK
+  text consent_version UK
+  boolean is_granted
+  timestamptz granted_at
+  timestamptz revoked_at
+  uuid captured_by FK
+  jsonb metadata
+  timestamptz created_at
+  timestamptz updated_at
+  uuid care_relationship_id FK
+  uuid source_hospital_id FK
+  uuid receiving_hospital_id FK
+  text purpose
+  text_array categories
+  text_array permitted_actions
+  text record_selection_mode
+  timestamptz expires_at
+  uuid granted_by FK
+  text revocation_reason
+  uuid replaces_consent_id FK
+  integer version_sequence
+}
+patient_hospital_identifiers {
+  uuid id PK
+  uuid patient_id FK,UK
+  uuid hospital_id FK,UK
+  text local_mrn UK
+  text status
+  timestamptz verified_at
+  timestamptz retired_at
+  timestamptz created_at
+  timestamptz updated_at
+}
+patient_representatives {
+  uuid id PK
+  uuid patient_id FK,UK
+  uuid representative_user_id FK,UK
+  text authority_type UK
+  text_array authority_scope
+  text verification_status
+  uuid evidence_document_id FK
+  timestamptz starts_at
+  timestamptz expires_at
+  timestamptz revoked_at
+  uuid verified_by FK
+  timestamptz verified_at
+  timestamptz created_at
+  timestamptz updated_at
+}
+patients {
+  uuid id PK
+  uuid user_id FK,UK
+  text patient_number UK
+  uuid created_by_doctor FK
+  uuid guest_request_id FK
+  uuid primary_hospital_id FK
+  text blood_type
+  jsonb emergency_contact
+  text_array allergies
+  text_array existing_conditions
+  verification_status identity_verification_status
+  account_status account_activation_status
+  boolean converted_from_guest
+  timestamptz converted_at
+  timestamptz created_at
+  timestamptz updated_at
+  text profile_status
+  timestamptz activation_sent_at
+  timestamptz activated_at
+}
+prescription_orders {
+  uuid id PK
+  uuid patient_id FK
+  uuid doctor_id FK,UK
+  uuid hospital_id FK
+  uuid consultation_id FK
+  uuid assignment_id FK
+  uuid issued_by FK
+  timestamptz issued_at
+  text diagnosis_reason
+  text idempotency_key UK
+  text payload_fingerprint
+  text status
+  boolean legacy_import
+}
+prescriptions {
+  uuid id PK
+  uuid patient_id FK
+  uuid doctor_id FK
+  uuid consultation_id FK
+  text medication_name
+  text dosage
+  text frequency
+  text duration
+  text instructions
+  timestamptz created_at
+  timestamptz updated_at
+  uuid hospital_id FK
+  text diagnosis_reason
+  text medication_form_strength
+  text route
+  text exact_dose
+  text quantity_to_dispense
+  integer refills
+  date start_date
+  date end_date
+  boolean is_prn
+  text prn_reason
+  text maximum_daily_dose
+  text prescriber_name
+  text prescriber_license_number
+  text prescriber_specialization
+  timestamptz electronically_signed_at
+  uuid electronically_signed_by FK
+  text signature_method
+  uuid assignment_id FK
+  uuid order_id FK
+}
+role_permissions {
+  uuid id PK
+  smallint role_id FK,UK
+  text permission UK
+  boolean is_allowed
+  timestamptz created_at
+  timestamptz updated_at
+}
+roles {
+  smallint id PK
+  text role_name UK
+  text description
+  timestamptz created_at
+}
+security_logs {
+  bigint id PK
+  uuid actor_auth_user_id FK
+  text event_type
+  text severity
+  boolean success
+  inet ip_address
+  text user_agent
+  jsonb metadata
+  timestamptz created_at
+}
+system_settings {
+  text key PK
+  jsonb value
+  text description
+  boolean is_public
+  uuid updated_by FK
+  timestamptz updated_at
+}
+treatment_plans {
+  uuid id PK
+  uuid patient_id FK
+  uuid consultation_id FK
+  uuid doctor_id FK
+  uuid hospital_id FK
+  text plan
+  date starts_on
+  date ends_on
+  text status
+  timestamptz created_at
+  timestamptz updated_at
+  text source
+}
+users {
+  uuid id PK
+  uuid auth_user_id FK,UK
+  smallint role_id FK
+  text first_name
+  text middle_name
+  text last_name
+  text email
+  text mobile_number
+  date birth_date
+  sex_type sex
+  text address
+  uuid hospital_id FK
+  account_status account_status
+  text avatar_url
+  timestamptz created_at
+  timestamptz updated_at
+  text address_geocode_hash
+  float8 address_latitude
+  float8 address_longitude
+  text profile_image_url
+}
+video_sessions {
+  uuid id PK
+  uuid consultation_id FK,UK
+  text provider UK
+  text room_name UK
+  text join_url
+  text status
+  jsonb provider_metadata
+  uuid created_by FK
+  timestamptz starts_at
+  timestamptz started_at
+  timestamptz ended_at
+  timestamptz expires_at
+  timestamptz created_at
+  timestamptz updated_at
+}
+auth_users {
+ uuid id PK
+}
+ai_assessments ||--o{ ai_assessment_recommendations : F001
+hospitals ||--o{ ai_assessment_recommendations : F002
+guest_consultation_requests |o--o{ ai_assessments : F003
+patients |o--o{ ai_assessments : F004
+hospitals |o--o{ ai_assessments : F005
+auth_users |o--o{ ai_assessments : F006
+users |o--o{ ai_configurations : F007
+consultations ||--o{ appointment_reminder_jobs : F008
+hospitals |o--o{ audit_logs : F009
+users |o--o{ audit_logs : F010
+users ||--o{ care_assistant_conversations : F011
+consultations |o--o| chat_conversations : F012
+doctors ||--o{ chat_conversations : F013
+guest_consultation_requests |o--o{ chat_conversations : F014
+patients |o--o{ chat_conversations : F015
+chat_messages ||--o{ chat_message_attachments : F016
+auth_users ||--o{ chat_message_attachments : F017
+chat_conversations ||--o{ chat_messages : F018
+auth_users ||--o{ chat_messages : F019
+doctors |o--o{ clinical_record_addenda : F020
+users ||--o{ clinical_record_addenda : F021
+hospitals ||--o{ clinical_record_addenda : F022
+patients ||--o{ clinical_record_addenda : F023
+clinical_record_addenda |o--o{ clinical_record_addenda : F024
+patients |o--o{ clinical_record_quarantine : F025
+users |o--o{ clinical_record_quarantine : F026
+consultations ||--o{ consultation_attachments : F027
+guest_consultation_requests |o--o{ consultation_attachments : F028
+patients |o--o{ consultation_attachments : F029
+auth_users ||--o{ consultation_attachments : F030
+users |o--o{ consultation_status_history : F031
+consultations ||--o{ consultation_status_history : F032
+users |o--o{ consultations : F033
+hospital_departments |o--o{ consultations : F034
+doctors ||--o{ consultations : F035
+consultations |o--o{ consultations : F036
+guest_consultation_requests |o--o{ consultations : F037
+hospitals ||--o{ consultations : F038
+patients |o--o{ consultations : F039
+consultations ||--o{ diagnoses : F040
+doctors ||--o{ diagnoses : F041
+hospitals ||--o{ diagnoses : F042
+patients ||--o{ diagnoses : F043
+doctors ||--o{ doctor_hospital_employments : F044
+hospitals ||--o{ doctor_hospital_employments : F045
+users |o--o{ doctor_hospital_employments : F046
+patient_care_relationships |o--o{ doctor_patient_assignments : F047
+consultations |o--o{ doctor_patient_assignments : F048
+doctors ||--o{ doctor_patient_assignments : F049
+hospitals |o--o{ doctor_patient_assignments : F050
+patients ||--o{ doctor_patient_assignments : F051
+doctors ||--o{ doctor_schedules : F052
+users |o--o{ doctors : F053
+hospital_departments |o--o{ doctors : F054
+hospitals ||--o{ doctors : F055
+users ||--o| doctors : F056
+laboratory_results |o--o{ document_processing_jobs : F057
+medical_documents |o--o{ document_processing_jobs : F058
+doctors ||--o{ document_processing_jobs : F059
+doctors ||--o{ emergency_access_events : F060
+hospitals ||--o{ emergency_access_events : F061
+patients ||--o{ emergency_access_events : F062
+users |o--o{ emergency_access_events : F063
+hospitals ||--o| emergency_room_status : F064
+users |o--o{ emergency_room_status : F065
+doctors |o--o{ guest_consultation_requests : F066
+hospital_departments |o--o{ guest_consultation_requests : F067
+hospitals |o--o{ guest_consultation_requests : F068
+users |o--o{ guest_consultation_requests : F069
+auth_users |o--o{ guest_consultation_requests : F070
+users |o--o{ guest_request_status_history : F071
+guest_consultation_requests ||--o{ guest_request_status_history : F072
+users |o--o{ hospital_announcements : F073
+hospitals |o--o{ hospital_announcements : F074
+hospital_departments |o--o{ hospital_beds : F075
+hospitals ||--o{ hospital_beds : F076
+hospitals ||--o{ hospital_departments : F077
+hospitals ||--o{ hospital_facility_status : F078
+hospitals ||--o{ hospital_rooms : F079
+doctors ||--o{ hospital_service_doctors : F080
+hospitals ||--o{ hospital_service_doctors : F081
+hospital_services ||--o{ hospital_service_doctors : F082
+healthcare_service_categories |o--o{ hospital_services : F083
+hospital_departments |o--o{ hospital_services : F084
+hospitals ||--o{ hospital_services : F085
+hospital_classifications |o--o{ hospitals : F086
+auth_users |o--o{ hospitals : F087
+users |o--o{ hospitals : F088
+consultations |o--o{ laboratory_requests : F089
+doctors ||--o{ laboratory_requests : F090
+hospitals ||--o{ laboratory_requests : F091
+patients ||--o{ laboratory_requests : F092
+doctors |o--o{ laboratory_results : F093
+consultations |o--o{ laboratory_results : F094
+doctors ||--o{ laboratory_results : F095
+hospitals ||--o{ laboratory_results : F096
+patients ||--o{ laboratory_results : F097
+doctors |o--o{ laboratory_results : F098
+medical_documents |o--o{ laboratory_results : F099
+users |o--o{ maintenance_windows : F100
+doctors |o--o{ medical_documents : F101
+consultations |o--o{ medical_documents : F102
+hospitals |o--o{ medical_documents : F103
+patients ||--o{ medical_documents : F104
+users |o--o{ medical_documents : F105
+users ||--o{ medical_documents : F106
+users |o--o{ medical_record_access_logs : F107
+patient_care_relationships |o--o{ medical_record_access_logs : F108
+patient_access_grants |o--o{ medical_record_access_logs : F109
+patients ||--o{ medical_record_access_logs : F110
+hospitals |o--o{ medical_record_access_logs : F111
+hospitals |o--o{ medical_record_access_logs : F112
+doctors |o--o{ medical_records : F113
+consultations |o--o{ medical_records : F114
+doctors ||--o{ medical_records : F115
+hospitals ||--o{ medical_records : F116
+patients ||--o{ medical_records : F117
+medical_documents |o--o{ medical_records : F118
+laboratory_results |o--o{ medical_records : F119
+notifications |o--o{ medication_summary_days : F120
+patients ||--o{ medication_summary_days : F121
+notifications ||--o{ notification_outbox : F122
+auth_users ||--o{ notification_outbox : F123
+auth_users ||--o| notification_preferences : F124
+guest_consultation_requests |o--o{ notifications : F125
+auth_users |o--o{ notifications : F126
+users |o--o{ online_consultation_request_status_history : F127
+online_consultation_requests ||--o{ online_consultation_request_status_history : F128
+doctors |o--o{ online_consultation_requests : F129
+patient_care_relationships ||--o{ online_consultation_requests : F130
+patient_consents ||--o{ online_consultation_requests : F131
+hospitals ||--o{ online_consultation_requests : F132
+consultations |o--o{ online_consultation_requests : F133
+patients ||--o{ online_consultation_requests : F134
+hospital_departments ||--o{ online_consultation_requests : F135
+doctors |o--o{ online_consultation_requests : F136
+users |o--o{ online_consultation_requests : F137
+users ||--o{ online_consultation_requests : F138
+patient_care_relationships ||--o{ patient_access_grants : F139
+patient_consents ||--o{ patient_access_grants : F140
+consultations |o--o{ patient_access_grants : F141
+patients ||--o{ patient_access_grants : F142
+doctors ||--o{ patient_access_grants : F143
+hospitals ||--o{ patient_access_grants : F144
+users |o--o{ patient_access_grants : F145
+hospitals ||--o{ patient_access_grants : F146
+patient_access_grants ||--o{ patient_access_record_selections : F147
+patient_access_grants ||--o{ patient_access_scopes : F148
+consultations |o--o{ patient_care_relationships : F149
+users |o--o{ patient_care_relationships : F150
+doctors |o--o{ patient_care_relationships : F151
+hospitals ||--o{ patient_care_relationships : F152
+online_consultation_requests |o--o{ patient_care_relationships : F153
+patients ||--o{ patient_care_relationships : F154
+doctors ||--o{ patient_connection_requests : F155
+hospitals ||--o{ patient_connection_requests : F156
+patients ||--o{ patient_connection_requests : F157
+users ||--o{ patient_connection_requests : F158
+auth_users ||--o{ patient_consents : F159
+patient_care_relationships |o--o{ patient_consents : F160
+users |o--o{ patient_consents : F161
+patients ||--o{ patient_consents : F162
+hospitals |o--o{ patient_consents : F163
+patient_consents |o--o{ patient_consents : F164
+hospitals |o--o{ patient_consents : F165
+hospitals ||--o{ patient_hospital_identifiers : F166
+patients ||--o{ patient_hospital_identifiers : F167
+medical_documents |o--o{ patient_representatives : F168
+patients ||--o{ patient_representatives : F169
+users ||--o{ patient_representatives : F170
+users |o--o{ patient_representatives : F171
+doctors |o--o{ patients : F172
+guest_consultation_requests |o--o{ patients : F173
+hospitals |o--o{ patients : F174
+users |o--o| patients : F175
+doctor_patient_assignments |o--o{ prescription_orders : F176
+consultations |o--o{ prescription_orders : F177
+doctors ||--o{ prescription_orders : F178
+hospitals ||--o{ prescription_orders : F179
+users |o--o{ prescription_orders : F180
+patients ||--o{ prescription_orders : F181
+doctor_patient_assignments |o--o{ prescriptions : F182
+consultations |o--o{ prescriptions : F183
+doctors ||--o{ prescriptions : F184
+users |o--o{ prescriptions : F185
+hospitals ||--o{ prescriptions : F186
+prescription_orders |o--o{ prescriptions : F187
+patients ||--o{ prescriptions : F188
+roles ||--o{ role_permissions : F189
+auth_users |o--o{ security_logs : F190
+users |o--o{ system_settings : F191
+consultations ||--o{ treatment_plans : F192
+doctors ||--o{ treatment_plans : F193
+hospitals ||--o{ treatment_plans : F194
+patients ||--o{ treatment_plans : F195
+auth_users ||--o| users : F196
+hospitals |o--o{ users : F197
+roles ||--o{ users : F198
+consultations ||--o| video_sessions : F199
+auth_users ||--o{ video_sessions : F200

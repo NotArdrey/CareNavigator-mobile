@@ -1,0 +1,367 @@
+﻿[
+    {
+        "text":  "TABLE OF CONTENTS",
+        "page":  2,
+        "level":  1
+    },
+    {
+        "text":  "CHAPTER 1",
+        "page":  3,
+        "level":  1
+    },
+    {
+        "text":  "PROJECT OVERVIEW",
+        "page":  3,
+        "level":  1
+    },
+    {
+        "text":  "Introduction",
+        "page":  3,
+        "level":  2
+    },
+    {
+        "text":  "Project Objectives",
+        "page":  3,
+        "level":  2
+    },
+    {
+        "text":  "General Objective",
+        "page":  3,
+        "level":  3
+    },
+    {
+        "text":  "Specific Objectives",
+        "page":  3,
+        "level":  3
+    },
+    {
+        "text":  "Scope of the Project",
+        "page":  4,
+        "level":  1
+    },
+    {
+        "text":  "Supported Users and Functions",
+        "page":  4,
+        "level":  2
+    },
+    {
+        "text":  "Limitations",
+        "page":  4,
+        "level":  2
+    },
+    {
+        "text":  "CHAPTER 2",
+        "page":  5,
+        "level":  1
+    },
+    {
+        "text":  "SYSTEM ANALYSIS AND DESIGN",
+        "page":  5,
+        "level":  1
+    },
+    {
+        "text":  "System Description",
+        "page":  5,
+        "level":  2
+    },
+    {
+        "text":  "Core Business Rules",
+        "page":  5,
+        "level":  2
+    },
+    {
+        "text":  "System Architecture",
+        "page":  6,
+        "level":  1
+    },
+    {
+        "text":  "Authorization and Data Flow",
+        "page":  6,
+        "level":  2
+    },
+    {
+        "text":  "System Flow",
+        "page":  7,
+        "level":  1
+    },
+    {
+        "text":  "Online Consultation Lifecycle",
+        "page":  8,
+        "level":  1
+    },
+    {
+        "text":  "Timing and Terminal Rules",
+        "page":  8,
+        "level":  2
+    },
+    {
+        "text":  "Use Case Diagram",
+        "page":  9,
+        "level":  1
+    },
+    {
+        "text":  "Database Design",
+        "page":  10,
+        "level":  1
+    },
+    {
+        "text":  "ERD Overview",
+        "page":  10,
+        "level":  2
+    },
+    {
+        "text":  "Database Tables for Identity and Appointments",
+        "page":  11,
+        "level":  1
+    },
+    {
+        "text":  "Users",
+        "page":  11,
+        "level":  2
+    },
+    {
+        "text":  "Consultations",
+        "page":  11,
+        "level":  2
+    },
+    {
+        "text":  "Database Tables for Clinical Documents and Orders",
+        "page":  12,
+        "level":  1
+    },
+    {
+        "text":  "Medical Documents",
+        "page":  12,
+        "level":  2
+    },
+    {
+        "text":  "Prescription Orders",
+        "page":  12,
+        "level":  2
+    },
+    {
+        "text":  "User Interface Design",
+        "page":  13,
+        "level":  1
+    },
+    {
+        "text":  "Interaction and Feedback",
+        "page":  13,
+        "level":  2
+    },
+    {
+        "text":  "CHAPTER 3",
+        "page":  14,
+        "level":  1
+    },
+    {
+        "text":  "SYSTEM DEVELOPMENT",
+        "page":  14,
+        "level":  1
+    },
+    {
+        "text":  "Tools and Technologies Used",
+        "page":  14,
+        "level":  2
+    },
+    {
+        "text":  "Development Environment",
+        "page":  14,
+        "level":  2
+    },
+    {
+        "text":  "Development Process",
+        "page":  15,
+        "level":  1
+    },
+    {
+        "text":  "Requirements and Design",
+        "page":  15,
+        "level":  2
+    },
+    {
+        "text":  "Implementation Sequence",
+        "page":  15,
+        "level":  2
+    },
+    {
+        "text":  "Testing During Development",
+        "page":  15,
+        "level":  2
+    },
+    {
+        "text":  "Deployment and Reproducibility",
+        "page":  16,
+        "level":  1
+    },
+    {
+        "text":  "Backend Package",
+        "page":  16,
+        "level":  2
+    },
+    {
+        "text":  "Installation and Upgrade Process",
+        "page":  16,
+        "level":  2
+    },
+    {
+        "text":  "CHAPTER 4",
+        "page":  17,
+        "level":  1
+    },
+    {
+        "text":  "RESULTS AND TESTING",
+        "page":  17,
+        "level":  1
+    },
+    {
+        "text":  "System Features",
+        "page":  17,
+        "level":  2
+    },
+    {
+        "text":  "Clinical and Notification Outputs",
+        "page":  17,
+        "level":  2
+    },
+    {
+        "text":  "Functional Testing",
+        "page":  18,
+        "level":  1
+    },
+    {
+        "text":  "Evaluation and Recorded Verification",
+        "page":  19,
+        "level":  1
+    },
+    {
+        "text":  "Strengths and Remaining Work",
+        "page":  19,
+        "level":  2
+    },
+    {
+        "text":  "CHAPTER 5",
+        "page":  20,
+        "level":  1
+    },
+    {
+        "text":  "CONCLUSION AND RECOMMENDATIONS",
+        "page":  20,
+        "level":  1
+    },
+    {
+        "text":  "Conclusion",
+        "page":  20,
+        "level":  2
+    },
+    {
+        "text":  "Recommendations",
+        "page":  20,
+        "level":  2
+    },
+    {
+        "text":  "APPENDICES",
+        "page":  21,
+        "level":  1
+    },
+    {
+        "text":  "Appendix A Screenshots of the Application",
+        "page":  21,
+        "level":  1
+    },
+    {
+        "text":  "Screenshots of Patient and Doctor Workspaces",
+        "page":  22,
+        "level":  1
+    },
+    {
+        "text":  "Screenshots of Administration Workspaces",
+        "page":  23,
+        "level":  1
+    },
+    {
+        "text":  "Appendix B Source Code Snippets",
+        "page":  24,
+        "level":  1
+    },
+    {
+        "text":  "Typed Booking Outcome",
+        "page":  24,
+        "level":  2
+    },
+    {
+        "text":  "Preference Serialization",
+        "page":  24,
+        "level":  2
+    },
+    {
+        "text":  "Source Code for Transactional Prescription Issuance",
+        "page":  25,
+        "level":  1
+    },
+    {
+        "text":  "Missed Visit Guard",
+        "page":  25,
+        "level":  2
+    },
+    {
+        "text":  "Appendix C User Manual",
+        "page":  26,
+        "level":  1
+    },
+    {
+        "text":  "Getting Started",
+        "page":  26,
+        "level":  2
+    },
+    {
+        "text":  "Guest Journey",
+        "page":  26,
+        "level":  2
+    },
+    {
+        "text":  "Patient Journey",
+        "page":  26,
+        "level":  2
+    },
+    {
+        "text":  "User Manual for Clinical and Hospital Staff",
+        "page":  27,
+        "level":  1
+    },
+    {
+        "text":  "Doctor Journey",
+        "page":  27,
+        "level":  2
+    },
+    {
+        "text":  "Hospital Administrator Journey",
+        "page":  27,
+        "level":  2
+    },
+    {
+        "text":  "User Manual for Platform Operations and Recovery",
+        "page":  28,
+        "level":  1
+    },
+    {
+        "text":  "Super Administrator Journey",
+        "page":  28,
+        "level":  2
+    },
+    {
+        "text":  "Password Recovery and Session Expiry",
+        "page":  28,
+        "level":  2
+    },
+    {
+        "text":  "Failure Recovery",
+        "page":  28,
+        "level":  2
+    },
+    {
+        "text":  "Project References",
+        "page":  29,
+        "level":  1
+    }
+]
