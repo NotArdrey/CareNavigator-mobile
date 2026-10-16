@@ -1,5 +1,5 @@
 import {mkdir, readFile, writeFile} from 'node:fs/promises';
-import {connect, unpack, management} from './repair_backend.mjs';
+import {connect, management} from './repair_backend.mjs';
 
 const base = new URL(process.argv[2]);
 if (base.protocol !== 'https:' || base.username || base.password || base.pathname !== '/') {
@@ -9,11 +9,14 @@ if (base.protocol !== 'https:' || base.username || base.password || base.pathnam
 // Confirm the intended live project through MCP before configuring its links.
 const client = await connect();
 try {
-  const result = unpack(await client.callTool({
+  const result = await client.callTool({
     name: 'execute_sql',
     arguments: {query: "select count(*)::integer as public_table_count from information_schema.tables where table_schema = 'public'"},
-  }));
-  console.log('Live project verified:', JSON.stringify(result));
+  });
+  const text = result.content.filter(item => item.type === 'text').map(item => item.text).join('\n');
+  const count = text.match(/public_table_count[^0-9]{1,20}(\d+)/)?.[1];
+  if (result.isError || !count || Number(count) === 0) throw new Error('Live project MCP verification failed.');
+  console.log(`Live project verified through MCP: ${count} public tables.`);
 } finally {
   await client.close();
 }
