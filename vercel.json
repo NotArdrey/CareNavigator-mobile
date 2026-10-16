@@ -4,16 +4,14 @@
   "installCommand": "",
   "buildCommand": "bash tool/build_vercel.sh",
   "outputDirectory": "build/web",
-  "redirects": [
-    { "source": "/", "destination": "/sign-in", "permanent": false }
-  ],
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
-  ],
-  "headers": [
+  "routes": [
+    { "src": "^/$", "status": 307, "headers": { "Location": "/sign-in" } },
     {
-      "source": "/(index.html|flutter_bootstrap.js|flutter_service_worker.js|version.json)",
-      "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
-    }
+      "src": "/(index.html|flutter_bootstrap.js|flutter_service_worker.js|version.json)",
+      "headers": { "Cache-Control": "no-cache" },
+      "continue": true
+    },
+    { "handle": "filesystem" },
+    { "src": "/.*", "dest": "/index.html" }
   ]
 }
