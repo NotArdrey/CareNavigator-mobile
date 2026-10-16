@@ -3,7 +3,9 @@ import {chromium} from 'playwright';
 
 const base = new URL(process.argv[2]);
 if (base.protocol !== 'https:') throw new Error('Provide the production HTTPS URL.');
-const accounts = JSON.parse(await readFile('.codex-runtime/repair-test-accounts.json', 'utf8'));
+// Supply an optional local credential file to exercise authenticated sessions.
+// Retired or banned fixture accounts must never be re-enabled by verification.
+const accounts = process.argv[3] ? JSON.parse(await readFile(process.argv[3], 'utf8')) : null;
 const directory = '.codex-runtime/vercel-admin';
 await mkdir(directory, {recursive: true});
 const browser = await chromium.launch({headless: true,
@@ -23,11 +25,18 @@ try {
     await page.goto(new URL(route, base).href);
     await enable(page);
     if (new URL(page.url()).pathname !== '/sign-in') throw new Error(`${role}: missing signed-out guard`);
+    if (!accounts) {
+      await page.screenshot({path: `${directory}/${role}-signed-out.png`});
+      if (errors.length) throw new Error(`${role}: browser runtime errors: ${errors.join('; ')}`);
+      results.push({role, signedOutGuard: true, signInForm: true, runtimeErrors: 0});
+      await context.close();
+      continue;
+    }
     const account = accounts.accounts.find(account => account.role === role);
     await page.getByRole('textbox', {name: 'Email address', exact: true}).click();
-    await page.keyboard.type(account.email);
+    await page.keyboard.type(account.email, {delay: 5});
     await page.keyboard.press('Tab');
-    await page.keyboard.type(accounts.password);
+    await page.keyboard.type(account.password ?? accounts.password, {delay: 5});
     await page.keyboard.press('Tab');
     await page.getByRole('button', {name: 'Sign in', exact: true}).click();
     await page.waitForURL(url => url.pathname.startsWith(route), {timeout: 60000});

@@ -47,6 +47,8 @@ See [PRE_BUILD_REPORT.md](PRE_BUILD_REPORT.md) for the architecture/data invento
 
 ## Admin web hosting (Vercel)
 
+Production: https://care-navigator-admin.vercel.app
+
 Import this repository into Vercel with the repository root as the root directory.
 The checked-in configuration installs Flutter 3.44.8 and publishes `build/web`.
 The site opens at `/sign-in`; hospital administrators use `/hospital-admin` and
@@ -58,6 +60,16 @@ set only `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, and
 optionally `APP_BASE_URL`. Add the production origin's `/reset-password` URL to
 Supabase Auth's allowed redirect URLs before using password recovery. Keep the
 root `env` file and all server credentials out of Vercel's frontend build.
+
+Verify the hosted sign-in screens and signed-out admin guards with:
+
+```powershell
+node tool/verify_vercel_admin.mjs https://care-navigator-admin.vercel.app
+```
+
+An optional second argument can point to an ignored local credential JSON file
+containing `password` and `accounts` (with `role` and `email` per account) to
+also check sign-in, reload, and sign-out for active admin test accounts.
 
 ## Verification
 
