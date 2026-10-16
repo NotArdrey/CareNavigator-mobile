@@ -60,3 +60,4 @@ app.*.map.json
 *.apk
 *.aab
 /.vercel/
+.vercel

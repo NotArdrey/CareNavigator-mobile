@@ -1,0 +1,36 @@
+# Exclude local configuration, backend tooling, and generated deliverables.
+.git
+.codex-runtime
+.dart_tool
+.idea
+.vercel
+env
+env.*
+.env
+.env.*
+android
+ios
+build
+docs
+infra
+output
+submission_assets
+supabase
+temp_pg_script
+test
+tmp
+tool/node_modules
+tool/.codex-runtime
+tool/browser
+tool/*.mjs
+tool/*.ps1
+tool/*.json
+tool/*.lock
+*.log
+*.docx
+*.pdf
+*.apk
+*.aab
+ChatGPT Image Aug 6, 2026, 09_24_03 AM.png
+*.iml
+/*.md

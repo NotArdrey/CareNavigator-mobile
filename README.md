@@ -45,6 +45,20 @@ supabase/migrations/20260809173000_harden_hospital_verification_rpc.sql
 
 See [PRE_BUILD_REPORT.md](PRE_BUILD_REPORT.md) for the architecture/data inventory and [VERIFICATION_REPORT.md](VERIFICATION_REPORT.md) for evidence and limitations.
 
+## Admin web hosting (Vercel)
+
+Import this repository into Vercel with the repository root as the root directory.
+The checked-in configuration installs Flutter 3.44.8 and publishes `build/web`.
+The site opens at `/sign-in`; hospital administrators use `/hospital-admin` and
+platform administrators use `/super-admin`. Existing authentication and role
+guards apply, and direct links are served through the Flutter router.
+
+The app includes its public Supabase configuration. If overriding it in Vercel,
+set only `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, and
+optionally `APP_BASE_URL`. Add the production origin's `/reset-password` URL to
+Supabase Auth's allowed redirect URLs before using password recovery. Keep the
+root `env` file and all server credentials out of Vercel's frontend build.
+
 ## Verification
 
 ```powershell
