@@ -1,0 +1,22 @@
+{
+  "checkedAt": "2026-10-16T06:43:21.535Z",
+  "cases": [
+    {
+      "id": "TC_AUTH_002",
+      "result": "PASS",
+      "fixture": "Existing owned synthetic patient; incorrect password",
+      "scope": "Real Auth rejection and browser route guard"
+    },
+    {
+      "id": "TC_AUTH_001",
+      "result": "PASS",
+      "fixture": "Existing owned synthetic patient",
+      "scope": "Real sign-in and protected patient appointment page"
+    },
+    {
+      "id": "TC_BOOKING_002",
+      "result": "PASS WITH CONTROLLED RESPONSE",
+      "scope": "Browser received an empty availability response; 24-hour notice shown, submit disabled, zero booking requests. No real no-slot backend fixture claimed."
+    }
+  ]
+}

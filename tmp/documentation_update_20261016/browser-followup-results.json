@@ -1,0 +1,10 @@
+{
+  "checkedAt": "2026-10-16T07:08:40.082Z",
+  "cases": [
+    {
+      "name": "Valid recovery link changes password through the real app and real Auth",
+      "result": "PASS",
+      "scope": "Real generated recovery token, redirect/event handling, password form, Auth update and new/old password checks. Link retrieved through admin API; email delivery not tested."
+    }
+  ]
+}

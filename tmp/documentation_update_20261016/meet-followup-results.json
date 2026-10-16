@@ -1,0 +1,25 @@
+{
+  "checkedAt": "2026-10-16T07:05:13.698Z",
+  "cases": [
+    {
+      "name": "Valid recovery link changes password through the real app and real Auth",
+      "result": "FAIL",
+      "error": "page.waitForResponse: Timeout 30000ms exceeded while waiting for event \"response\""
+    },
+    {
+      "name": "Assigned doctor saves canonical Google Meet link and early real access is denied",
+      "result": "PASS",
+      "scope": "Live future appointment and canonical persisted link; patient/guest/admin cannot set it; real early joins rejected. Live timestamps and triggers unchanged."
+    },
+    {
+      "name": "Doctor and patient open the canonical external Meet destination with a controlled in-window response",
+      "result": "PASS",
+      "scope": "Real UI external popup; displayed in-window schedule, successful authorization response and provider page controlled. No real provider admission or media claimed."
+    },
+    {
+      "name": "Approved guest opens Meet without activating another patient account using a controlled in-window response",
+      "result": "PASS",
+      "scope": "Actual approved future guest request and real tracking UI; controlled join response and destination; activation was not invoked."
+    }
+  ]
+}

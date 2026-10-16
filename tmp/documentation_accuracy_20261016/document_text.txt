@@ -1,0 +1,892 @@
+﻿[2] ADVANCED MOBILE APPLICATION DEVELOPMENT
+[3] FINAL PROJECT DOCUMENTATION
+[6] PROJECT TITLE
+[7] CareNavigator PH
+[8] Healthcare Navigation and Care Coordination
+[10] Prepared by:
+[11] Neil Ardrey Laza
+[12] ITE 231
+[15] Subject:
+[16] Mobile Application Development
+[17] Submitted to:
+[18] Prof. Paul John D. Cabance
+[19] Date Submitted:
+[22] TABLE OF CONTENTS
+[23] Chapter 1 Project Overview3
+[24]   Introduction3
+[25]   Objectives and significance4
+[26]   Scope and limitations5
+[27] Chapter 2 System Analysis and Design6
+[28]   System description and architecture6
+[29]   System flow and lifecycle8
+[30]   Use case diagram10
+[31]   Database design and tables11
+[32]   User interface design14
+[33] Chapter 3 System Development15
+[34]   Tools and technologies15
+[35]   Development process16
+[36]   Deployment and reproducibility17
+[37] Chapter 4 Results and Testing18
+[38]   System features18
+[39]   Functional testing19
+[40]   Detailed test cases21
+[41]   Evaluation and verification26
+[42] Chapter 5 Conclusion and Recommendations27
+[43] Appendix A Screenshots of the Application28
+[44] Appendix B Source Code Snippets32
+[45] Appendix C User Manual34
+[46] Appendix D Complete Physical ERD37
+[47] Research References62
+[48] Project References63
+[49] CHAPTER 1
+[50] PROJECT OVERVIEW
+[51] Introduction
+[52] Access to healthcare involves more than identifying a nearby facility. Patients must also determine whether the facility offers an appropriate service, whether a clinician is available, and how to continue care after a consultation. In the Philippines, the 2018 health system review describes regional and socioeconomic differences in access to resources and identifies fragmentation of service delivery as a continuing challenge (Dayrit et al., 2018). These concerns provide a context for examining how information systems can support healthcare navigation and coordination.
+[53] When facility information, appointment requests, medical documents, and follow-up communication are handled through separate channels, patients and healthcare personnel must reconcile information across several steps. A request for consultation must be reviewed, a schedule must be confirmed, and supporting documents must reach an authorized clinician. Without a coordinated workflow, users may have difficulty identifying the current status of a request or the next action required. This project addresses that workflow problem within the scope of a mobile and web application.
+[54] Digital health offers an opportunity to connect these activities through a shared information system. However, technology alone does not establish an effective service. The World Health Organization’s Global Strategy on Digital Health 2020–2027 emphasizes the need to integrate organizational, human, financial, and technological resources into digital health initiatives (World Health Organization, 2025). For this project, that perspective supports a design that considers the responsibilities of patients, doctors, hospital administrators, and platform administrators, together with the protection of patient information.
+[55] This project presents CareNavigator PH, a healthcare navigation and care coordination application for guest and registered users. It seeks to answer the following development question: How can a mobile and web system connect facility discovery, hospital-reviewed booking, consultation tracking, and clinical documentation while preserving clear responsibilities and controlled access? The project evaluates the implemented workflows through software verification. It does not claim to measure changes in health outcomes or population-wide access to care.
+[56] Project Objectives and Significance
+[57] Project Objectives
+[58] General Objective
+[59] To develop a mobile and web application that helps users discover appropriate healthcare facilities and coordinate consultations, clinical records, and care communications through authorized, role-specific workflows.
+[60] Specific Objectives
+[61] • Provide a searchable hospital and clinician directory with service availability, emergency-room capacity, and map-based navigation.
+[62] • Support verified guest intake and registered-patient booking with hospital confirmation for online requests and a 24-hour reservation lead time.
+[63] • Give assigned doctors structured checkup, document review, prescription, laboratory, and communication tools.
+[64] • Protect patient information through ownership checks, care relationships, scoped sharing, private storage, and hospital access boundaries.
+[65] • Provide hospital and platform administrators with operational controls, audit history, and accurate notification delivery states.
+[66] • Validate behavior with Flutter tests, database acceptance checks, browser journeys, and integration evidence.
+[67] Significance of the Project
+[68] The project provides a practical model for coordinating healthcare information across user roles. Patients can follow consultation requests and manage supporting documents; doctors can review authorized information and produce structured clinical records; hospital staff can manage appointments and facility operations. For student developers, the system demonstrates how interface design, transactional workflows, and access controls can be combined in a healthcare application. These are intended contributions of the design rather than measured clinical benefits.
+[69] Sources S1 S2 S3 S4
+[70] Scope of the Project
+[71] Supported Users and Functions
+[72] User | Project scope
+Guest | Browse facilities and clinicians, receive preliminary symptom guidance, verify email, submit intake, and track an approved request.
+Patient | Book and track consultations, answer hospital questions, respond to schedule proposals, upload supporting files, view official records, and manage sharing and notification preferences.
+Doctor | Review authorized patient information, conduct assigned consultations, complete structured checkups, issue signed prescription orders, and manage clinical follow-up.
+Hospital administrator | Manage the assigned hospital, clinicians, departments, services, schedules, ER capacity, guest requests, and online review decisions.
+Super administrator | Manage platform accounts and hospital verification, inspect audits and security events, and supervise maintenance and delivery operations.
+[73]  
+[74] Limitations
+[75] The application depends on internet access and backend availability. Maps, routes, AI responses, video conferencing, and email each depend on separate services. A successful database action does not establish that an external message arrived or that both video participants received media.
+[76] AI symptom guidance and document extraction are preliminary aids. Official diagnoses, treatment plans, medication instructions, and clinical completion require authorized clinician actions. Emergency guidance does not itself reserve an emergency bed or provide emergency medical treatment.
+[77] Android and web release builds are recorded. iOS and physical-device behavior require separate verification. The system has no documented payment, insurance-claims, or complete hospital billing workflow in this project scope.
+[78] The exposed SMTP credential requires owner-side revocation and replacement configuration. Delivered email, two-party Jitsi media, valid-link recovery, and full empty-project and staging-copy deployment tests remain verification gates.
+[79] Sources S1 S3 S4 S13 S14
+[80] CHAPTER 2
+[81] SYSTEM ANALYSIS AND DESIGN
+[82] System Description
+[83] CareNavigator PH uses a layered client and managed-backend design. Feature screens present public and authenticated workflows, Riverpod providers coordinate identity and asynchronous state, and typed Dart repositories perform Supabase operations. Server-side rules determine whether a caller may act on a patient record, care relationship, consultation, hospital, or notification. Client route guards improve navigation, while database authorization remains the enforcement boundary. [S2, S5]
+[84] Core Business Rules
+[85] Area | Required behavior
+Online booking | Every new online request requires hospital review and confirmation before reserving a slot. A published online workflow requires an active hospital reviewer.
+Appointment time | Reservations preserve the existing 24-hour lead time. Comparisons use Asia/Manila; persisted appointment timestamps represent an absolute instant.
+Clinical authority | Only the assigned doctor may start and complete the clinical consultation. Completion requires the existing structured checkup information.
+Patient uploads | Patient-owned files retain immutable patient_supplied provenance. AI extraction and uploaded prescriptions do not independently create official medication orders.
+Guest activation | The verified account that submitted an approved request activates its own patient profile. Existing credentials remain patient-controlled.
+Missed visits | After 30 minutes, authorized staff may record a missed visit only when a contact attempt is recorded and no clinical start has occurred.
+Daily summaries | Automatic medication summaries become eligible after 8 AM Asia/Manila, once per patient and local date, with medication-reminder and email preferences enabled.
+Hospital boundaries | ER capacity is separate from outpatient and online eligibility. Clinical access requires the correct ownership, role, and active care relationship.
+[86]  
+[87] Sources S3 S5 S6 S7
+[88] System Architecture
+[89] The following architecture separates presentation, data access, authorization, storage, and external integrations. Secrets for privileged services remain outside the Flutter client.
+[91] Figure 1 Layered architecture of CareNavigator PH
+[92] Authorization and Data Flow
+[93] Supabase Auth establishes the user session. PostgreSQL row-level security, function authorization, ownership predicates, and relationship grants constrain data operations. Private clinical files are accessed through authorized storage operations rather than public file URLs. Realtime subscriptions refresh allowed messages and notifications.
+[94] Transactional RPCs coordinate actions that update several records together. Booking, confirmation, rescheduling, and schedule changes use common locking rules so availability checks and reservation changes belong to the same operation. Edge Functions perform AI and notification work using server configuration.
+[95] Public client configuration contains the project URL, publishable key, and optional application URL. Privileged credentials, AI keys, SMTP passwords, and dispatcher tokens remain server-side.
+[96] Sources S2 S3 S5 S8
+[97] System Flow
+[99] Figure 2 Online care journey with hospital review
+[100] The guest path verifies email before submitting intake and retains a reusable submission key. Approved guests activate their patient identity in place and continue tracking the authorized consultation. Registered patients submit online requests through the typed booking interface. Both paths require hospital confirmation before a new online reservation.
+[101] Information requests and schedule proposals give the patient a visible response action. Accepting an approved proposal rechecks availability and confirms atomically. Declining a proposal returns the request to hospital review. Face-to-face recommendations offer a new-booking action and do not create another reservation automatically.
+[102] Sources S3 S6 S7 S9
+[103] Online Consultation Lifecycle
+[104] The request status describes review and contact progress; the official consultation status describes the clinical appointment. Terminal operations synchronize the consultation, room, access grants, history, and notifications. [S5, S7]
+[105] Request state | Authorized actor | Visible next action or outcome
+submitted | Hospital reviewer | Start review, request information, propose a schedule, confirm, or reject.
+under review | Hospital reviewer | Continue assessment and select a reviewed decision.
+more information required | Submitting patient | Provide the requested response; return to hospital review.
+schedule proposed | Submitting patient | Accept after an availability recheck or decline and return to review.
+confirmed | Hospital care team and patient | Track the reserved appointment, record contact, or prepare the authorized room.
+awaiting contact | Hospital care team | Record an attempted contact and proceed to the appropriate visit action.
+video ready | Assigned doctor and patient | Join within the permitted time window; the assigned doctor starts clinical care.
+in progress | Assigned doctor | Complete the structured checkup and submit the clinical outcome.
+completed | Assigned doctor | Finalize records; close the room and consultation-specific access, and notify.
+rejected or cancelled | Authorized reviewer or participant | Record the reason and close the workflow and related active access.
+no show or scheduled patient unreachable | Authorized hospital care team | After the missed-visit conditions are met, cancel the official consultation and retain the specific outcome reason.
+face to face recommended | Assigned doctor | Close the online episode and present a separate new-booking action.
+[106]  
+[107] Timing and Terminal Rules
+[108] Missed visits require at least 30 elapsed minutes, a recorded contact attempt, and no consultation start. Video joining is allowed from 15 minutes before the appointment until strictly before four hours after it, with participant authorization.
+[109] Terminal actions close rooms and consultation-specific access while retaining cancellation and missed-visit reasons in history.
+[110] Sources S5 S7 S10
+[111] Use Case Diagram
+[112] The five actors use a shared application, but receive distinct operations and data scopes. The diagram groups related use cases for readability.
+[114] Figure 3 Role-based use case diagram
+[115] Verified identity is required for patient-facing email and activation actions. A patient's file access follows ownership and explicit sharing. Doctor access follows an active authorized relationship. Hospital administrators operate within their assigned hospital; platform administration uses separate privileged actions.
+[116] Sources S2 S5 S6 S8
+[117] Database Design
+[118] CareNavigator PH uses a relational PostgreSQL database. The complete public-schema catalog contains 64 application tables and 906 columns, connected by 200 declared foreign-key constraints. The physical model also shows auth.users as an external platform identity reference. These counts come from the sanitized baseline catalog; the application schema is distinct from Supabase’s internal schemas. [S3, S11]
+[119] Complete Physical ERD
+[120] The complete physical ERD is presented through enlarged entity sheets and a foreign-key relationship register in Appendix D. Every application table and column is included. Tables with many columns continue onto another panel. A separate zoomable master diagram preserves all 200 relationship connectors in one view.
+[121] Open the complete interactive ERD
+[122] Reading the Model
+[123] PK identifies a primary-key column. FK identifies a column that participates in a declared foreign key. UK marks membership in a unique key; columns of a composite key are unique as a tuple. The relationship register identifies the exact source and target columns, including composite references. Logical associations without a declared foreign key are not represented as database-enforced relationships.
+[124] An authentication user is distinct from an application users row. users.auth_user_id links those identities, while patient and doctor profiles refer to users.id. Relationship optionality comes from source-column nullability, and a maximum of one child is shown only when the foreign-key tuple has an unconditional uniqueness constraint.
+[125] Type labels are shortened for diagram readability: timestamptz means timestamp with time zone, timestamp means timestamp without time zone, and time means time without time zone. Numeric precision and scale are shown in the label, such as numeric_8_3_ for numeric(8,3). Array types use the suffix _array. User-defined type names remain unchanged.
+[126] Sources S3 S5 S11
+[127] Database Tables for Identity and Appointments
+[128] Users
+[129] Field | Type | Purpose
+id | uuid | Application user primary key.
+auth_user_id | uuid | Unique reference to the Supabase Auth identity.
+role_id | smallint | Role reference; role labels use roles.role_name.
+hospital_id | uuid | Associated hospital where applicable.
+email | text | Application email information.
+account_status | enum | Account state enforced by server workflows.
+[130]  
+[131] Consultations
+[132] Field | Type | Purpose
+id | uuid | Official consultation primary key.
+patient_id and doctor_id | uuid | Patient profile and assigned doctor references.
+hospital_id | uuid | Hospital responsible for the appointment.
+guest_request_id | uuid | Originating guest request when applicable.
+appointment_date | timestamptz | Scheduled instant displayed and compared using Manila rules.
+consultation_type | enum | Face-to-face, online, guest online, or emergency type.
+status | enum | Official clinical appointment status.
+outcome_reason | text | Specific terminal outcome such as a missed visit.
+[133]  
+[134] online_consultation_requests connects hospital review to the official consultation through official_consultation_id. It retains the preferred, proposed, and confirmed scheduling information and patient responses. Its history uses from_status and to_status. Rescheduling must also update access validity, room validity, and reminder jobs.
+[135] Sources S5 S6 S11
+[136] Database Tables for Clinical Documents and Orders
+[137] Medical Documents
+[138] Field | Type | Purpose
+id and patient_id | uuid | Document identity and owning patient.
+uploaded_by | uuid | Original uploader reference.
+origin_type | text | Preserves patient_supplied or hospital-generated provenance.
+storage_path | text | Private storage object reference.
+review_state | text | Separates an unreviewed upload from doctor review.
+reviewed_by and reviewed_at | uuid and timestamptz | Auditable reviewer and review time.
+review_rejection_reason | text | Recorded explanation for rejection.
+[139]  
+[140] Prescription Orders
+[141] Field | Type | Purpose
+id | uuid | Order primary key; groups medications and attachments.
+patient_id and doctor_id | uuid | Patient and authorized prescriber.
+hospital_id | uuid | Originating hospital.
+consultation_id or assignment_id | uuid | Applicable clinical relationship.
+idempotency_key | text | Reuses the original issuance on a valid retry.
+issued_at and status | timestamptz and text | Issuance time and order state.
+legacy_import | boolean | Marks conservative migration of legacy rows.
+[142]  
+[143] Each medication row references prescriptions.order_id and stores structured dose, route, frequency, dates, PRN information, and prescriber-signature details. Issuance validates the complete medication list in one transaction. Attachments use explicit order references and can be retried against the same order. Official entries can reference medical_records.source_document_id without changing original document authorship.
+[144] Sources S5 S7 S11 S12
+[145] User Interface Design
+[146] The interface adapts one Flutter codebase to mobile and wider web layouts. Shared cards, tables, dialogs, loading indicators, and error messages give the roles a consistent visual structure. GoRouter maps public pages, authentication screens, recovery screens, and protected workspaces. Riverpod refreshes session and asynchronous data state. [S1, S2]
+[147] Screen group | Purpose and primary interaction
+Public home and directories | Search published hospitals and clinicians, inspect services and ER capacity, and open navigation or consultation intake.
+Authentication | Sign in, register, verify email, request recovery, change a recovered password, or restart an expired recovery flow.
+Guest verification and tracking | Retain intake after failure, show review status, activate an approved account, and prepare to join authorized video.
+Patient workspace | Show appointments, online requests, prescriptions, files, messages, notifications, and profile preferences.
+Doctor workspace | Show assigned care, structured checkups, prescriptions, result review, documents, schedules, and communications.
+Hospital workspace | Provide request review controls, clinician and service management, appointment operations, and hospital availability.
+Platform workspace | Provide hospital verification, user administration, audit and security inspection, maintenance, and system operations.
+[148]  
+[149] Interaction and Feedback
+[150] Booking feedback uses BookingOutcome.status and slotReserved to explain whether an appointment exists and whether its slot is actually reserved. Prescription feedback separates issuance success from attachment failure and from notification queue state. Missing record details display an unavailable-record state.
+[151] Sharing management groups access by care relationship. Its revoke action explains that every active grant, category, and selected record under that relationship is included. A room-preparation retry state prevents an unprepared room from being presented as a successful video join.
+[152] Sources S2 S6 S9 S12
+[153] CHAPTER 3
+[154] SYSTEM DEVELOPMENT
+[155] Tools and Technologies Used
+[156] Technology | Recorded version | Project use
+Flutter and Dart | Dart SDK constraint ^3.12.2 | Shared mobile and web presentation and application logic.
+flutter_riverpod | 3.4.2 | Providers, identity state, asynchronous data, and refresh behavior.
+go_router | 17.4.0 | Routing, role redirects, deep links, and recovery navigation.
+supabase_flutter | 2.17.1 | Flutter integration with Auth, database, files, and subscriptions.
+supabase | 2.16.0 | Typed client operations used by repositories.
+PostgreSQL and Supabase | Managed backend | Relational data, RLS, RPC transactions, Auth, Storage, Realtime, and scheduling.
+Deno and TypeScript | Versioned function source | Serverless workflow, analysis, account, and notification handlers.
+Groq, SMTP, and Jitsi | Configured services | Preliminary AI assistance, opt-in email, and authorized online rooms.
+flutter_map | 8.3.1 | Hospital map using OpenStreetMap and OSRM integration.
+Flutter Test and Playwright | Project test tooling | Behavioral and visual Flutter checks and browser journeys.
+[157]  
+[158] Development Environment
+[159] The repository is maintained in a Windows development workspace and edited through an IDE. Android release packaging uses the Flutter and Gradle toolchains. Web release packaging produces build/web. These artifacts require public runtime configuration and operational backend services before deployment.
+[160] Dependency versions above are taken from the project lockfile. They identify the examined build inputs; they are not claims about the latest available package releases.
+[161] Sources S1 S3 S15
+[162] Development Process
+[163] Requirements and Design
+[164] The 11 October 2026 workflow audit identified 15 defects involving authorization, scheduling, clinical lifecycle, uploads, activation, prescriptions, notifications, reproducibility, and verification. The repair plan defines the expected transitions and acceptance conditions for the five roles. [S4]
+[165] The design retains Flutter, Riverpod, Supabase, hospital access boundaries, and the 24-hour lead time. Typed outcomes report actual server results. Transactions protect actions that update several records.
+[166] Implementation Sequence
+[167] Step | Work area | Implementation focus
+1 | Email authorization | Remove embedded secrets, require verified identity, resolve recipients from records, restrict test delivery, and use the outbox.
+2 | Booking consistency | Repair table-specific lead-time checks; lock bookings and schedule mutations; return actual reservation state and synchronize rescheduling.
+3 | Online lifecycle | Connect hospital and patient review actions, assigned-doctor clinical actions, missed visits, terminal synchronization, and relationship sharing controls.
+4 | Guest and recovery | Activate approved verified guests in place; retain OTP verification and intake on retries; use submission keys; route password-recovery events.
+5 | Uploads and prescriptions | Preserve patient provenance, add scoped review, issue a complete order atomically, and retry attachments without repeating clinical issuance.
+6 | Notifications and release | Persist history and preferences, enqueue eligible daily summaries, align deployed functions, maintain the physical ERD, and verify installation.
+[168]  
+[169] Testing During Development
+[170] Flutter regressions cover verified guest retries and explicit order grouping. SQL suites define authorization and clinical acceptance checks. Browser tests exercise role routing, preferences, sharing, issuance, recovery, uploads, and video. Chapter 4 separates results from outstanding verification.
+[171] Sources S3 S4 S5 S16 S17
+[172] Deployment and Reproducibility
+[173] Backend Package
+[174] The repository includes a sanitized application-schema baseline, reference seeds, storage definitions, active migrations, deployment configuration, and an archive of historical migrations. The historical chain depends on a missing base schema and contains three duplicated migration versions; it is retained for investigation rather than blind replay.
+[175] Versioned Edge Function | Responsibility
+care-navigator-chat | Care-assistant interaction and authorized patient-facing workflow actions.
+analyze-symptoms | Preliminary symptom analysis.
+analyze-medical-result | Authorized medical-document extraction and analysis.
+care-workflows | Privileged care workflow operations.
+admin-users | Authorized account administration.
+dispatch-notifications | Private-token dispatcher for appointment reminders, daily summaries, and outbox delivery.
+[176]  
+[177] Installation and Upgrade Process
+[178] • For an empty Supabase project, establish managed Auth and Storage, then apply active migrations in unique version order and the separate reference and storage seeds.
+[179] • Configure the actual application Site URL and recovery redirects; deploy all six function folders with their recorded JWT settings and server secrets.
+[180] • Configure the five-minute dispatcher with its private token. Eligible daily summaries are enqueued after 8 AM Manila time and deduplicated by patient and local date.
+[181] • For an existing deployment, compare the actual catalog and correction history before applying an upgrade or reconciling migration metadata.
+[182] • Deploy security corrections first, followed by compatible database and API changes, the Flutter client, and unified hospital review.
+[183] • Verify a complete empty-project installation and a staging-copy upgrade, then monitor authorization failures, lifecycle mismatches, failed delivery, duplicates, and activation errors.
+[184] Local clean-schema and reconstructed-upgrade checks are limited evidence. They do not substitute for the full cloud tests. SMTP must remain server-configured, and the owner must revoke the exposed credential before a replacement is enabled.
+[185] Sources S3 S8 S18
+[186] CHAPTER 4
+[187] RESULTS AND TESTING
+[188] System Features
+[189] Feature | Implemented application behavior
+Discovery and navigation | Published hospital and clinician directories, service details, separate ER capacity, and map-based routing.
+Authentication and recovery | Role-aware sign-in, guest email verification, approved guest self-activation, and explicit password-recovery routing.
+Appointment coordination | Availability queries, typed booking outcomes, online hospital review, information responses, proposals, confirmation, rescheduling, and cancellation.
+Clinical workspace | Assigned-doctor checkups, diagnoses and plans, document review, laboratory workflows, and signed prescription orders.
+Files and provenance | Private supporting uploads, review attribution, explicit source-document references, and order attachment retry.
+Communication and notifications | Care messaging, conversation history, in-app notifications, preference persistence, and outbox queue and delivery states.
+Sharing management | Relationship-grouped access visibility and a relationship-wide revoke action with a stated scope.
+Administration | Hospital staff, services, schedules, ER operations, platform verification, account controls, maintenance, and audit inspection.
+[190]  
+[191] Clinical and Notification Outputs
+[192] The clinical output is the doctor's finalized structured checkup and its associated official records. A prescription issuance creates one order with its medication records, prescriber information, and signature validation. A patient-uploaded prescription remains a supporting document until reviewed and does not become a reminder instruction automatically.
+[193] The notification output reports queued, sent, or failed according to the outbox state. Automatic summaries include only official prescriptions active on the summary date. Future and expired prescriptions are excluded. PRN directions remain directions and do not acquire invented administration times. Manual summary requests authorize that individual delivery.
+[194] Sources S5 S7 S8 S12
+[195] Functional Testing
+[196] The test design follows the existing Activity 1 CareNavigator PH Test Scenarios and Test Cases document. Its 15 scenarios identify the functions to verify. Four detailed cases define positive and negative checks for TS-02 (sign-in) and TS-03 (in-person reservation). The original scenario and test-case identifiers are retained. [S23]
+[197] Activity 1 supplies expected outcomes but no actual results, execution dates, or pass/fail records. The cases below are therefore documented test designs. The recorded implementation evidence appears separately under Evaluation and Recorded Verification and is not assigned as a result for these four cases.
+[198] Test Scenarios TS-01 to TS-08
+[199] ID | Test scenario
+TS-01 | Verify that a patient can register with valid identity information and complete email verification.
+TS-02 | Verify that an active user can sign in with valid credentials.
+TS-03 | Verify that a patient can reserve an available consultation slot.
+TS-04 | Verify that a public user can search verified, operating hospitals and doctors and view accurate directory and map details.
+TS-05 | Verify that an authorized doctor can complete a consultation and save clinical checkup and prescription information for the correct patient.
+TS-06 | Verify that route guards and Row Level Security prevent a user from accessing another user's or hospital's protected clinical data.
+TS-07 | Verify that a guest can submit a consultation request, complete email OTP verification, and enter the authorized review workflow.
+TS-08 | Verify that the care assistant returns preliminary symptom guidance and escalates deterministic emergency warning signs safely.
+[200]  
+[201] Source S23 Existing Activity 1 test design supplied by the author.
+[202] Test Scenarios TS-09 to TS-15
+[203] ID | Test scenario
+TS-09 | Verify that an authorized medical-result upload remains preliminary until a doctor confirms, modifies, or rejects the extracted findings.
+TS-10 | Verify that authorized patients and clinicians can exchange care messages and secure attachments within the correct consultation relationship.
+TS-11 | Verify that care events create in-app notifications and eligible reminders without sending duplicate messages.
+TS-12 | Verify that a patient can reschedule or cancel an appointment while preserving slot availability and appointment history correctly.
+TS-13 | Verify that a hospital administrator can manage staff, services, availability, and appointments only for the assigned hospital.
+TS-14 | Verify that a super administrator can review hospitals and govern accounts without receiving unrestricted clinical-record access.
+TS-15 | Verify that emergency-bed capacity displays live, delayed, or expired status according to the configured freshness thresholds.
+[204]  
+[205] Detailed Case Coverage
+[206] TS-02 is represented by TC_AUTH_001 and TC_AUTH_002. TS-03 is represented by TC_BOOKING_001 and TC_BOOKING_002. The other 13 scenarios remain scenario-level coverage in Activity 1; that document does not provide a detailed case for each one.
+[207] The TS-03 cases concern in-person appointments and preserve the existing 24-hour minimum reservation lead time. New online requests follow hospital review before a slot is reserved, as described in Chapter 2. Additional online, timing, security, and integration checks are summarized after the four original cases.
+[208] Source S23 Existing Activity 1 test design. Sources S4 S5 S10 S17 provide supplementary workflow requirements.
+[209] Test Case TC_AUTH_001
+[210] Successful Sign-In and Role-Based Redirect
+[211] Related scenario: TS-02. Case type: Positive / happy path.
+[212] Preconditions
+[213] 1. The test Supabase project is available.
+[214] 2. An active patient account exists.
+[215] 3. The tester is signed out.
+[216] Test Data
+[217] Active patient fixture qa.patient@carenavigator.test and its correct configured test password.
+[218] Test Steps
+[219] 1. Open CareNavigator PH and select Sign in.
+[220] 2. Enter the active patient's email and correct password.
+[221] 3. Select Sign in.
+[222] 4. Verify the destination workspace.
+[223] Expected Results
+[224] 1. Authentication succeeds and a session is created.
+[225] 2. The user is redirected to the Patient workspace.
+[226] 3. Patient navigation and the user's scoped data appear.
+[227] 4. Doctor and administrator access is not granted.
+[228] Execution record: Actual result, execution date, tester, and pass/fail outcome were not supplied in Activity 1. Source S23.
+[229] Test Case TC_AUTH_002
+[230] Sign-In Rejected for an Incorrect Password
+[231] Related scenario: TS-02. Case type: Negative / error path.
+[232] Preconditions
+[233] 1. The test Supabase project is available.
+[234] 2. The active patient email exists.
+[235] 3. The tester is signed out.
+[236] Test Data
+[237] Existing patient fixture qa.patient@carenavigator.test and a deliberately incorrect password.
+[238] Test Steps
+[239] 1. Open CareNavigator PH and select Sign in.
+[240] 2. Enter the patient email and an incorrect password.
+[241] 3. Select Sign in.
+[242] 4. Attempt to open /patient/appointments.
+[243] Expected Results
+[244] 1. Authentication fails and a safe error message appears.
+[245] 2. The user remains on the sign-in screen.
+[246] 3. No authenticated session is created.
+[247] 4. The protected route returns to sign-in and exposes no patient data.
+[248] Execution record: Actual result, execution date, tester, and pass/fail outcome were not supplied in Activity 1. Source S23.
+[249] Test Case TC_BOOKING_001
+[250] Reserve an In-Person Consultation from a Published Slot
+[251] Related scenario: TS-03. Case type: Positive / happy path.
+[252] Preconditions
+[253] 1. An active patient is signed in with a complete profile.
+[254] 2. A verified, operating hospital has an eligible doctor.
+[255] 3. An unoccupied in-person slot is at least 24 hours away.
+[256] Test Data
+[257] Hospital: verified and operating fixture. Clinician: eligible doctor. Concern: Recurring headache for two days. Slot: 48 hours ahead.
+[258] Test Steps
+[259] 1. Open Patient > Appointments.
+[260] 2. Select Reserve consultation.
+[261] 3. Choose the hospital, clinician, and In person care mode.
+[262] 4. Enter the primary care concern.
+[263] 5. Choose a published date and time, then select Reserve consultation.
+[264] Expected Results
+[265] 1. One reservation is created for the signed-in patient.
+[266] 2. It appears with the selected hospital, doctor, mode, and time.
+[267] 3. Its status and time match the server record.
+[268] 4. The occupied slot is no longer offered.
+[269] Execution record: Actual result, execution date, tester, and pass/fail outcome were not supplied in Activity 1. Source S23.
+[270] Test Case TC_BOOKING_002
+[271] Reservation Blocked When No Qualifying Slot Is Available
+[272] Related scenario: TS-03. Case type: Negative / error path.
+[273] Preconditions
+[274] 1. An active patient is signed in.
+[275] 2. The doctor has no qualifying unoccupied slot in the next 30 days.
+[276] 3. No reservation exists for this attempt.
+[277] Test Data
+[278] Clinician: no qualifying future slots. Search window: next 30 days. Minimum lead time: 24 hours (boundary/edge data).
+[279] Test Steps
+[280] 1. Open Patient > Appointments and select Reserve consultation.
+[281] 2. Select the clinician fixture with no qualifying slots.
+[282] 3. Select In person care mode.
+[283] 4. Review the availability area and the submission control.
+[284] Expected Results
+[285] 1. No date or time can be selected.
+[286] 2. The no-slot message states the 24-hour notice rule.
+[287] 3. Reserve consultation is disabled.
+[288] 4. No consultation or duplicate record is created.
+[289] Execution record: Actual result, execution date, tester, and pass/fail outcome were not supplied in Activity 1. Source S23.
+[290] Supplementary Workflow Verification
+[291] These checks retain the earlier workflow summary and its 12 October 2026 evidence. They do not assign execution results to the Activity 1 cases.
+[292] Verification area | Expected behavior | Recorded evidence or outstanding check
+Role sign-in and account routing | Five roles follow permitted routes during sign-in, reload, and sign-out. | Browser run passed.
+OTP verified then insertion fails | Keep intake and the same key; retry without reusing the verified OTP. | Flutter regression passed.
+New online booking | Review before reservation; show actual slot_reserved. | Source and recorded journey.
+Information and proposal response | Return answers to review; accepting a proposal rechecks and confirms. | Recorded proposal outcome confirmed.
+Guest activation retry | Reuse the submitting verified account and patient profile; preserve credentials. | Activation recorded; SQL suite defined.
+Reschedule and schedule races | Synchronize time, grants, room, and reminders; protect reserved schedules. | Target database acceptance required.
+Competing confirmations | Only one competing request may reserve a slot. | Race validation required.
+Video time boundaries | Authorize participants and enforce minus 15 minutes to before plus four hours. | Server rule present; media test open.
+Missed visit around 30 minutes | Reject early, uncontacted, or started visits; preserve valid missed outcomes. | Database acceptance defined.
+Patient upload and doctor review | Enforce ownership and scope; retain provenance and record review. | Focused browser follow-up passed.
+Invalid medication in a full order | Invalid medication commits neither order nor medication. | Database acceptance required.
+Attachment retry and grouping | Retry the existing order; use order_id and explicit attachment references. | Grouping passed; retry path present.
+Unauthorized email action | Deny public or unrelated callers; resolve authorized recipients from records. | Rules present; delivery open.
+Preferences and sharing | Persist preferences and revoke every active relationship grant. | Browser checks passed.
+Daily medication eligibility | Check both preferences, active dates, and patient/date deduplication. | Producer and date guards present.
+Password recovery | Handle expired links and complete valid-link password change. | Expired link passed; valid link open.
+[293]  
+[294] Sources S5 S10 S13 S16 S17 S19.
+[295] Evaluation and Recorded Verification
+[296] The full browser run at 6:34 AM on 12 October 2026 Asia/Manila recorded 9 passes and 2 failures. A focused supporting-upload and doctor-review run at 6:43 AM passed its one test. Recorded analysis, Flutter tests, and release builds also passed. A complete browser rerun and the remaining external integration checks are still required.
+[297] Check | Result | Recorded evidence and limit
+Flutter static analysis | Passed | repair-analyze.log reports no issues.
+Complete Flutter suite | Passed | repair-all-tests.log reports 267 tests passed; the live test runner supplies synthetic credentials.
+Focused regressions | Passed | repair-final-regressions.log reports 43 tests passed.
+Web release build | Passed | repair-web-build.log records build/web.
+Android release build | Passed | repair-apk-build.log records app-release.apk, approximately 64.3 MB.
+Recorded browser run | Partial | Full run: 11 checks, 9 passed, 2 failed, none skipped. Later focused upload-review check: 1 passed. Jitsi media remains open.
+Controlled AI extraction | Recorded | A synthetic prescription fixture produced structured extraction; it does not establish clinical accuracy.
+Schema installation and upgrade | Limited | Local clean-schema and reconstructed-upgrade results are described in the setup documentation; full cloud verification remains open.
+Actual SMTP delivery | Open | Replacement server credential and controlled recipient delivery are required.
+Two-party received audio and video | Open | Authorized room access and local devices do not establish exchanged media.
+[298]  
+[299] Strengths and Remaining Work
+[300] The implemented structure supports distinct roles, explicit patient ownership, transactional clinical operations, and visible review actions. Typed outcomes make reservation and notification feedback assessable. The baseline and six function folders improve reproducibility.
+[301] Release acceptance still requires a complete browser rerun, delivered email, received Jitsi media, valid-link recovery, timing and concurrency checks, and full cloud installation and upgrade verification. Each of the 15 audit findings requires its own closure evidence; an aggregate Flutter pass does not close every defect.
+[302] Sources S3 S13 S14 S19 S20
+[303] CHAPTER 5
+[304] CONCLUSION AND RECOMMENDATIONS
+[305] Conclusion
+[306] CareNavigator PH implements a mobile and web application that connects public discovery, verified intake, hospital-reviewed booking, clinician documentation, patient records, communication, and administration. Flutter, Riverpod, and Supabase provide a shared technical foundation, while role and relationship checks define how each user participates in the care journey.
+[307] The repair work introduces typed booking outcomes, guest self-activation, reviewed patient uploads, atomic prescription orders, accurate delivery states, and a reproducible backend package. Recorded automated checks and release builds demonstrate progress. The project remains subject to the external integration and deployment acceptance gates identified in Chapter 4.
+[308] Recommendations
+[309] • Revoke the exposed SMTP credential at the provider account, configure its replacement only as a server secret, and prove delivery to a controlled recipient before enabling normal email retries.
+[310] • Retain the passed focused upload-review check as regression coverage and rerun the complete browser suite, including provenance, authorized download, and rejection scenarios.
+[311] • Complete an authenticated two-party Jitsi session and verify received audio and video on both sides, including room preparation and timing failures.
+[312] • Execute the valid recovery-link journey, session expiry, account switching, and failure recovery through the deployed application routes.
+[313] • Complete database race, reschedule, missed-visit boundary, rollback, and attachment-retry acceptance checks without bypassing production lead-time rules.
+[314] • Prove installation in an empty Supabase project and upgrade against a staging copy; maintain migration reconciliation, the physical ERD, and the six function deployment versions.
+[315] • Monitor lifecycle inconsistencies, active terminal grants, failed outbox jobs, duplicate summaries, and activation errors after rollout. Retest on real Android devices and verify iOS separately.
+[316] Completion requires every audited defect to be closed, required integration tests to run without skips, and each exposed state to provide an authorized and usable next action.
+[317] Sources S3 S4 S13 S14 S18
+[318] APPENDICES
+[319] Appendix A Screenshots of the Application
+[320] These application images come from the Flutter visual catalog with controlled fixture data. They illustrate the rendered interface and do not constitute live clinical or integration evidence.
+[321]       
+[322] Figure 5 Public home and discovery     |     Figure 6 Hospital directory
+[323] The public home introduces care discovery and consultation entry. The hospital directory presents facility information and filters. Role-specific patient, doctor, and administration views are illustrated on the following pages.
+[324] Source S21
+[325] Screenshots of Patient and Doctor Workspaces
+[326]       
+[327] Figure 7 Patient home     |     Figure 8 Doctor workspace
+[328] The patient home provides navigation to discovery, appointments, and profile settings. The doctor dashboard summarizes care activity and provides access to scheduling and patients. These views illustrate the role-specific navigation and fixture-based dashboard layout.
+[329] The figures show fixture content from automated visual checks. They demonstrate layout, navigation, and information hierarchy; test execution and live integration outcomes are reported separately in Chapter 4.
+[330] Source S21
+[332] Screenshots of Administration Workspaces
+[334] Figure 9 Hospital administrator — desktop web layout on Windows (1440 × 1000)
+[335] The desktop workspace displays the hospital sidebar and operational overview. The image uses controlled visual-catalog data; it illustrates the interface rather than a live hospital dataset.
+[336] Sources S2 S21
+[337] Screenshot of Platform Administration
+[339] Figure 10 Super administrator — desktop web layout on Windows (1440 × 1000)
+[340] The platform workspace provides governance, approvals, account management, system settings, and analytics through a desktop sidebar. The image uses controlled visual-catalog data.
+[341] Sources S2 S21
+[343] Appendix B Source Code Snippets
+[344] Typed Booking Outcome
+[345] BookingOutcome reports the server reservation state. Source: lib/src/models/booking_outcome.dart.
+[346] class BookingOutcome {
+[347]   const BookingOutcome({
+[348]     this.requestId,
+[349]     this.consultationId,
+[350]     required this.status,
+[351]     required this.slotReserved,
+[352]   });
+[354]   final String? requestId;
+[355]   final String? consultationId;
+[356]   final String status;
+[357]   final bool slotReserved;
+[359]   factory BookingOutcome.fromJson(Map<String, dynamic> json) => BookingOutcome(
+[360]     requestId: json['request_id'] as String?,
+[361]     consultationId: json['consultation_id'] as String?,
+[362]     status: json['status'] as String,
+[363]     slotReserved: json['slot_reserved'] as bool,
+[364]   );
+[366]   String get message => slotReserved
+[367]       ? 'Appointment reserved. Current status: ${status.replaceAll('_', ' ')}.'
+[368]       : 'Request submitted for hospital review. The preferred slot is not reserved until confirmation.';
+[369] }
+[371] Preference Serialization
+[372] The serializer persists medication_reminders and email settings. Source: lib/src/repositories/profile_repository.dart.
+[373]   Map<String, Object?> toJson(String authUserId) => {
+[374]     'user_id': authUserId,
+[375]     'consultation_updates': consultationUpdates,
+[376]     'appointment_reminders': appointmentReminders,
+[377]     'medical_results': medicalResults,
+[378]     'prescriptions': prescriptions,
+[379]     'medication_reminders': medicationReminders,
+[380]     'messages': messages,
+[381]     'hospital_alerts': hospitalAlerts,
+[382]     'email_enabled': emailEnabled,
+[383]     'in_app_enabled': inAppEnabled,
+[384]   };
+[386] Sources S6 S22
+[387] Source Code for Transactional Prescription Issuance
+[388] The complete medication list and one idempotency key are sent to the transactional RPC. Source: lib/src/repositories/care_repository.dart.
+[389]   @override
+[390]   Future<PrescriptionOrderOutcome> issuePrescriptionOrder({
+[391]     required ClinicalRelationship relationship,
+[392]     required String diagnosisReason,
+[393]     required List<Map<String, Object?>> medications,
+[394]     required String idempotencyKey,
+[395]   }) async {
+[396]     final response = await _client.rpc<Map<String, dynamic>>(
+[397]       'issue_prescription_order',
+[398]       params: {
+[399]         'idempotency_key': idempotencyKey,
+[400]         'order_payload': {
+[401]           'patient_id': relationship.patientId,
+[402]           'consultation_id': relationship.hasConsultation
+[403]               ? relationship.consultationId
+[404]               : null,
+[405]           'assignment_id': relationship.assignmentId,
+[406]           'diagnosis_reason': diagnosisReason,
+[407]           'medications': medications,
+[408]         },
+[409]       },
+[410]     );
+[411]     return PrescriptionOrderOutcome.fromJson(response);
+[412]   }
+[414] Missed Visit Guard
+[415] The guard requires 30 elapsed minutes, recorded contact, and no clinical start. Source: the workflow boundary upgrade.
+[416]     if now()<c.appointment_date+interval '30 minutes' or c.started_at is not null or c.status='in_progress'
+[417]       or old.contact_attempted_at is null or nullif(btrim(old.contact_attempt_notes),'') is null then
+[418]       raise exception 'A missed visit requires 30 elapsed minutes, a recorded contact attempt and no clinical start'; end if;
+[420] Attachment upload follows successful order creation. If it fails, the interface reports that failure separately and directs the user to Attach document on the existing order. Retrying an attachment or delivery must not repeat clinical issuance.
+[421] Sources S7 S12
+[422] Appendix C User Manual
+[423] Getting Started
+[424] Open the configured CareNavigator PH web application or install the approved Android package supplied for the project. Use a working internet connection. Permit location, camera, and microphone only when needed for navigation or an authorized consultation.
+[425] Guest Journey
+[426] 1. Browse hospital and clinician directories. Review services, availability, and hospital navigation.
+[427] 2. Open consultation intake. Enter personal and care information, choose the facility and preferred schedule, and review privacy and sharing choices.
+[428] 3. Request an email verification code, open the code sent to the chosen address, and verify it. Submit the intake and retain the request reference.
+[429] 4. Track the request while the hospital reviews it. A submitted online request does not yet reserve the preferred slot.
+[430] 5. After approval, activate while signed in with the verified submitting email. Use patient-controlled password setup if required. Existing accounts keep their credentials.
+[431] 6. Use the authorized video join action during its window. Retry room preparation as needed. Follow any displayed identity-resolution action while continuing authorized tracking.
+[432] Patient Journey
+[433] 1. Sign in to the patient workspace and choose an available published clinician and appointment type. Select a time at least 24 hours ahead.
+[434] 2. Submit the care concern and sharing choices. Read the returned reservation message; online requests await hospital confirmation.
+[435] 3. Open online requests to answer requested information. Accept a hospital-approved schedule proposal or decline it to return the request to review.
+[436] 4. Use the appointment controls to track, reschedule, or cancel where permitted. Join video only when the room is ready and the scheduled window is open.
+[437] 5. Upload supporting files through the patient files area and track their review state. View official records and prescriptions after clinician issuance.
+[438] 6. Use profile preferences for email and medication summaries. Inspect Sharing by care relationship before revoking all access under that relationship.
+[439] Sources S6 S9 S10 S12 S22
+[440] User Manual for Clinical and Hospital Staff
+[441] Doctor Journey
+[442] 1. Sign in using the verified doctor account. Open the assigned consultation or authorized active care relationship.
+[443] 2. Review the patient's permitted information and the supporting documents selected or shared for that relationship. Approve or reject an upload with the appropriate review note; preserve its uploader and provenance.
+[444] 3. For online care, prepare or join the authorized room within the scheduled window. If the video provider requires a moderator, authenticate through the provider's supported moderator process.
+[445] 4. Start the clinical consultation as its assigned doctor. Enter the required structured checkup findings, diagnosis, treatment, and consultation summary before completing it.
+[446] 5. Use prescription preview and issuance to submit the complete medication list. Check dose, route, frequency, dates, PRN directions, and prescriber signature information.
+[447] 6. Read the issuance result and email queue state. If an attachment fails, reopen the issued order and choose Attach document to retry against the same order.
+[448] 7. Complete the consultation or record an authorized clinical follow-up recommendation. A face-to-face recommendation requires a separate booking action.
+[449] Hospital Administrator Journey
+[450] 1. Sign in to the hospital workspace and confirm the assigned facility. Review departments, services, active staff, and published clinician schedules.
+[451] 2. Open the online-request queue and choose Start review. Check intake, doctor eligibility, sharing, and availability before making a decision.
+[452] 3. Use Request information for missing intake details or Propose schedule for a reviewed alternative. Continue the workflow when the patient responds.
+[453] 4. Confirm only after the server rechecks availability. Use Reject with a recorded explanation when the request cannot be approved.
+[454] 5. Record contact attempts and manage the scheduled visit. Use Mark missed visit only after 30 elapsed minutes, with recorded contact and no consultation start.
+[455] 6. Update ER capacity independently of outpatient and online publication. Respect reserved-appointment protection when modifying or deleting schedules.
+[456] Sources S7 S9 S10 S12
+[457] User Manual for Platform Operations and Recovery
+[458] Super Administrator Journey
+[459] 1. Sign in to the super-administrator workspace. Review hospital verification and platform account information through the authorized administration controls.
+[460] 2. Inspect audit and security events and review maintenance settings. Preserve audit notes when correcting an inconsistent workflow record.
+[461] 3. Inspect failed notification jobs before retrying them. Recheck preferences and retry the existing delivery job rather than issuing another prescription.
+[462] 4. Use test-email actions only with the configured controlled recipient and operational replacement SMTP credentials. Monitor activation failures and duplicate daily-summary attempts after rollout.
+[463] Password Recovery and Session Expiry
+[464] Request password recovery from authentication and open the email link. The application routes recovery events to reset-password. For an expired link, request a new link through the displayed action. Change the password and confirm the correct workspace. Successful valid-link recovery remains a release check.
+[465] After session expiry, sign in again before protected work. When switching accounts, sign out and verify the newly loaded identity before opening records. Keep passwords and verification codes private.
+[466] Failure Recovery
+[467] Situation | User action
+Verified intake submission fails | Retry the retained intake; do not create a second request intentionally.
+Preferred slot becomes unavailable | Choose another published time or respond to the hospital's revised proposal.
+Video room is not ready | Use the retry state and contact the hospital if preparation does not complete.
+Attachment upload fails | Retry Attach document on the existing prescription order.
+Email shows queued or failed | Check the delivery state and preferences; an issued prescription remains issued.
+Requested record is unavailable | Return to the list or contact the care team; another record must not be substituted.
+Sharing is revoked | Review the relationship-wide scope; contact the care team about any needed future sharing.
+[468]  
+[469] Sources S3 S9 S12 S18 S22
+[470] Appendix D Complete Physical ERD
+[471] This appendix documents the complete application database model: 64 public tables, 906 columns, and 200 declared foreign-key relationships. The entity sheets group tables alphabetically, with compact placement of the final operational tables. Read down each column and then across each sheet. Long tables are divided into numbered parts. The sheets and relationship register together provide the complete printed model.
+[472] Open the complete master diagram with zoom and table search
+[473] Diagram Source and Rendering
+[474] The master Mermaid source is generated from the table, column, primary-key, unique-key, and foreign-key metadata in supabase/baseline/catalog.json. Rendering uses the installed Mermaid Chart extension. The diagram source is docs/defense/full_database_erd.mmd; the vector master is docs/defense/full_database_erd.svg.
+[475] Keys and Relationship Notation
+[476] Each F-number in the master diagram identifies one foreign-key constraint in the relationship register. Source columns are listed before the arrow and referenced columns after it. “1 : 0..many” means each child requires one parent and a parent may have several children. “0..1 : 0..many” allows a child without a parent. “1 : 0..1” or “0..1 : 0..1” indicates that the source foreign-key tuple is also unique. Optional composite references are assessed from source nullability.
+[477] The auth.users reference belongs to the authentication platform and contributes one reference node, not an additional application table. Its referenced key is id (uuid). The 13 foreign keys that target auth.users are included in the 200-relationship total. No patient data or secret values appear in this appendix.
+[478] Conditional indexes and application checks can impose additional rules beyond the connectors shown here. Their full definitions remain in the baseline catalog and SQL. This ERD describes declared relationships and column structure; it does not replace row-level security policies or workflow authorization.
+[479] Sources S3 S5 S11
+[481] Complete ERD — Master Diagram
+[483] Figure D0 Complete physical ERD — 64 application tables, 906 columns, and 200 foreign-key relationships, with auth.users as a platform reference
+[484] This plate presents the complete model in one view. Read individual fields in the enlarged entity sheets and match connector labels F001–F200 to the relationship register. Use the interactive vector master to inspect connector paths and table details at full size.
+[485] Open the full-size interactive master diagram
+[486] Complete ERD — Entity Sheet 01
+[488] Figure D1 ai_assessment_recommendations; ai_assessments; ai_configurations; appointment_reminder_jobs; audit_logs; care_assistant_conversations; chat_conversations
+[489] Complete ERD — Entity Sheet 02
+[491] Figure D2 chat_message_attachments; chat_messages; clinical_record_addenda; clinical_record_quarantine; consultation_attachments; consultation_status_history
+[492] Complete ERD — Entity Sheet 03
+[494] Figure D3 consultations (part 1/2); consultations (part 2/2); diagnoses; doctor_hospital_employments
+[495] Complete ERD — Entity Sheet 04
+[497] Figure D4 doctor_patient_assignments; doctor_schedules; doctors; document_processing_jobs
+[498] Complete ERD — Entity Sheet 05
+[500] Figure D5 emergency_access_events; emergency_room_status; guest_consultation_requests (part 1/2)
+[501] Complete ERD — Entity Sheet 06
+[503] Figure D6 guest_consultation_requests (part 2/2); guest_request_status_history; healthcare_service_categories; hospital_announcements; hospital_beds; hospital_classifications; hospital_departments
+[504] Complete ERD — Entity Sheet 07
+[506] Figure D7 hospital_facility_status; hospital_rooms; hospital_service_doctors; hospital_services; hospitals (part 1/2)
+[507] Complete ERD — Entity Sheet 08
+[509] Figure D8 hospitals (part 2/2); laboratory_requests; laboratory_results; maintenance_windows
+[510] Complete ERD — Entity Sheet 09
+[512] Figure D9 medical_documents (part 1/2); medical_documents (part 2/2); medical_record_access_logs
+[513] Complete ERD — Entity Sheet 10
+[515] Figure D10 medical_records (part 1/2); medical_records (part 2/2); medication_summary_days; notification_outbox; notification_preferences
+[516] Complete ERD — Entity Sheet 11
+[518] Figure D11 notifications; online_consultation_request_status_history; online_consultation_requests (part 1/2); online_consultation_requests (part 2/2)
+[519] Complete ERD — Entity Sheet 12
+[521] Figure D12 patient_access_grants; patient_access_record_selections; patient_access_scopes; patient_care_relationships; patient_connection_requests
+[522] Complete ERD — Entity Sheet 13
+[524] Figure D13 patient_consents; patient_hospital_identifiers; patient_representatives; patients
+[525] Complete ERD — Entity Sheet 14
+[527] Figure D14 prescription_orders; prescriptions (part 1/2); prescriptions (part 2/2); role_permissions; roles
+[528] Complete ERD — Entity Sheet 15
+[530] Figure D15 security_logs; system_settings; treatment_plans; video_sessions; users
+[531] Complete ERD — Relationships F001–F025
+[532] Ref. | Foreign-key source | Referenced key | Parent : children
+F001 | ai_assessment_recommendations (assessment_id) | ai_assessments (id) | 1 : 0..many
+F002 | ai_assessment_recommendations (hospital_id) | hospitals (id) | 1 : 0..many
+F003 | ai_assessments (guest_request_id) | guest_consultation_requests (id) | 0..1 : 0..many
+F004 | ai_assessments (patient_id) | patients (id) | 0..1 : 0..many
+F005 | ai_assessments (recommended_hospital_id) | hospitals (id) | 0..1 : 0..many
+F006 | ai_assessments (user_id) | auth.users (id) | 0..1 : 0..many
+F007 | ai_configurations (updated_by) | users (id) | 0..1 : 0..many
+F008 | appointment_reminder_jobs (consultation_id) | consultations (id) | 1 : 0..many
+F009 | audit_logs (hospital_id) | hospitals (id) | 0..1 : 0..many
+F010 | audit_logs (user_id) | users (id) | 0..1 : 0..many
+F011 | care_assistant_conversations (user_id) | users (id) | 1 : 0..many
+F012 | chat_conversations (consultation_id) | consultations (id) | 0..1 : 0..1
+F013 | chat_conversations (doctor_id) | doctors (id) | 1 : 0..many
+F014 | chat_conversations (guest_request_id) | guest_consultation_requests (id) | 0..1 : 0..many
+F015 | chat_conversations (patient_id) | patients (id) | 0..1 : 0..many
+F016 | chat_message_attachments (message_id) | chat_messages (id) | 1 : 0..many
+F017 | chat_message_attachments (uploaded_by) | auth.users (id) | 1 : 0..many
+F018 | chat_messages (conversation_id) | chat_conversations (id) | 1 : 0..many
+F019 | chat_messages (sender_id) | auth.users (id) | 1 : 0..many
+F020 | clinical_record_addenda (author_doctor_id) | doctors (id) | 0..1 : 0..many
+F021 | clinical_record_addenda (author_user_id) | users (id) | 1 : 0..many
+F022 | clinical_record_addenda (originating_hospital_id) | hospitals (id) | 1 : 0..many
+F023 | clinical_record_addenda (patient_id) | patients (id) | 1 : 0..many
+F024 | clinical_record_addenda (supersedes_addendum_id) | clinical_record_addenda (id) | 0..1 : 0..many
+F025 | clinical_record_quarantine (patient_id) | patients (id) | 0..1 : 0..many
+[533]  
+[534] Source: sanitized baseline catalog. F-number labels match the master ERD connectors.
+[535] Complete ERD — Relationships F026–F050
+[536] Ref. | Foreign-key source | Referenced key | Parent : children
+F026 | clinical_record_quarantine (resolved_by) | users (id) | 0..1 : 0..many
+F027 | consultation_attachments (consultation_id) | consultations (id) | 1 : 0..many
+F028 | consultation_attachments (guest_request_id) | guest_consultation_requests (id) | 0..1 : 0..many
+F029 | consultation_attachments (patient_id) | patients (id) | 0..1 : 0..many
+F030 | consultation_attachments (uploaded_by) | auth.users (id) | 1 : 0..many
+F031 | consultation_status_history (changed_by) | users (id) | 0..1 : 0..many
+F032 | consultation_status_history (consultation_id) | consultations (id) | 1 : 0..many
+F033 | consultations (approved_by) | users (id) | 0..1 : 0..many
+F034 | consultations (department_id) | hospital_departments (id) | 0..1 : 0..many
+F035 | consultations (doctor_id) | doctors (id) | 1 : 0..many
+F036 | consultations (follow_up_of) | consultations (id) | 0..1 : 0..many
+F037 | consultations (guest_request_id) | guest_consultation_requests (id) | 0..1 : 0..many
+F038 | consultations (hospital_id) | hospitals (id) | 1 : 0..many
+F039 | consultations (patient_id) | patients (id) | 0..1 : 0..many
+F040 | diagnoses (consultation_id) | consultations (id) | 1 : 0..many
+F041 | diagnoses (doctor_id) | doctors (id) | 1 : 0..many
+F042 | diagnoses (hospital_id) | hospitals (id) | 1 : 0..many
+F043 | diagnoses (patient_id) | patients (id) | 1 : 0..many
+F044 | doctor_hospital_employments (doctor_id) | doctors (id) | 1 : 0..many
+F045 | doctor_hospital_employments (hospital_id) | hospitals (id) | 1 : 0..many
+F046 | doctor_hospital_employments (verified_by) | users (id) | 0..1 : 0..many
+F047 | doctor_patient_assignments (care_relationship_id) | patient_care_relationships (id) | 0..1 : 0..many
+F048 | doctor_patient_assignments (consultation_id) | consultations (id) | 0..1 : 0..many
+F049 | doctor_patient_assignments (doctor_id) | doctors (id) | 1 : 0..many
+F050 | doctor_patient_assignments (hospital_id) | hospitals (id) | 0..1 : 0..many
+[537]  
+[538] Source: sanitized baseline catalog. F-number labels match the master ERD connectors.
+[539] Complete ERD — Relationships F051–F075
+[540] Ref. | Foreign-key source | Referenced key | Parent : children
+F051 | doctor_patient_assignments (patient_id) | patients (id) | 1 : 0..many
+F052 | doctor_schedules (doctor_id) | doctors (id) | 1 : 0..many
+F053 | doctors (created_by_admin) | users (id) | 0..1 : 0..many
+F054 | doctors (department_id) | hospital_departments (id) | 0..1 : 0..many
+F055 | doctors (hospital_id) | hospitals (id) | 1 : 0..many
+F056 | doctors (user_id) | users (id) | 1 : 0..1
+F057 | document_processing_jobs (laboratory_result_id) | laboratory_results (id) | 0..1 : 0..many
+F058 | document_processing_jobs (medical_document_id) | medical_documents (id) | 0..1 : 0..many
+F059 | document_processing_jobs (requested_by) | doctors (id) | 1 : 0..many
+F060 | emergency_access_events (doctor_id) | doctors (id) | 1 : 0..many
+F061 | emergency_access_events (hospital_id) | hospitals (id) | 1 : 0..many
+F062 | emergency_access_events (patient_id) | patients (id) | 1 : 0..many
+F063 | emergency_access_events (reviewed_by) | users (id) | 0..1 : 0..many
+F064 | emergency_room_status (hospital_id) | hospitals (id) | 1 : 0..1
+F065 | emergency_room_status (updated_by) | users (id) | 0..1 : 0..many
+F066 | guest_consultation_requests (assigned_doctor_id) | doctors (id) | 0..1 : 0..many
+F067 | guest_consultation_requests (preferred_department_id) | hospital_departments (id) | 0..1 : 0..many
+F068 | guest_consultation_requests (preferred_hospital_id) | hospitals (id) | 0..1 : 0..many
+F069 | guest_consultation_requests (reviewed_by) | users (id) | 0..1 : 0..many
+F070 | guest_consultation_requests (submitted_by) | auth.users (id) | 0..1 : 0..many
+F071 | guest_request_status_history (changed_by) | users (id) | 0..1 : 0..many
+F072 | guest_request_status_history (request_id) | guest_consultation_requests (id) | 1 : 0..many
+F073 | hospital_announcements (created_by) | users (id) | 0..1 : 0..many
+F074 | hospital_announcements (hospital_id) | hospitals (id) | 0..1 : 0..many
+F075 | hospital_beds (department_id) | hospital_departments (id) | 0..1 : 0..many
+[541]  
+[542] Source: sanitized baseline catalog. F-number labels match the master ERD connectors.
+[543] Complete ERD — Relationships F076–F100
+[544] Ref. | Foreign-key source | Referenced key | Parent : children
+F076 | hospital_beds (hospital_id) | hospitals (id) | 1 : 0..many
+F077 | hospital_departments (hospital_id) | hospitals (id) | 1 : 0..many
+F078 | hospital_facility_status (hospital_id) | hospitals (id) | 1 : 0..many
+F079 | hospital_rooms (hospital_id) | hospitals (id) | 1 : 0..many
+F080 | hospital_service_doctors (doctor_id, hospital_id) | doctors (id, hospital_id) | 1 : 0..many
+F081 | hospital_service_doctors (hospital_id) | hospitals (id) | 1 : 0..many
+F082 | hospital_service_doctors (service_id, hospital_id) | hospital_services (id, hospital_id) | 1 : 0..many
+F083 | hospital_services (category_id) | healthcare_service_categories (id) | 0..1 : 0..many
+F084 | hospital_services (department_id) | hospital_departments (id) | 0..1 : 0..many
+F085 | hospital_services (hospital_id) | hospitals (id) | 1 : 0..many
+F086 | hospitals (classification_id) | hospital_classifications (id) | 0..1 : 0..many
+F087 | hospitals (created_by) | auth.users (id) | 0..1 : 0..many
+F088 | hospitals (verification_decided_by) | users (id) | 0..1 : 0..many
+F089 | laboratory_requests (consultation_id) | consultations (id) | 0..1 : 0..many
+F090 | laboratory_requests (doctor_id) | doctors (id) | 1 : 0..many
+F091 | laboratory_requests (hospital_id) | hospitals (id) | 1 : 0..many
+F092 | laboratory_requests (patient_id) | patients (id) | 1 : 0..many
+F093 | laboratory_results (confirmed_by) | doctors (id) | 0..1 : 0..many
+F094 | laboratory_results (consultation_id) | consultations (id) | 0..1 : 0..many
+F095 | laboratory_results (doctor_id) | doctors (id) | 1 : 0..many
+F096 | laboratory_results (hospital_id) | hospitals (id) | 1 : 0..many
+F097 | laboratory_results (patient_id) | patients (id) | 1 : 0..many
+F098 | laboratory_results (reviewed_by) | doctors (id) | 0..1 : 0..many
+F099 | laboratory_results (source_document_id) | medical_documents (id) | 0..1 : 0..many
+F100 | maintenance_windows (created_by) | users (id) | 0..1 : 0..many
+[545]  
+[546] Source: sanitized baseline catalog. F-number labels match the master ERD connectors.
+[547] Complete ERD — Relationships F101–F125
+[548] Ref. | Foreign-key source | Referenced key | Parent : children
+F101 | medical_documents (author_doctor_id) | doctors (id) | 0..1 : 0..many
+F102 | medical_documents (consultation_id) | consultations (id) | 0..1 : 0..many
+F103 | medical_documents (hospital_id) | hospitals (id) | 0..1 : 0..many
+F104 | medical_documents (patient_id) | patients (id) | 1 : 0..many
+F105 | medical_documents (reviewed_by) | users (id) | 0..1 : 0..many
+F106 | medical_documents (uploaded_by) | users (id) | 1 : 0..many
+F107 | medical_record_access_logs (actor_user_id) | users (id) | 0..1 : 0..many
+F108 | medical_record_access_logs (care_relationship_id) | patient_care_relationships (id) | 0..1 : 0..many
+F109 | medical_record_access_logs (grant_id) | patient_access_grants (id) | 0..1 : 0..many
+F110 | medical_record_access_logs (patient_id) | patients (id) | 1 : 0..many
+F111 | medical_record_access_logs (receiving_hospital_id) | hospitals (id) | 0..1 : 0..many
+F112 | medical_record_access_logs (source_hospital_id) | hospitals (id) | 0..1 : 0..many
+F113 | medical_records (confirmed_by) | doctors (id) | 0..1 : 0..many
+F114 | medical_records (consultation_id) | consultations (id) | 0..1 : 0..many
+F115 | medical_records (doctor_id) | doctors (id) | 1 : 0..many
+F116 | medical_records (hospital_id) | hospitals (id) | 1 : 0..many
+F117 | medical_records (patient_id) | patients (id) | 1 : 0..many
+F118 | medical_records (source_document_id) | medical_documents (id) | 0..1 : 0..many
+F119 | medical_records (source_laboratory_result_id) | laboratory_results (id) | 0..1 : 0..many
+F120 | medication_summary_days (notification_id) | notifications (id) | 0..1 : 0..many
+F121 | medication_summary_days (patient_id) | patients (id) | 1 : 0..many
+F122 | notification_outbox (notification_id) | notifications (id) | 1 : 0..many
+F123 | notification_outbox (user_id) | auth.users (id) | 1 : 0..many
+F124 | notification_preferences (user_id) | auth.users (id) | 1 : 0..1
+F125 | notifications (guest_request_id) | guest_consultation_requests (id) | 0..1 : 0..many
+[549]  
+[550] Source: sanitized baseline catalog. F-number labels match the master ERD connectors.
+[551] Complete ERD — Relationships F126–F150
+[552] Ref. | Foreign-key source | Referenced key | Parent : children
+F126 | notifications (user_id) | auth.users (id) | 0..1 : 0..many
+F127 | online_consultation_request_status_history (changed_by) | users (id) | 0..1 : 0..many
+F128 | online_consultation_request_status_history (request_id) | online_consultation_requests (id) | 1 : 0..many
+F129 | online_consultation_requests (assigned_doctor_id) | doctors (id) | 0..1 : 0..many
+F130 | online_consultation_requests (care_relationship_id) | patient_care_relationships (id) | 1 : 0..many
+F131 | online_consultation_requests (consent_id) | patient_consents (id) | 1 : 0..many
+F132 | online_consultation_requests (hospital_id) | hospitals (id) | 1 : 0..many
+F133 | online_consultation_requests (official_consultation_id) | consultations (id) | 0..1 : 0..many
+F134 | online_consultation_requests (patient_id) | patients (id) | 1 : 0..many
+F135 | online_consultation_requests (requested_department_id) | hospital_departments (id) | 1 : 0..many
+F136 | online_consultation_requests (requested_doctor_id) | doctors (id) | 0..1 : 0..many
+F137 | online_consultation_requests (reviewed_by) | users (id) | 0..1 : 0..many
+F138 | online_consultation_requests (submitted_by) | users (id) | 1 : 0..many
+F139 | patient_access_grants (care_relationship_id) | patient_care_relationships (id) | 1 : 0..many
+F140 | patient_access_grants (consent_id) | patient_consents (id) | 1 : 0..many
+F141 | patient_access_grants (consultation_id) | consultations (id) | 0..1 : 0..many
+F142 | patient_access_grants (patient_id) | patients (id) | 1 : 0..many
+F143 | patient_access_grants (receiving_doctor_id) | doctors (id) | 1 : 0..many
+F144 | patient_access_grants (receiving_hospital_id) | hospitals (id) | 1 : 0..many
+F145 | patient_access_grants (revoked_by) | users (id) | 0..1 : 0..many
+F146 | patient_access_grants (source_hospital_id) | hospitals (id) | 1 : 0..many
+F147 | patient_access_record_selections (grant_id) | patient_access_grants (id) | 1 : 0..many
+F148 | patient_access_scopes (grant_id) | patient_access_grants (id) | 1 : 0..many
+F149 | patient_care_relationships (consultation_id) | consultations (id) | 0..1 : 0..many
+F150 | patient_care_relationships (created_by) | users (id) | 0..1 : 0..many
+[553]  
+[554] Source: sanitized baseline catalog. F-number labels match the master ERD connectors.
+[555] Complete ERD — Relationships F151–F175
+[556] Ref. | Foreign-key source | Referenced key | Parent : children
+F151 | patient_care_relationships (doctor_id) | doctors (id) | 0..1 : 0..many
+F152 | patient_care_relationships (hospital_id) | hospitals (id) | 1 : 0..many
+F153 | patient_care_relationships (online_request_id) | online_consultation_requests (id) | 0..1 : 0..many
+F154 | patient_care_relationships (patient_id) | patients (id) | 1 : 0..many
+F155 | patient_connection_requests (doctor_id) | doctors (id) | 1 : 0..many
+F156 | patient_connection_requests (hospital_id) | hospitals (id) | 1 : 0..many
+F157 | patient_connection_requests (patient_id) | patients (id) | 1 : 0..many
+F158 | patient_connection_requests (requested_by) | users (id) | 1 : 0..many
+F159 | patient_consents (captured_by) | auth.users (id) | 1 : 0..many
+F160 | patient_consents (care_relationship_id) | patient_care_relationships (id) | 0..1 : 0..many
+F161 | patient_consents (granted_by) | users (id) | 0..1 : 0..many
+F162 | patient_consents (patient_id) | patients (id) | 1 : 0..many
+F163 | patient_consents (receiving_hospital_id) | hospitals (id) | 0..1 : 0..many
+F164 | patient_consents (replaces_consent_id) | patient_consents (id) | 0..1 : 0..many
+F165 | patient_consents (source_hospital_id) | hospitals (id) | 0..1 : 0..many
+F166 | patient_hospital_identifiers (hospital_id) | hospitals (id) | 1 : 0..many
+F167 | patient_hospital_identifiers (patient_id) | patients (id) | 1 : 0..many
+F168 | patient_representatives (evidence_document_id) | medical_documents (id) | 0..1 : 0..many
+F169 | patient_representatives (patient_id) | patients (id) | 1 : 0..many
+F170 | patient_representatives (representative_user_id) | users (id) | 1 : 0..many
+F171 | patient_representatives (verified_by) | users (id) | 0..1 : 0..many
+F172 | patients (created_by_doctor) | doctors (id) | 0..1 : 0..many
+F173 | patients (guest_request_id) | guest_consultation_requests (id) | 0..1 : 0..many
+F174 | patients (primary_hospital_id) | hospitals (id) | 0..1 : 0..many
+F175 | patients (user_id) | users (id) | 0..1 : 0..1
+[557]  
+[558] Source: sanitized baseline catalog. F-number labels match the master ERD connectors.
+[559] Complete ERD — Relationships F176–F200
+[560] Ref. | Foreign-key source | Referenced key | Parent : children
+F176 | prescription_orders (assignment_id) | doctor_patient_assignments (id) | 0..1 : 0..many
+F177 | prescription_orders (consultation_id) | consultations (id) | 0..1 : 0..many
+F178 | prescription_orders (doctor_id) | doctors (id) | 1 : 0..many
+F179 | prescription_orders (hospital_id) | hospitals (id) | 1 : 0..many
+F180 | prescription_orders (issued_by) | users (id) | 0..1 : 0..many
+F181 | prescription_orders (patient_id) | patients (id) | 1 : 0..many
+F182 | prescriptions (assignment_id) | doctor_patient_assignments (id) | 0..1 : 0..many
+F183 | prescriptions (consultation_id) | consultations (id) | 0..1 : 0..many
+F184 | prescriptions (doctor_id) | doctors (id) | 1 : 0..many
+F185 | prescriptions (electronically_signed_by) | users (id) | 0..1 : 0..many
+F186 | prescriptions (hospital_id) | hospitals (id) | 1 : 0..many
+F187 | prescriptions (order_id) | prescription_orders (id) | 0..1 : 0..many
+F188 | prescriptions (patient_id) | patients (id) | 1 : 0..many
+F189 | role_permissions (role_id) | roles (id) | 1 : 0..many
+F190 | security_logs (actor_auth_user_id) | auth.users (id) | 0..1 : 0..many
+F191 | system_settings (updated_by) | users (id) | 0..1 : 0..many
+F192 | treatment_plans (consultation_id) | consultations (id) | 1 : 0..many
+F193 | treatment_plans (doctor_id) | doctors (id) | 1 : 0..many
+F194 | treatment_plans (hospital_id) | hospitals (id) | 1 : 0..many
+F195 | treatment_plans (patient_id) | patients (id) | 1 : 0..many
+F196 | users (auth_user_id) | auth.users (id) | 1 : 0..1
+F197 | users (hospital_id) | hospitals (id) | 0..1 : 0..many
+F198 | users (role_id) | roles (id) | 1 : 0..many
+F199 | video_sessions (consultation_id) | consultations (id) | 1 : 0..1
+F200 | video_sessions (created_by) | auth.users (id) | 1 : 0..many
+[561]  
+[562] Source: sanitized baseline catalog. F-number labels match the master ERD connectors.
+[564] Research References
+[565] Dayrit, M. M., Lagrada, L. P., Picazo, O. F., Pons, M. C., & Villaverde, M. C. (2018). The Philippines health system review (Vol. 8, No. 2). World Health Organization, Regional Office for South-East Asia.
+[566] WHO Philippines health system review
+[567] World Health Organization. (2025). Global strategy on digital health 2020–2027.
+[568] WHO Global strategy on digital health
+[569] Project References
+[570] The following repository sources and recorded verification artifacts support the system descriptions, implementation details, and testing results. Evidence covers the examined working tree and recorded runs dated 11 and 12 October 2026.
+[571] [S1] README.md and pubspec.yaml. Project overview and package configuration.
+[572] [S2] SYSTEM_ARCHITECTURE.md. Layered architecture and role workflows.
+[573] [S3] supabase/README.md. Baseline, installation, server configuration, and release gates.
+[574] [S4] docs/SYSTEM_WORKFLOW_AUDIT_2026-10-11.md and supplied repair plan. 15 findings and agreed repair requirements.
+[575] [S5] supabase/migrations/20261011100000_application_baseline.sql. Physical schema, authorization, and transactional workflow definitions.
+[576] [S6] lib/src/models/booking_outcome.dart and lib/src/repositories/consultation_repository.dart. Typed booking, verified intake, and patient responses.
+[577] [S7] supabase/upgrades/audit-2026-10/20261011091000_review_and_order_boundaries.sql. Clinical transition and missed-visit guards.
+[578] [S8] supabase/config.toml and supabase/functions/dispatch-notifications/index.ts. Six function configurations and dispatcher behavior.
+[579] [S9] Guest providers, guest verification, and sharing_management_dialog.dart. Retained verification, activation controls, and relationship-wide revocation.
+[580] [S10] supabase/migrations/20261011171441_close_null_video_authorization.sql. Participant authorization and video time window.
+[581] [S11] Complete physical ERD and printable atlas. supabase/baseline/catalog.json; docs/defense/full_database_erd.mmd; docs/defense/full_database_erd.html; Appendix D
+[582] [S12] care_repository.dart, workspace_repository.dart, and live_workspace_view.dart. Issuance, document review, explicit grouping, and visible role actions.
+[583] [S13] Recorded Playwright runs and tmp/final_project_doc/verification_evidence.json. 12 October 2026: full browser run at 6:34 AM; passing focused upload-review follow-up at 6:43 AM, Asia/Manila.
+[584] [S14] .codex-runtime/repair-web-build.log and repair-apk-build.log. Web and Android release build results.
+[585] [S15] pubspec.lock. Resolved dependency versions.
+[586] [S16] test/unit/repair_regression_test.dart. Guest retry and prescription grouping regression definitions.
+[587] [S17] supabase/tests/*_acceptance.sql. Database acceptance suites; definitions alone do not certify execution.
+[588] [S18] supabase/operations/README.md. Rollout monitoring and audited corrections.
+[589] [S19] .codex-runtime/repair-analyze.log, repair-all-tests.log, and repair-final-regressions.log. Analysis and recorded Flutter test results.
+[590] [S20] .codex-runtime/repair-ai-fixture-result.json. Controlled synthetic prescription extraction output.
+[591] [S21] test/visual_catalog/. Application screenshots rendered with controlled fixture data.
+[592] [S22] lib/src/repositories/profile_repository.dart and auth_repository.dart. Preference serialization and password-recovery behavior.
+[593] [S23] Activity1_CareNavigator_PH_Test_Scenarios_and_Test_Cases.docx. Author-supplied scenarios and four detailed cases; no execution results supplied.
+[594] Raw deployed-source snapshots, account fixtures, and secret-bearing configuration are retained outside this report. The document includes no passwords, access tokens, clinical patient records, or private deployment credentials.

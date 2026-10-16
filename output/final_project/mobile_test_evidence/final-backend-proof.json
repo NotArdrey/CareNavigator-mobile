@@ -1,0 +1,38 @@
+{
+  "checkedAt": "2026-10-16T11:37:01.801Z",
+  "appointmentCount": 4,
+  "mobileBookings": [
+    {
+      "id": "796b602e-cac1-44e8-a80d-114f57f8bafb",
+      "appointment_date": "2026-10-18T01:00:00+00:00",
+      "status": "cancelled",
+      "chief_complaint": "SYNTHETIC_MOBILE_TS03",
+      "doctor_id": "310fcaf2-7394-450d-8945-f89895bb5b75",
+      "hospital_id": "3336f459-18fd-4fb3-b5c6-16438b93b516",
+      "correctDoctor": true,
+      "correctHospital": true,
+      "slotOffered": true
+    },
+    {
+      "id": "d9b79578-b521-4710-9df9-a99eed171b04",
+      "appointment_date": "2026-10-18T01:00:00+00:00",
+      "status": "cancelled",
+      "chief_complaint": "SYNTHETIC_MOBILE_TS03_RETEST",
+      "doctor_id": "310fcaf2-7394-450d-8945-f89895bb5b75",
+      "hospital_id": "3336f459-18fd-4fb3-b5c6-16438b93b516",
+      "correctDoctor": true,
+      "correctHospital": true,
+      "slotOffered": true
+    }
+  ],
+  "ts04SlotCount": 0,
+  "retainedDemoAppointment": {
+    "id": "a651dcb5-1afa-4e58-a073-c758713823e5",
+    "appointment_date": "2026-10-20T01:00:00+00:00",
+    "status": "pending",
+    "chief_complaint": "SYNTHETIC TS-05 demo - view and cancel this appointment",
+    "doctor_id": "310fcaf2-7394-450d-8945-f89895bb5b75",
+    "hospital_id": "3336f459-18fd-4fb3-b5c6-16438b93b516"
+  },
+  "earliestAvailableSlot": "2026-10-18T01:00:00+00:00"
+}

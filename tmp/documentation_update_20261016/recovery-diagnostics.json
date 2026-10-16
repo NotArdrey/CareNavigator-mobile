@@ -1,0 +1,39 @@
+{
+  "network": [
+    {
+      "path": "/auth/v1/verify",
+      "method": "GET",
+      "status": 303
+    },
+    {
+      "path": "/auth/v1/user",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/auth/v1/user",
+      "method": "PUT",
+      "status": 200
+    }
+  ],
+  "error": "expect(locator).toBeVisible() failed\n\nLocator: getByText('Password updated successfully.', { exact: true })\nExpected: visible\nError: strict mode violation: getByText('Password updated successfully.', { exact: true }) resolved to 2 elements:\n    1) <flt-announcement-polite aria-live=\"polite\">Password updated successfully. </flt-announcement-polite> aka locator('flt-announcement-polite')\n    2) <span>Password updated successfully.</span> aka getByLabel('CareNavigator PH Choose a new').getByText('Password updated successfully.')\n\nCall log:\n  - Expect \"to.be.visible\" with timeout 5000ms\n  - waiting for getByText('Password updated successfully.', { exact: true })\n",
+  "storage": [
+    {
+      "key": "sb-crhsbpkuteyqbxjpozrp-auth-token",
+      "hasAccessToken": true
+    }
+  ],
+  "ui": [
+    "Set a new passwordPassword updated successfully.Hide passwordShow confirmation passwordUpdate passwordBack to sign in",
+    "Set a new passwordPassword updated successfully.Hide passwordShow confirmation passwordUpdate passwordBack to sign in",
+    "Set a new passwordPassword updated successfully.Hide passwordShow confirmation passwordUpdate passwordBack to sign in",
+    "Set a new passwordPassword updated successfully.Hide passwordShow confirmation passwordUpdate passwordBack to sign in",
+    "Set a new passwordPassword updated successfully.Hide passwordShow confirmation passwordUpdate passwordBack to sign in",
+    "Password updated successfully.",
+    "Hide password",
+    "Hide password",
+    "Show confirmation password",
+    "Show confirmation password",
+    "Update password"
+  ]
+}

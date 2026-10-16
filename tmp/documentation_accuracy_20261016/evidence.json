@@ -1,0 +1,56 @@
+{
+  "checkedAt": "2026-10-16T06:46:51.719Z",
+  "documentSha256": "887511f8c529377cc2d50be0d97e945a886f4bb14d2d561c58e1f58ff99af7a6",
+  "publicTables": 64,
+  "publicColumns": 906,
+  "declaredPublicForeignKeys": 200,
+  "erdEntities": 65,
+  "missingErdColumns": [],
+  "functions": [
+    {
+      "name": "care-navigator-chat",
+      "present": true,
+      "status": "ACTIVE",
+      "version": 42,
+      "verifyJwt": false
+    },
+    {
+      "name": "analyze-symptoms",
+      "present": true,
+      "status": "ACTIVE",
+      "version": 15,
+      "verifyJwt": false
+    },
+    {
+      "name": "analyze-medical-result",
+      "present": true,
+      "status": "ACTIVE",
+      "version": 11,
+      "verifyJwt": true
+    },
+    {
+      "name": "care-workflows",
+      "present": true,
+      "status": "ACTIVE",
+      "version": 12,
+      "verifyJwt": true
+    },
+    {
+      "name": "admin-users",
+      "present": true,
+      "status": "ACTIVE",
+      "version": 9,
+      "verifyJwt": true
+    },
+    {
+      "name": "dispatch-notifications",
+      "present": true,
+      "status": "ACTIVE",
+      "version": 14,
+      "verifyJwt": false
+    }
+  ],
+  "fixture": {
+    "documentation_example_account_exists": false
+  }
+}

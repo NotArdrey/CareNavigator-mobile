@@ -1,0 +1,363 @@
+﻿{
+    "scope":  "Selected columns and nine declared foreign keys; operational, authorization and external platform tables omitted.",
+    "tables":  [
+                   {
+                       "width":  650,
+                       "height":  276,
+                       "x":  40,
+                       "y":  35,
+                       "name":  "users",
+                       "fields":  [
+                                      "id",
+                                      "first_name",
+                                      "last_name",
+                                      "email",
+                                      "account_status"
+                                  ]
+                   },
+                   {
+                       "width":  650,
+                       "height":  232,
+                       "x":  975,
+                       "y":  35,
+                       "name":  "hospitals",
+                       "fields":  [
+                                      "id",
+                                      "hospital_name",
+                                      "address",
+                                      "verification_status"
+                                  ]
+                   },
+                   {
+                       "width":  650,
+                       "height":  364,
+                       "x":  1910,
+                       "y":  35,
+                       "name":  "doctor_schedules",
+                       "fields":  [
+                                      "id",
+                                      "doctor_id",
+                                      "day_of_week",
+                                      "starts_at",
+                                      "ends_at",
+                                      "slot_minutes",
+                                      "is_active"
+                                  ]
+                   },
+                   {
+                       "width":  650,
+                       "height":  232,
+                       "x":  40,
+                       "y":  595,
+                       "name":  "patients",
+                       "fields":  [
+                                      "id",
+                                      "user_id",
+                                      "patient_number",
+                                      "profile_status"
+                                  ]
+                   },
+                   {
+                       "width":  650,
+                       "height":  276,
+                       "x":  975,
+                       "y":  595,
+                       "name":  "doctors",
+                       "fields":  [
+                                      "id",
+                                      "user_id",
+                                      "hospital_id",
+                                      "display_name",
+                                      "specialization"
+                                  ]
+                   },
+                   {
+                       "width":  650,
+                       "height":  276,
+                       "x":  1910,
+                       "y":  595,
+                       "name":  "prescriptions",
+                       "fields":  [
+                                      "id",
+                                      "order_id",
+                                      "medication_name",
+                                      "dosage",
+                                      "frequency"
+                                  ]
+                   },
+                   {
+                       "width":  650,
+                       "height":  320,
+                       "x":  40,
+                       "y":  1155,
+                       "name":  "consultations",
+                       "fields":  [
+                                      "id",
+                                      "patient_id",
+                                      "doctor_id",
+                                      "appointment_date",
+                                      "consultation_type",
+                                      "status"
+                                  ]
+                   },
+                   {
+                       "width":  650,
+                       "height":  232,
+                       "x":  975,
+                       "y":  1155,
+                       "name":  "prescription_orders",
+                       "fields":  [
+                                      "id",
+                                      "consultation_id",
+                                      "issued_at",
+                                      "status"
+                                  ]
+                   },
+                   {
+                       "width":  650,
+                       "height":  276,
+                       "x":  1910,
+                       "y":  1155,
+                       "name":  "medical_records",
+                       "fields":  [
+                                      "id",
+                                      "consultation_id",
+                                      "title",
+                                      "confirmed_diagnosis",
+                                      "record_date"
+                                  ]
+                   }
+               ],
+    "relationships":  [
+                          {
+                              "child":  "patients",
+                              "label":  [
+                                            390,
+                                            442
+                                        ],
+                              "points":  [
+                                             [
+                                                 365,
+                                                 311
+                                             ],
+                                             [
+                                                 365,
+                                                 595
+                                             ]
+                                         ],
+                              "parent":  "users",
+                              "fk":  "user_id",
+                              "unique":  true,
+                              "optional":  true
+                          },
+                          {
+                              "child":  "doctors",
+                              "label":  [
+                                            815,
+                                            438
+                                        ],
+                              "points":  [
+                                             [
+                                                 690,
+                                                 160
+                                             ],
+                                             [
+                                                 800,
+                                                 160
+                                             ],
+                                             [
+                                                 800,
+                                                 700
+                                             ],
+                                             [
+                                                 975,
+                                                 700
+                                             ]
+                                         ],
+                              "parent":  "users",
+                              "fk":  "user_id",
+                              "unique":  true,
+                              "optional":  false
+                          },
+                          {
+                              "child":  "doctors",
+                              "label":  [
+                                            1325,
+                                            440
+                                        ],
+                              "points":  [
+                                             [
+                                                 1300,
+                                                 267
+                                             ],
+                                             [
+                                                 1300,
+                                                 595
+                                             ]
+                                         ],
+                              "parent":  "hospitals",
+                              "fk":  "hospital_id",
+                              "unique":  false,
+                              "optional":  false
+                          },
+                          {
+                              "child":  "doctor_schedules",
+                              "label":  [
+                                            1805,
+                                            440
+                                        ],
+                              "points":  [
+                                             [
+                                                 1625,
+                                                 720
+                                             ],
+                                             [
+                                                 1790,
+                                                 720
+                                             ],
+                                             [
+                                                 1790,
+                                                 180
+                                             ],
+                                             [
+                                                 1910,
+                                                 180
+                                             ]
+                                         ],
+                              "parent":  "doctors",
+                              "fk":  "doctor_id",
+                              "unique":  false,
+                              "optional":  false
+                          },
+                          {
+                              "child":  "consultations",
+                              "label":  [
+                                            390,
+                                            997
+                                        ],
+                              "points":  [
+                                             [
+                                                 365,
+                                                 827
+                                             ],
+                                             [
+                                                 365,
+                                                 1155
+                                             ]
+                                         ],
+                              "parent":  "patients",
+                              "fk":  "patient_id",
+                              "unique":  false,
+                              "optional":  true
+                          },
+                          {
+                              "child":  "consultations",
+                              "label":  [
+                                            705,
+                                            1050
+                                        ],
+                              "points":  [
+                                             [
+                                                 975,
+                                                 810
+                                             ],
+                                             [
+                                                 850,
+                                                 810
+                                             ],
+                                             [
+                                                 850,
+                                                 1280
+                                             ],
+                                             [
+                                                 690,
+                                                 1280
+                                             ]
+                                         ],
+                              "parent":  "doctors",
+                              "fk":  "doctor_id",
+                              "unique":  false,
+                              "optional":  false
+                          },
+                          {
+                              "child":  "prescription_orders",
+                              "label":  [
+                                            710,
+                                            1324
+                                        ],
+                              "points":  [
+                                             [
+                                                 690,
+                                                 1370
+                                             ],
+                                             [
+                                                 975,
+                                                 1370
+                                             ]
+                                         ],
+                              "parent":  "consultations",
+                              "fk":  "consultation_id",
+                              "unique":  false,
+                              "optional":  true
+                          },
+                          {
+                              "child":  "prescriptions",
+                              "label":  [
+                                            1780,
+                                            994
+                                        ],
+                              "points":  [
+                                             [
+                                                 1300,
+                                                 1155
+                                             ],
+                                             [
+                                                 1300,
+                                                 1040
+                                             ],
+                                             [
+                                                 2235,
+                                                 1040
+                                             ],
+                                             [
+                                                 2235,
+                                                 871
+                                             ]
+                                         ],
+                              "parent":  "prescription_orders",
+                              "fk":  "order_id",
+                              "unique":  false,
+                              "optional":  true
+                          },
+                          {
+                              "child":  "medical_records",
+                              "label":  [
+                                            1450,
+                                            1545
+                                        ],
+                              "points":  [
+                                             [
+                                                 365,
+                                                 1475
+                                             ],
+                                             [
+                                                 365,
+                                                 1540
+                                             ],
+                                             [
+                                                 2235,
+                                                 1540
+                                             ],
+                                             [
+                                                 2235,
+                                                 1431
+                                             ]
+                                         ],
+                              "parent":  "consultations",
+                              "fk":  "consultation_id",
+                              "unique":  false,
+                              "optional":  true
+                          }
+                      ],
+    "source":  "supabase/baseline/catalog.json"
+}

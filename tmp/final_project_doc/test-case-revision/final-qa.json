@@ -1,0 +1,24 @@
+﻿{
+    "pages":  63,
+    "scenarios":  15,
+    "detailedCases":  4,
+    "caseIds":  [
+                    "TC_AUTH_001",
+                    "TC_AUTH_002",
+                    "TC_BOOKING_001",
+                    "TC_BOOKING_002"
+                ],
+    "caseResults":  "No execution results supplied",
+    "changedPackageParts":  [
+                                "docProps/app.xml",
+                                "word/document.xml"
+                            ],
+    "retainedPageBodiesCompared":  54,
+    "retainedPageBodiesIdentical":  54,
+    "retainedPagesNeedingReview":  null,
+    "sourceUnchanged":  true,
+    "sha256":  "887511F8C529377CC2D50BE0D97E945A886F4BB14D2D561C58E1F58FF99AF7A6",
+    "outputPath":  "E:\\Codes\\CareNavigatorPh\\output\\final_project\\MAD_Final_Project_Documentation_CareNavigator_PH.docx",
+    "existingDocumentationReplaced":  true,
+    "visualReview":  "All seven new Chapter 4 pages, the contents page, and the updated reference page inspected at original resolution. All 54 retained page bodies match the prior verified document. Source Activity 1 is unchanged."
+}

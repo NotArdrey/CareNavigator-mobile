@@ -1,0 +1,23 @@
+{
+  "checkedAt": "2026-10-16T06:53:58.889Z",
+  "scope": "Independent PostgreSQL connections in a cloned local synthetic-only database; no live schema or trigger changes",
+  "database": "cnph_concurrency_1792133637494",
+  "cases": [
+    {
+      "name": "Two simultaneous confirmations reserve exactly one slot",
+      "result": "PASS",
+      "successfulConfirmations": 1,
+      "rejectedConfirmations": 1
+    },
+    {
+      "name": "Schedule deletion wins race; waiting confirmation rejects unpublished slot",
+      "result": "PASS",
+      "observedLock": "advisory"
+    },
+    {
+      "name": "Confirmation wins race; waiting schedule deletion preserves reserved availability",
+      "result": "PASS",
+      "observedLock": "advisory"
+    }
+  ]
+}

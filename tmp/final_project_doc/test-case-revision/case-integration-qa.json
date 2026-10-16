@@ -1,0 +1,32 @@
+﻿{
+    "source":  "C:\\Users\\Neila\\Downloads\\Activity1_CareNavigator_PH_Test_Scenarios_and_Test_Cases.docx",
+    "sourceSha256":  "526E688C250D9B393D14122E7FD0066A92CAB280FDABA14252F730F193C60CF1",
+    "sourceUnchanged":  true,
+    "scenarioIds":  [
+                        "TS-01",
+                        "TS-02",
+                        "TS-03",
+                        "TS-04",
+                        "TS-05",
+                        "TS-06",
+                        "TS-07",
+                        "TS-08",
+                        "TS-09",
+                        "TS-10",
+                        "TS-11",
+                        "TS-12",
+                        "TS-13",
+                        "TS-14",
+                        "TS-15"
+                    ],
+    "caseIds":  [
+                    "TC_AUTH_001",
+                    "TC_AUTH_002",
+                    "TC_BOOKING_001",
+                    "TC_BOOKING_002"
+                ],
+    "replacementContentPages":  7,
+    "testCasePasswords":  "Represented by fixture roles instead of literal values",
+    "candidate":  "E:\\Codes\\CareNavigatorPh\\tmp\\final_project_doc\\test-case-revision\\MAD_Final_Project_Documentation_CareNavigator_PH.docx",
+    "originalDocumentation":  "E:\\Codes\\CareNavigatorPh\\tmp\\final_project_doc\\test-case-revision\\documentation-before-test-cases.docx"
+}

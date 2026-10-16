@@ -36,3 +36,8 @@ Original file SHA256 must remain unchanged. Every retained part and relationship
 ## Authorized revision of 12 October 2026
 
 The user requests desktop administration screenshots, a research-style introduction, and the complete ERD, replacing the existing generated DOCX. Preserve the cover and normal Letter pages. Add A3 landscape sections with the same one-inch margins and inherited header/footer relationships for the two desktop screenshots, full entity atlas, and relationship register. Appendix D includes every public table and column from the baseline catalog and all 200 declared foreign keys. The self-contained HTML/SVG master uses the installed Mermaid Chart extension; local hyperlinks connect it from the document. Research references use authoritative WHO publications. The generated output path remains unchanged. These specific authorized layout additions supersede the original two-section and ten-image limits.
+
+## Test case integration of 16 October 2026
+
+The author authorized updating Chapter 4 using the supplied Activity 1 test design. Preserve all 15 TS identifiers and four original test-case identifiers, preconditions, actions, and expected results. Keep execution evidence separate. Revised only document.xml and app.xml in the retained document package, including contents and S23 attribution. The final document has 63 verified pages, and 54 retained page bodies match the earlier verified render. Output replaced at the existing path. Revision builder and verification evidence are in test-case-revision/.
+

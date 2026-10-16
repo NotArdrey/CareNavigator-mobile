@@ -1,0 +1,28 @@
+From: sender@example.test
+To: fixture@example.test
+Subject: SYNTHETIC delivery check
+Message-ID: <carenavigator-notification-42@carenavigator.local>
+Date: Fri, 16 Oct 2026 06:55:19 +0000
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+ boundary="--_NmP-c92f815346ae7ba3-Part_1"
+
+----_NmP-c92f815346ae7ba3-Part_1
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+
+Hello Synthetic <Patient>,
+
+Synthetic <check> & evidence
+
+Open CareNavigator: https://example.test/patient/notifications
+
+CareNavigator PH
+----_NmP-c92f815346ae7ba3-Part_1
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+<p>Hello Synthetic &lt;Patient&gt;,</p><p>Synthetic &lt;check&gt; &amp; =
+evidence</p><p><a href=3D"https://example.test/patient/notifications">Open =
+CareNavigator</a></p><p>CareNavigator PH</p>
+----_NmP-c92f815346ae7ba3-Part_1--

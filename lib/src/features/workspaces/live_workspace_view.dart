@@ -2301,6 +2301,15 @@ class _LiveWorkspaceViewState extends ConsumerState<LiveWorkspaceView> {
       }
       await repository.cancelConsultation(item.id);
       ref.invalidate(workspaceSnapshotProvider(_request));
+      if (widget.itemId != null) {
+        ref.invalidate(
+          workspaceSnapshotProvider((
+            role: widget.role,
+            section: _dataSection,
+            itemId: null,
+          )),
+        );
+      }
       showRootMessage('Consultation cancelled.');
     });
   }

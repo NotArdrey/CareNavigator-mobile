@@ -1,0 +1,10 @@
+{
+  "checkedAt": "2026-10-16T07:08:03.711Z",
+  "cases": [
+    {
+      "name": "Valid recovery link changes password through the real app and real Auth",
+      "result": "FAIL",
+      "error": "expect(locator).toBeVisible() failed\n\nLocator: getByText('Password updated successfully.', { exact: true })\nExpected: visible\nError: strict mode violation: getByText('Password updated successfully.', { exact: true }) resolved to 2 elements:\n    1) <flt-announcement-polite aria-live=\"polite\">Password updated successfully. </flt-announcement-polite> aka locator('flt-announcement-polite')\n    2) <span>Password updated successfully.</span> aka getByLabel('CareNavigator PH Choose a new').getByText('Password updated successfully.')\n\nCall log:\n  - Expect \"to.be.visible\" with timeout 5000ms\n  - waiting for getByText('Password updated successfully.', { exact: true })\n"
+    }
+  ]
+}

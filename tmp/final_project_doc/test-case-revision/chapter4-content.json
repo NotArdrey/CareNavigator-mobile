@@ -1,0 +1,443 @@
+﻿[
+    {
+        "title":  "Functional Testing",
+        "blocks":  [
+                       {
+                           "p":  "The test design follows the existing Activity 1 CareNavigator PH Test Scenarios and Test Cases document. Its 15 scenarios identify the functions to verify. Four detailed cases define positive and negative checks for TS-02 (sign-in) and TS-03 (in-person reservation). The original scenario and test-case identifiers are retained. [S23]"
+                       },
+                       {
+                           "p":  "Activity 1 supplies expected outcomes but no actual results, execution dates, or pass/fail records. The cases below are therefore documented test designs. The recorded implementation evidence appears separately under Evaluation and Recorded Verification and is not assigned as a result for these four cases."
+                       },
+                       {
+                           "h2":  "Test Scenarios TS-01 to TS-08"
+                       },
+                       {
+                           "table":  {
+                                         "font":  11,
+                                         "rows":  [
+                                                      [
+                                                          "TS-01",
+                                                          "Verify that a patient can register with valid identity information and complete email verification."
+                                                      ],
+                                                      [
+                                                          "TS-02",
+                                                          "Verify that an active user can sign in with valid credentials."
+                                                      ],
+                                                      [
+                                                          "TS-03",
+                                                          "Verify that a patient can reserve an available consultation slot."
+                                                      ],
+                                                      [
+                                                          "TS-04",
+                                                          "Verify that a public user can search verified, operating hospitals and doctors and view accurate directory and map details."
+                                                      ],
+                                                      [
+                                                          "TS-05",
+                                                          "Verify that an authorized doctor can complete a consultation and save clinical checkup and prescription information for the correct patient."
+                                                      ],
+                                                      [
+                                                          "TS-06",
+                                                          "Verify that route guards and Row Level Security prevent a user from accessing another user\u0027s or hospital\u0027s protected clinical data."
+                                                      ],
+                                                      [
+                                                          "TS-07",
+                                                          "Verify that a guest can submit a consultation request, complete email OTP verification, and enter the authorized review workflow."
+                                                      ],
+                                                      [
+                                                          "TS-08",
+                                                          "Verify that the care assistant returns preliminary symptom guidance and escalates deterministic emergency warning signs safely."
+                                                      ]
+                                                  ],
+                                         "widths":  [
+                                                        1050,
+                                                        8310
+                                                    ],
+                                         "headers":  [
+                                                         "ID",
+                                                         "Test scenario"
+                                                     ]
+                                     }
+                       },
+                       {
+                           "source":  "Source S23 Existing Activity 1 test design supplied by the author."
+                       }
+                   ]
+    },
+    {
+        "title":  "Test Scenarios TS-09 to TS-15",
+        "blocks":  [
+                       {
+                           "table":  {
+                                         "font":  11,
+                                         "rows":  [
+                                                      [
+                                                          "TS-09",
+                                                          "Verify that an authorized medical-result upload remains preliminary until a doctor confirms, modifies, or rejects the extracted findings."
+                                                      ],
+                                                      [
+                                                          "TS-10",
+                                                          "Verify that authorized patients and clinicians can exchange care messages and secure attachments within the correct consultation relationship."
+                                                      ],
+                                                      [
+                                                          "TS-11",
+                                                          "Verify that care events create in-app notifications and eligible reminders without sending duplicate messages."
+                                                      ],
+                                                      [
+                                                          "TS-12",
+                                                          "Verify that a patient can reschedule or cancel an appointment while preserving slot availability and appointment history correctly."
+                                                      ],
+                                                      [
+                                                          "TS-13",
+                                                          "Verify that a hospital administrator can manage staff, services, availability, and appointments only for the assigned hospital."
+                                                      ],
+                                                      [
+                                                          "TS-14",
+                                                          "Verify that a super administrator can review hospitals and govern accounts without receiving unrestricted clinical-record access."
+                                                      ],
+                                                      [
+                                                          "TS-15",
+                                                          "Verify that emergency-bed capacity displays live, delayed, or expired status according to the configured freshness thresholds."
+                                                      ]
+                                                  ],
+                                         "widths":  [
+                                                        1050,
+                                                        8310
+                                                    ],
+                                         "headers":  [
+                                                         "ID",
+                                                         "Test scenario"
+                                                     ]
+                                     }
+                       },
+                       {
+                           "h2":  "Detailed Case Coverage"
+                       },
+                       {
+                           "p":  "TS-02 is represented by TC_AUTH_001 and TC_AUTH_002. TS-03 is represented by TC_BOOKING_001 and TC_BOOKING_002. The other 13 scenarios remain scenario-level coverage in Activity 1; that document does not provide a detailed case for each one."
+                       },
+                       {
+                           "p":  "The TS-03 cases concern in-person appointments and preserve the existing 24-hour minimum reservation lead time. New online requests follow hospital review before a slot is reserved, as described in Chapter 2. Additional online, timing, security, and integration checks are summarized after the four original cases."
+                       },
+                       {
+                           "source":  "Source S23 Existing Activity 1 test design. Sources S4 S5 S10 S17 provide supplementary workflow requirements."
+                       }
+                   ]
+    },
+    {
+        "title":  "Test Case TC_AUTH_001",
+        "blocks":  [
+                       {
+                           "h2":  "Successful Sign-In and Role-Based Redirect"
+                       },
+                       {
+                           "p":  "Related scenario: TS-02. Case type: Positive / happy path."
+                       },
+                       {
+                           "h3":  "Preconditions"
+                       },
+                       {
+                           "steps":  [
+                                         "The test Supabase project is available.",
+                                         "An active patient account exists.",
+                                         "The tester is signed out."
+                                     ]
+                       },
+                       {
+                           "h3":  "Test Data"
+                       },
+                       {
+                           "p":  "Active patient fixture qa.patient@carenavigator.test and its correct configured test password."
+                       },
+                       {
+                           "h3":  "Test Steps"
+                       },
+                       {
+                           "steps":  [
+                                         "Open CareNavigator PH and select Sign in.",
+                                         "Enter the active patient\u0027s email and correct password.",
+                                         "Select Sign in.",
+                                         "Verify the destination workspace."
+                                     ]
+                       },
+                       {
+                           "h3":  "Expected Results"
+                       },
+                       {
+                           "steps":  [
+                                         "Authentication succeeds and a session is created.",
+                                         "The user is redirected to the Patient workspace.",
+                                         "Patient navigation and the user\u0027s scoped data appear.",
+                                         "Doctor and administrator access is not granted."
+                                     ]
+                       },
+                       {
+                           "source":  "Execution record: Actual result, execution date, tester, and pass/fail outcome were not supplied in Activity 1. Source S23."
+                       }
+                   ]
+    },
+    {
+        "title":  "Test Case TC_AUTH_002",
+        "blocks":  [
+                       {
+                           "h2":  "Sign-In Rejected for an Incorrect Password"
+                       },
+                       {
+                           "p":  "Related scenario: TS-02. Case type: Negative / error path."
+                       },
+                       {
+                           "h3":  "Preconditions"
+                       },
+                       {
+                           "steps":  [
+                                         "The test Supabase project is available.",
+                                         "The active patient email exists.",
+                                         "The tester is signed out."
+                                     ]
+                       },
+                       {
+                           "h3":  "Test Data"
+                       },
+                       {
+                           "p":  "Existing patient fixture qa.patient@carenavigator.test and a deliberately incorrect password."
+                       },
+                       {
+                           "h3":  "Test Steps"
+                       },
+                       {
+                           "steps":  [
+                                         "Open CareNavigator PH and select Sign in.",
+                                         "Enter the patient email and an incorrect password.",
+                                         "Select Sign in.",
+                                         "Attempt to open /patient/appointments."
+                                     ]
+                       },
+                       {
+                           "h3":  "Expected Results"
+                       },
+                       {
+                           "steps":  [
+                                         "Authentication fails and a safe error message appears.",
+                                         "The user remains on the sign-in screen.",
+                                         "No authenticated session is created.",
+                                         "The protected route returns to sign-in and exposes no patient data."
+                                     ]
+                       },
+                       {
+                           "source":  "Execution record: Actual result, execution date, tester, and pass/fail outcome were not supplied in Activity 1. Source S23."
+                       }
+                   ]
+    },
+    {
+        "title":  "Test Case TC_BOOKING_001",
+        "blocks":  [
+                       {
+                           "h2":  "Reserve an In-Person Consultation from a Published Slot"
+                       },
+                       {
+                           "p":  "Related scenario: TS-03. Case type: Positive / happy path."
+                       },
+                       {
+                           "h3":  "Preconditions"
+                       },
+                       {
+                           "steps":  [
+                                         "An active patient is signed in with a complete profile.",
+                                         "A verified, operating hospital has an eligible doctor.",
+                                         "An unoccupied in-person slot is at least 24 hours away."
+                                     ]
+                       },
+                       {
+                           "h3":  "Test Data"
+                       },
+                       {
+                           "p":  "Hospital: verified and operating fixture. Clinician: eligible doctor. Concern: Recurring headache for two days. Slot: 48 hours ahead."
+                       },
+                       {
+                           "h3":  "Test Steps"
+                       },
+                       {
+                           "steps":  [
+                                         "Open Patient \u003e Appointments.",
+                                         "Select Reserve consultation.",
+                                         "Choose the hospital, clinician, and In person care mode.",
+                                         "Enter the primary care concern.",
+                                         "Choose a published date and time, then select Reserve consultation."
+                                     ]
+                       },
+                       {
+                           "h3":  "Expected Results"
+                       },
+                       {
+                           "steps":  [
+                                         "One reservation is created for the signed-in patient.",
+                                         "It appears with the selected hospital, doctor, mode, and time.",
+                                         "Its status and time match the server record.",
+                                         "The occupied slot is no longer offered."
+                                     ]
+                       },
+                       {
+                           "source":  "Execution record: Actual result, execution date, tester, and pass/fail outcome were not supplied in Activity 1. Source S23."
+                       }
+                   ]
+    },
+    {
+        "title":  "Test Case TC_BOOKING_002",
+        "blocks":  [
+                       {
+                           "h2":  "Reservation Blocked When No Qualifying Slot Is Available"
+                       },
+                       {
+                           "p":  "Related scenario: TS-03. Case type: Negative / error path."
+                       },
+                       {
+                           "h3":  "Preconditions"
+                       },
+                       {
+                           "steps":  [
+                                         "An active patient is signed in.",
+                                         "The doctor has no qualifying unoccupied slot in the next 30 days.",
+                                         "No reservation exists for this attempt."
+                                     ]
+                       },
+                       {
+                           "h3":  "Test Data"
+                       },
+                       {
+                           "p":  "Clinician: no qualifying future slots. Search window: next 30 days. Minimum lead time: 24 hours (boundary/edge data)."
+                       },
+                       {
+                           "h3":  "Test Steps"
+                       },
+                       {
+                           "steps":  [
+                                         "Open Patient \u003e Appointments and select Reserve consultation.",
+                                         "Select the clinician fixture with no qualifying slots.",
+                                         "Select In person care mode.",
+                                         "Review the availability area and the submission control."
+                                     ]
+                       },
+                       {
+                           "h3":  "Expected Results"
+                       },
+                       {
+                           "steps":  [
+                                         "No date or time can be selected.",
+                                         "The no-slot message states the 24-hour notice rule.",
+                                         "Reserve consultation is disabled.",
+                                         "No consultation or duplicate record is created."
+                                     ]
+                       },
+                       {
+                           "source":  "Execution record: Actual result, execution date, tester, and pass/fail outcome were not supplied in Activity 1. Source S23."
+                       }
+                   ]
+    },
+    {
+        "title":  "Supplementary Workflow Verification",
+        "blocks":  [
+                       {
+                           "p":  "These checks retain the earlier workflow summary and its 12 October 2026 evidence. They do not assign execution results to the Activity 1 cases."
+                       },
+                       {
+                           "table":  {
+                                         "font":  10,
+                                         "rows":  [
+                                                      [
+                                                          "Role sign-in and account routing",
+                                                          "Five roles follow permitted routes during sign-in, reload, and sign-out.",
+                                                          "Browser run passed."
+                                                      ],
+                                                      [
+                                                          "OTP verified then insertion fails",
+                                                          "Keep intake and the same key; retry without reusing the verified OTP.",
+                                                          "Flutter regression passed."
+                                                      ],
+                                                      [
+                                                          "New online booking",
+                                                          "Review before reservation; show actual slot_reserved.",
+                                                          "Source and recorded journey."
+                                                      ],
+                                                      [
+                                                          "Information and proposal response",
+                                                          "Return answers to review; accepting a proposal rechecks and confirms.",
+                                                          "Recorded proposal outcome confirmed."
+                                                      ],
+                                                      [
+                                                          "Guest activation retry",
+                                                          "Reuse the submitting verified account and patient profile; preserve credentials.",
+                                                          "Activation recorded; SQL suite defined."
+                                                      ],
+                                                      [
+                                                          "Reschedule and schedule races",
+                                                          "Synchronize time, grants, room, and reminders; protect reserved schedules.",
+                                                          "Target database acceptance required."
+                                                      ],
+                                                      [
+                                                          "Competing confirmations",
+                                                          "Only one competing request may reserve a slot.",
+                                                          "Race validation required."
+                                                      ],
+                                                      [
+                                                          "Video time boundaries",
+                                                          "Authorize participants and enforce minus 15 minutes to before plus four hours.",
+                                                          "Server rule present; media test open."
+                                                      ],
+                                                      [
+                                                          "Missed visit around 30 minutes",
+                                                          "Reject early, uncontacted, or started visits; preserve valid missed outcomes.",
+                                                          "Database acceptance defined."
+                                                      ],
+                                                      [
+                                                          "Patient upload and doctor review",
+                                                          "Enforce ownership and scope; retain provenance and record review.",
+                                                          "Focused browser follow-up passed."
+                                                      ],
+                                                      [
+                                                          "Invalid medication in a full order",
+                                                          "Invalid medication commits neither order nor medication.",
+                                                          "Database acceptance required."
+                                                      ],
+                                                      [
+                                                          "Attachment retry and grouping",
+                                                          "Retry the existing order; use order_id and explicit attachment references.",
+                                                          "Grouping passed; retry path present."
+                                                      ],
+                                                      [
+                                                          "Unauthorized email action",
+                                                          "Deny public or unrelated callers; resolve authorized recipients from records.",
+                                                          "Rules present; delivery open."
+                                                      ],
+                                                      [
+                                                          "Preferences and sharing",
+                                                          "Persist preferences and revoke every active relationship grant.",
+                                                          "Browser checks passed."
+                                                      ],
+                                                      [
+                                                          "Daily medication eligibility",
+                                                          "Check both preferences, active dates, and patient/date deduplication.",
+                                                          "Producer and date guards present."
+                                                      ],
+                                                      [
+                                                          "Password recovery",
+                                                          "Handle expired links and complete valid-link password change.",
+                                                          "Expired link passed; valid link open."
+                                                      ]
+                                                  ],
+                                         "widths":  [
+                                                        2500,
+                                                        4160,
+                                                        2700
+                                                    ],
+                                         "headers":  [
+                                                         "Verification area",
+                                                         "Expected behavior",
+                                                         "Recorded evidence or outstanding check"
+                                                     ]
+                                     }
+                       },
+                       {
+                           "source":  "Sources S5 S10 S13 S16 S17 S19."
+                       }
+                   ]
+    }
+]

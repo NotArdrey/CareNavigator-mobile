@@ -1,0 +1,23 @@
+{
+  "checkedAt": "2026-10-16T06:53:58.619Z",
+  "authSmtpHostConfigured": true,
+  "authSmtpPasswordConfigured": true,
+  "siteUrl": "http://localhost:3000",
+  "recoveryRedirects": [
+    "http://localhost:3000/reset-password",
+    "http://127.0.0.1:3000/reset-password",
+    "http://localhost:7357/reset-password",
+    "http://127.0.0.1:7357/reset-password"
+  ],
+  "edgeSmtpPasswordConfigured": false,
+  "controlledRecipientConfigured": true,
+  "edgeAppUrlConfigured": true,
+  "dispatcher": [
+    {
+      "jobname": "carenavigator-dispatch-notifications",
+      "schedule": "*/5 * * * *",
+      "active": true,
+      "references_vault": true
+    }
+  ]
+}

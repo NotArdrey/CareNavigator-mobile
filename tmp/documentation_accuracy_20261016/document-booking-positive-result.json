@@ -1,0 +1,8 @@
+{
+  "id": "TC_BOOKING_001",
+  "checkedAt": "2026-10-16T06:45:46.420Z",
+  "result": "PASS",
+  "scope": "Actual browser in-person booking, persisted values, visible appointment, occupied slot removed",
+  "fixture": "Owned synthetic doctor/patient, next published slot at least 24 hours away; not fixed exactly 48 hours",
+  "cleanup": "Synthetic reservation cancelled"
+}

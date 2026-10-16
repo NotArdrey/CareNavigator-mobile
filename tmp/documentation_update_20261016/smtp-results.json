@@ -1,0 +1,36 @@
+{
+  "checkedAt": "2026-10-16T06:55:19.118Z",
+  "source": "supabase/functions/dispatch-notifications/index.ts",
+  "sourceSha256": "4dc08d85d1803e1baf4309b9fcb3b5dac208e5d92ad9ab80d4732c473c24d801",
+  "scope": "Production handler body with Node TypeScript stripping, actual Nodemailer 9.0.3 and a loopback SMTP receiver; Supabase calls use controlled fixtures. No external email sent.",
+  "cases": [
+    {
+      "name": "Invalid dispatcher token cannot claim or send",
+      "result": "PASS"
+    },
+    {
+      "name": "Real SMTP transport delivers MIME email to local-only inbox and records success",
+      "result": "PASS"
+    },
+    {
+      "name": "Disabled email preference cancels delivery without SMTP",
+      "result": "PASS"
+    },
+    {
+      "name": "Unverified recipient is rejected without SMTP",
+      "result": "PASS"
+    },
+    {
+      "name": "Missing SMTP password records failed delivery",
+      "result": "PASS"
+    },
+    {
+      "name": "SMTP recipient rejection records failure and accepts no message",
+      "result": "PASS"
+    },
+    {
+      "name": "Retry of the same job preserves Message-ID and succeeds after SMTP recovery",
+      "result": "PASS"
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "startedAt": "2026-10-16T06:39:30.595Z",
+  "checks": [
+    {
+      "name": "owned synthetic fixture activation",
+      "exitCode": 0
+    },
+    {
+      "name": "11 live repository checks",
+      "exitCode": 0
+    },
+    {
+      "name": "10 role, clinical, sharing and upload browser checks",
+      "exitCode": 0
+    },
+    {
+      "name": "18 CRUD, staff and workspace-fetch browser checks",
+      "exitCode": 0
+    },
+    {
+      "name": "owned temporary object cleanup",
+      "exitCode": 0
+    },
+    {
+      "name": "synthetic fixture retirement",
+      "exitCode": 0
+    },
+    {
+      "name": "cleanup verification",
+      "exitCode": 0
+    }
+  ],
+  "limits": [
+    "No real email delivery, OTP delivery, valid recovery email or provider media tested.",
+    "Google Meet browser fixture tests omitted because their preparation temporarily disables live reservation triggers. Meet authorization is covered by rolled-back SQL acceptance."
+  ],
+  "finishedAt": "2026-10-16T06:47:32.333Z"
+}

@@ -1,0 +1,122 @@
+﻿[
+    {
+        "old":  "The exposed SMTP credential requires owner-side revocation and replacement configuration. Delivered email, two-party Jitsi media, valid-link recovery, and full empty-project and staging-copy deployment tests remain verification gates.",
+        "new":  "Live notification email is blocked until the dispatcher receives a replacement SMTP_PASSWORD server secret. Its handler passed seven local SMTP checks. Real inbox delivery, Google Meet media, physical-device behavior, and full cloud installation and upgrade remain verification gates. [S24]"
+    },
+    {
+        "old":  "The request status describes review and contact progress; the official consultation status describes the clinical appointment. Terminal operations synchronize the consultation, room, access grants, history, and notifications. [S5, S7]",
+        "new":  "Request status tracks review and contact; consultation status tracks the clinical appointment. Terminal actions synchronize app sessions, access, history, and notifications. Google Meet controls hosting and admission. [S5, S7, S10]"
+    },
+    {
+        "old":  "Terminal actions close rooms and consultation-specific access while retaining cancellation and missed-visit reasons in history.",
+        "new":  "Terminal actions close app sessions and related access, retaining outcome reasons. They cannot end Google Meet calls or invalidate copied links."
+    },
+    {
+        "old":  "Sharing management groups access by care relationship. Its revoke action explains that every active grant, category, and selected record under that relationship is included. A room-preparation retry state prevents an unprepared room from being presented as a successful video join.",
+        "new":  "Sharing management groups access by care relationship. Revocation covers every active grant, category, and selected record in that relationship. Video joining requires an assigned-doctor Google Meet link and an open join window; missing links offer a refresh-and-retry state."
+    },
+    {
+        "old":  "The test design follows the existing Activity 1 CareNavigator PH Test Scenarios and Test Cases document. Its 15 scenarios identify the functions to verify. Four detailed cases define positive and negative checks for TS-02 (sign-in) and TS-03 (in-person reservation). The original scenario and test-case identifiers are retained. [S23]",
+        "new":  "The test design follows Activity 1 CareNavigator PH Test Scenarios and Test Cases. Its 15 scenario identifiers and four detailed cases are retained. The 16 October 2026 verification adds actual results using owned synthetic fixtures and identifies controlled responses explicitly. [S23, S24]"
+    },
+    {
+        "old":  "Activity 1 supplies expected outcomes but no actual results, execution dates, or pass/fail records. The cases below are therefore documented test designs. The recorded implementation evidence appears separately under Evaluation and Recorded Verification and is not assigned as a result for these four cases.",
+        "new":  "Activity 1 supplies expected outcomes but no execution records. The results below come from the separate 16 October verification. They identify fixture substitutions, actual backend actions, controlled UI responses, and remaining integration limits. [S24]"
+    },
+    {
+        "old":  "Active patient fixture qa.patient@carenavigator.test and its correct configured test password.",
+        "new":  "Use the owned synthetic patient configured for the test run and its correct test password. Keep credentials in local test configuration and outside this document."
+    },
+    {
+        "old":  "Existing patient fixture qa.patient@carenavigator.test and a deliberately incorrect password.",
+        "new":  "Use the owned synthetic patient configured for the test run and a deliberately incorrect password. Keep the real test password outside this document."
+    },
+    {
+        "old":  "Hospital: verified and operating fixture. Clinician: eligible doctor. Concern: Recurring headache for two days. Slot: 48 hours ahead.",
+        "new":  "Use the owned synthetic patient and doctor at a verified, operating hospital. Select the next published, unoccupied in-person slot at least 24 hours ahead; a fixed 48-hour offset may not match a published schedule."
+    },
+    {
+        "old":  "Clinician: no qualifying future slots. Search window: next 30 days. Minimum lead time: 24 hours (boundary/edge data).",
+        "new":  "Expected fixture: no qualifying slots in the next 30 days, with a 24-hour minimum lead time. The recorded UI check supplies an empty availability response; it does not provision a separate no-slot clinician."
+    },
+    {
+        "old":  "These checks retain the earlier workflow summary and its 12 October 2026 evidence. They do not assign execution results to the Activity 1 cases.",
+        "new":  "The 16 October checks distinguish live actions, database assertions, and controlled responses. External email delivery and real provider media remain separate gates. [S24]"
+    },
+    {
+        "old":  "The full browser run at 6:34 AM on 12 October 2026 Asia/Manila recorded 9 passes and 2 failures. A focused supporting-upload and doctor-review run at 6:43 AM passed its one test. Recorded analysis, Flutter tests, and release builds also passed. A complete browser rerun and the remaining external integration checks are still required.",
+        "new":  "Verification on 16 October 2026 passed 281 Flutter checks, 28 browser checks and 11 deployed SQL suites. Four follow-ups and the local SMTP and concurrency tests add qualified evidence. External delivery and media remain open. [S24]"
+    },
+    {
+        "old":  "The implemented structure supports distinct roles, explicit patient ownership, transactional clinical operations, and visible review actions. Typed outcomes make reservation and notification feedback assessable. The baseline and six function folders improve reproducibility.",
+        "new":  "Fresh results support scoped care, transactional orders, and review controls. Earlier AI extraction remains historical evidence and does not establish clinical accuracy."
+    },
+    {
+        "old":  "Release acceptance still requires a complete browser rerun, delivered email, received Jitsi media, valid-link recovery, timing and concurrency checks, and full cloud installation and upgrade verification. Each of the 15 audit findings requires its own closure evidence; an aggregate Flutter pass does not close every defect.",
+        "new":  "Local races, generated-link recovery and controlled Meet navigation passed. External inbox delivery, real provider media, device checks, and full cloud installation and staging upgrade remain open. [S24]"
+    },
+    {
+        "old":  "CareNavigator PH implements a mobile and web application that connects public discovery, verified intake, hospital-reviewed booking, clinician documentation, patient records, communication, and administration. Flutter, Riverpod, and Supabase provide a shared technical foundation, while role and relationship checks define how each user participates in the care journey.",
+        "new":  "CareNavigator PH connects discovery, verified intake, hospital-reviewed booking, clinician records, communication, and administration in one Flutter application. Riverpod and Supabase support shared data flows; role and care-relationship checks control access."
+    },
+    {
+        "old":  "The repair work introduces typed booking outcomes, guest self-activation, reviewed patient uploads, atomic prescription orders, accurate delivery states, and a reproducible backend package. Recorded automated checks and release builds demonstrate progress. The project remains subject to the external integration and deployment acceptance gates identified in Chapter 4.",
+        "new":  "The workflows include typed booking outcomes, guest activation, reviewed uploads, atomic prescription orders, and delivery states. Passing tests support these features. Notification email still requires a dispatcher SMTP password; external integration and deployment gates remain open."
+    },
+    {
+        "old":  "• Revoke the exposed SMTP credential at the provider account, configure its replacement only as a server secret, and prove delivery to a controlled recipient before enabling normal email retries.",
+        "new":  "• Configure the dispatcher SMTP_PASSWORD server secret, verify a controlled inbox, and revoke previously exposed credentials."
+    },
+    {
+        "old":  "• Retain the passed focused upload-review check as regression coverage and rerun the complete browser suite, including provenance, authorized download, and rejection scenarios.",
+        "new":  "• Retain upload-review and browser CRUD regressions; extend document rejection and failure-recovery coverage while preserving provenance."
+    },
+    {
+        "old":  "• Complete an authenticated two-party Jitsi session and verify received audio and video on both sides, including room preparation and timing failures.",
+        "new":  "• Verify real Google Meet admission and received media on both sides. App revocation does not replace provider host controls."
+    },
+    {
+        "old":  "• Execute the valid recovery-link journey, session expiry, account switching, and failure recovery through the deployed application routes.",
+        "new":  "• Retain generated-link recovery coverage and test actual recovery-email delivery through deployed routes."
+    },
+    {
+        "old":  "• Complete database race, reschedule, missed-visit boundary, rollback, and attachment-retry acceptance checks without bypassing production lead-time rules.",
+        "new":  "• Retain isolated concurrency checks; test staging load, attachment retry, and daily-dispatch timing without weakening booking rules."
+    },
+    {
+        "old":  "• Prove installation in an empty Supabase project and upgrade against a staging copy; maintain migration reconciliation, the physical ERD, and the six function deployment versions.",
+        "new":  "• Prove empty-cloud installation and staging upgrades. Maintain migration reconciliation, the full ERD, and all six function versions."
+    },
+    {
+        "old":  "• Monitor lifecycle inconsistencies, active terminal grants, failed outbox jobs, duplicate summaries, and activation errors after rollout. Retest on real Android devices and verify iOS separately.",
+        "new":  "• Monitor lifecycle, access, outbox, duplicate-summary, and activation errors after rollout. Test real Android devices and verify iOS separately."
+    },
+    {
+        "old":  "6. Use the authorized video join action during its window. Retry room preparation as needed. Follow any displayed identity-resolution action while continuing authorized tracking.",
+        "new":  "6. Use Join Google Meet / retry during the permitted window after the doctor saves the link. Follow any identity-resolution action while continuing authorized tracking."
+    },
+    {
+        "old":  "4. Use the appointment controls to track, reschedule, or cancel where permitted. Join video only when the room is ready and the scheduled window is open.",
+        "new":  "4. Track, reschedule, or cancel where permitted. Select Join Google Meet after the doctor saves the link and the scheduled join window opens."
+    },
+    {
+        "old":  "3. For online care, prepare or join the authorized room within the scheduled window. If the video provider requires a moderator, authenticate through the provider\u0027s supported moderator process.",
+        "new":  "3. After hospital confirmation, create a Google Meet meeting and select Set Google Meet link. Paste its HTTPS meeting URL. Select Join Google Meet during the join window and use Google Meet host controls to admit the patient."
+    },
+    {
+        "old":  "Request password recovery from authentication and open the email link. The application routes recovery events to reset-password. For an expired link, request a new link through the displayed action. Change the password and confirm the correct workspace. Successful valid-link recovery remains a release check.",
+        "new":  "Request recovery and open the emailed link. For an expired link, request a new one. Enter and confirm a new password on reset-password. Generated-link recovery through real Auth passed on 16 October; delivery of an actual recovery email remains a separate check. [S24]"
+    },
+    {
+        "old":  "The following repository sources and recorded verification artifacts support the system descriptions, implementation details, and testing results. Evidence covers the examined working tree and recorded runs dated 11 and 12 October 2026.",
+        "new":  "The following repository sources and verification artifacts support the system descriptions and results. Historical evidence is dated 11 and 12 October 2026. Current results and qualified follow-up checks are dated 16 October 2026."
+    },
+    {
+        "old":  "[S10] supabase/migrations/20261011171441_close_null_video_authorization.sql. Participant authorization and video time window.",
+        "new":  "[S10] Active Google Meet migrations 20261011231128 and 20261011232923. Doctor-supplied links, assignment guards, participant authorization, and join-window enforcement."
+    },
+    {
+        "old":  "[S13] Recorded Playwright runs and tmp/final_project_doc/verification_evidence.json. 12 October 2026: full browser run at 6:34 AM; passing focused upload-review follow-up at 6:43 AM, Asia/Manila.",
+        "new":  "[S13] Historical Playwright evidence from 12 October 2026, retained in tmp/final_project_doc/verification_evidence.json. Current browser results are recorded under S24."
+    }
+]
